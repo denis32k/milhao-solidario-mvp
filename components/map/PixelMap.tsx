@@ -8,9 +8,9 @@ const GRID_ROWS = 145;
 const BLOCK_SIZE = 10;
 const MAP_WIDTH = GRID_COLS * BLOCK_SIZE;
 const MAP_HEIGHT = GRID_ROWS * BLOCK_SIZE;
+const MAX_SCALE = 8;
 
 type BlockCategory = "SOLIDARITY" | "PREMIUM" | "GRAND_CENTER";
-
 type BuyableCategory = "SOLIDARITY" | "PREMIUM";
 
 type Camera = {
@@ -60,6 +60,18 @@ type SelectedSheet =
   | { type: "grand-center" }
   | { type: "sold"; block: ApiMapBlock };
 
+type PointerPoint = {
+  x: number;
+  y: number;
+};
+
+type PinchStart = {
+  distance: number;
+  scale: number;
+  worldX: number;
+  worldY: number;
+};
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -99,6 +111,17 @@ function getBlockPrice(category: BlockCategory) {
 
 function getBlockKey(x: number, y: number) {
   return `${x}:${y}`;
+}
+
+function getPointerDistance(a: PointerPoint, b: PointerPoint) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function getPointerCenter(a: PointerPoint, b: PointerPoint) {
+  return {
+    x: (a.x + b.x) / 2,
+    y: (a.y + b.y) / 2,
+  };
 }
 
 function isAdjacentToSelection(
@@ -146,11 +169,7 @@ function getSoldBlockColor(block: ApiMapBlock) {
 }
 
 function getCategoryLabel(category: BuyableCategory) {
-  if (category === "SOLIDARITY") {
-    return "Mosaico";
-  }
-
-  return "Premium";
+  return category === "SOLIDARITY" ? "Mosaico" : "Premium";
 }
 
 function buildCheckoutHref(selectedBlocks: SelectedBlock[]) {
@@ -172,9 +191,11 @@ export default function PixelMap() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
 
+  const activePointersRef = useRef(new Map<number, PointerPoint>());
   const isDraggingRef = useRef(false);
   const movedRef = useRef(false);
   const lastPointerRef = useRef({ x: 0, y: 0 });
+  const pinchStartRef = useRef<PinchStart | null>(null);
 
   const [selectedSheet, setSelectedSheet] = useState<SelectedSheet>(null);
   const [mapBlocks, setMapBlocks] = useState<ApiMapBlock[]>([]);
@@ -188,14 +209,29 @@ export default function PixelMap() {
     scale: 1,
   });
 
+  function getMinScale() {
+    const wrapper = wrapperRef.current;
+
+    if (!wrapper) {
+      return 1;
+    }
+
+    const rect = wrapper.getBoundingClientRect();
+
+    return Math.max(rect.width / MAP_WIDTH, rect.height / MAP_HEIGHT);
+  }
+
   function clampCamera(nextCamera: Camera): Camera {
     const wrapper = wrapperRef.current;
 
     if (!wrapper) return nextCamera;
 
     const rect = wrapper.getBoundingClientRect();
-    const scaledWidth = MAP_WIDTH * nextCamera.scale;
-    const scaledHeight = MAP_HEIGHT * nextCamera.scale;
+    const minScale = getMinScale();
+    const scale = clamp(nextCamera.scale, minScale, MAX_SCALE);
+
+    const scaledWidth = MAP_WIDTH * scale;
+    const scaledHeight = MAP_HEIGHT * scale;
 
     let nextX = nextCamera.x;
     let nextY = nextCamera.y;
@@ -213,9 +249,9 @@ export default function PixelMap() {
     }
 
     return {
-      ...nextCamera,
       x: nextX,
       y: nextY,
+      scale,
     };
   }
 
@@ -359,16 +395,16 @@ export default function PixelMap() {
 
         ctx.fillRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
 
-        ctx.strokeStyle = "rgba(15, 23, 42, 0.22)";
-        ctx.lineWidth = 0.35;
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.24)";
+        ctx.lineWidth = 0.38;
         ctx.strokeRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
 
         if (isSelected(x, y)) {
-          ctx.fillStyle = "rgba(37, 99, 235, 0.82)";
+          ctx.fillStyle = "rgba(37, 99, 235, 0.85)";
           ctx.fillRect(px + 1, py + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
 
           ctx.strokeStyle = "#1d4ed8";
-          ctx.lineWidth = 1.6;
+          ctx.lineWidth = 1.8;
           ctx.strokeRect(px + 0.5, py + 0.5, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
         }
 
@@ -474,12 +510,55 @@ export default function PixelMap() {
     ]);
   }
 
+  function getPointerList() {
+    return Array.from(activePointersRef.current.values());
+  }
+
+  function updatePointer(event: PointerEvent<HTMLDivElement>) {
+    activePointersRef.current.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+    });
+  }
+
+  function startPinchIfPossible() {
+    const wrapper = wrapperRef.current;
+    const pointers = getPointerList();
+
+    if (!wrapper || pointers.length < 2) {
+      pinchStartRef.current = null;
+      return;
+    }
+
+    const rect = wrapper.getBoundingClientRect();
+    const first = pointers[0];
+    const second = pointers[1];
+    const center = getPointerCenter(first, second);
+    const screenX = center.x - rect.left;
+    const screenY = center.y - rect.top;
+
+    pinchStartRef.current = {
+      distance: getPointerDistance(first, second),
+      scale: camera.scale,
+      worldX: (screenX - camera.x) / camera.scale,
+      worldY: (screenY - camera.y) / camera.scale,
+    };
+  }
+
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
     event.currentTarget.setPointerCapture(event.pointerId);
+    updatePointer(event);
 
-    isDraggingRef.current = true;
     movedRef.current = false;
 
+    if (activePointersRef.current.size >= 2) {
+      isDraggingRef.current = false;
+      startPinchIfPossible();
+      return;
+    }
+
+    isDraggingRef.current = true;
+    pinchStartRef.current = null;
     lastPointerRef.current = {
       x: event.clientX,
       y: event.clientY,
@@ -487,6 +566,46 @@ export default function PixelMap() {
   }
 
   function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
+    if (!activePointersRef.current.has(event.pointerId)) return;
+
+    updatePointer(event);
+
+    const pointers = getPointerList();
+
+    if (pointers.length >= 2) {
+      const wrapper = wrapperRef.current;
+      const pinchStart = pinchStartRef.current;
+
+      if (!wrapper || !pinchStart) return;
+
+      movedRef.current = true;
+
+      const rect = wrapper.getBoundingClientRect();
+      const first = pointers[0];
+      const second = pointers[1];
+      const center = getPointerCenter(first, second);
+      const distance = getPointerDistance(first, second);
+
+      const screenX = center.x - rect.left;
+      const screenY = center.y - rect.top;
+      const minScale = getMinScale();
+      const nextScale = clamp(
+        pinchStart.scale * (distance / pinchStart.distance),
+        minScale,
+        MAX_SCALE
+      );
+
+      setCamera(
+        clampCamera({
+          x: screenX - pinchStart.worldX * nextScale,
+          y: screenY - pinchStart.worldY * nextScale,
+          scale: nextScale,
+        })
+      );
+
+      return;
+    }
+
     if (!isDraggingRef.current) return;
 
     const dx = event.clientX - lastPointerRef.current.x;
@@ -510,8 +629,18 @@ export default function PixelMap() {
     );
   }
 
-  function handlePointerUp() {
-    isDraggingRef.current = false;
+  function handlePointerUp(event: PointerEvent<HTMLDivElement>) {
+    activePointersRef.current.delete(event.pointerId);
+    pinchStartRef.current = null;
+
+    const pointers = getPointerList();
+
+    if (pointers.length === 1) {
+      isDraggingRef.current = true;
+      lastPointerRef.current = pointers[0];
+    } else {
+      isDraggingRef.current = false;
+    }
   }
 
   function handleClick(event: MouseEvent<HTMLDivElement>) {
@@ -524,16 +653,50 @@ export default function PixelMap() {
     selectBlock(gridPosition.x, gridPosition.y, gridPosition.type);
   }
 
+  function zoomBy(multiplier: number) {
+    const wrapper = wrapperRef.current;
+
+    if (!wrapper) return;
+
+    const rect = wrapper.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const worldX = (centerX - camera.x) / camera.scale;
+    const worldY = (centerY - camera.y) / camera.scale;
+    const nextScale = clamp(camera.scale * multiplier, getMinScale(), MAX_SCALE);
+
+    setCamera(
+      clampCamera({
+        x: centerX - worldX * nextScale,
+        y: centerY - worldY * nextScale,
+        scale: nextScale,
+      })
+    );
+  }
+
   function handleWheel(event: WheelEvent<HTMLDivElement>) {
     event.preventDefault();
 
-    const nextScale =
-      event.deltaY > 0 ? camera.scale * 0.9 : camera.scale * 1.1;
+    const wrapper = wrapperRef.current;
 
-    setCamera((current) =>
+    if (!wrapper) return;
+
+    const rect = wrapper.getBoundingClientRect();
+    const screenX = event.clientX - rect.left;
+    const screenY = event.clientY - rect.top;
+    const worldX = (screenX - camera.x) / camera.scale;
+    const worldY = (screenY - camera.y) / camera.scale;
+    const nextScale = clamp(
+      event.deltaY > 0 ? camera.scale * 0.9 : camera.scale * 1.1,
+      getMinScale(),
+      MAX_SCALE
+    );
+
+    setCamera(
       clampCamera({
-        ...current,
-        scale: clamp(nextScale, 0.55, 7),
+        x: screenX - worldX * nextScale,
+        y: screenY - worldY * nextScale,
+        scale: nextScale,
       })
     );
   }
@@ -552,83 +715,100 @@ export default function PixelMap() {
       <canvas ref={canvasRef} className="block h-full w-full" />
 
       <div
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white p-4 shadow-2xl"
+        className="absolute right-3 top-3 z-40 flex flex-col gap-2"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="mx-auto max-w-3xl">
-          {selectedBlocks.length === 0 && (
-            <div className="text-center">
-              <p className="text-sm font-black text-slate-950">
-                Toque nos blocos que deseja comprar
-              </p>
-              <p className="mt-1 text-xs font-semibold text-slate-500">
-                Depois do primeiro bloco, os próximos precisam estar encostados.
-              </p>
-            </div>
-          )}
-
-          {selectedBlocks.length > 0 && (
-            <div>
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-2xl bg-slate-50 p-3">
-                  <p className="text-[10px] font-black uppercase text-slate-500">
-                    Blocos
-                  </p>
-                  <p className="text-lg font-black text-slate-950">
-                    {selectedBlocks.length}
-                  </p>
-                </div>
-
-                <div className="rounded-2xl bg-green-50 p-3">
-                  <p className="text-[10px] font-black uppercase text-green-700">
-                    Tipo
-                  </p>
-                  <p className="text-sm font-black text-green-900">
-                    {getCategoryLabel(selectedBlocks[0].category)}
-                  </p>
-                </div>
-
-                <div className="rounded-2xl bg-orange-50 p-3">
-                  <p className="text-[10px] font-black uppercase text-orange-700">
-                    Total
-                  </p>
-                  <p className="text-sm font-black text-orange-900">
-                    {money(selectedTotalCents)}
-                  </p>
-                </div>
-              </div>
-
-              {selectionMessage && (
-                <p className="mt-3 rounded-2xl bg-yellow-100 p-3 text-center text-xs font-black text-yellow-800">
-                  {selectionMessage}
-                </p>
-              )}
-
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={clearSelection}
-                  className="rounded-2xl bg-slate-100 py-4 text-sm font-black text-slate-800"
-                >
-                  Limpar seleção
-                </button>
-
-                <a
-                  href={buildCheckoutHref(selectedBlocks)}
-                  onClick={(event) => event.stopPropagation()}
-                  className="rounded-2xl bg-green-600 py-4 text-center text-sm font-black text-white shadow-lg"
-                >
-                  Continuar
-                </a>
-              </div>
-
-              <p className="mt-2 text-center text-[11px] font-semibold text-slate-500">
-                Valor inclui taxa operacional de 10%.
-              </p>
-            </div>
-          )}
-        </div>
+        <button
+          type="button"
+          onClick={() => zoomBy(1.25)}
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-xl font-black text-slate-950 shadow-lg"
+        >
+          +
+        </button>
+        <button
+          type="button"
+          onClick={() => zoomBy(0.8)}
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-xl font-black text-slate-950 shadow-lg"
+        >
+          -
+        </button>
+        <button
+          type="button"
+          onClick={fitGridToScreen}
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-lg font-black text-slate-950 shadow-lg"
+        >
+          ⌂
+        </button>
       </div>
+
+      {selectedBlocks.length > 0 && (
+        <div
+          className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white p-3 shadow-2xl"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="mx-auto max-w-3xl">
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-2xl bg-slate-50 p-2">
+                <p className="text-[10px] font-black uppercase text-slate-500">
+                  Blocos
+                </p>
+                <p className="text-base font-black text-slate-950">
+                  {selectedBlocks.length}
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-green-50 p-2">
+                <p className="text-[10px] font-black uppercase text-green-700">
+                  Tipo
+                </p>
+                <p className="text-xs font-black text-green-900">
+                  {getCategoryLabel(selectedBlocks[0].category)}
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-orange-50 p-2">
+                <p className="text-[10px] font-black uppercase text-orange-700">
+                  Total
+                </p>
+                <p className="text-xs font-black text-orange-900">
+                  {money(selectedTotalCents)}
+                </p>
+              </div>
+            </div>
+
+            <p className="mt-2 overflow-hidden text-ellipsis whitespace-nowrap text-center text-[11px] font-bold text-slate-500">
+              {selectedBlocks
+                .map((block) => `x${block.gridX}/y${block.gridY}`)
+                .join(" • ")}
+            </p>
+
+            {selectionMessage && (
+              <p className="mt-2 rounded-2xl bg-yellow-100 p-2 text-center text-xs font-black text-yellow-800">
+                {selectionMessage}
+              </p>
+            )}
+
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="rounded-2xl bg-slate-100 py-3 text-sm font-black text-slate-800"
+              >
+                Limpar
+              </button>
+
+              <a
+                href={buildCheckoutHref(selectedBlocks)}
+                onClick={(event) => event.stopPropagation()}
+                className="rounded-2xl bg-green-600 py-3 text-center text-sm font-black text-white shadow-lg"
+              >
+                Continuar
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {selectedSheet?.type === "grand-center" && (
         <div
