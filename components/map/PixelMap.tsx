@@ -10,16 +10,7 @@ const BLOCK_SIZE = 10;
 const MAP_WIDTH = GRID_COLS * BLOCK_SIZE;
 const MAP_HEIGHT = GRID_ROWS * BLOCK_SIZE;
 
-const FAKE_PREMIUM = {
-  originX: 88,
-  originY: 58,
-  widthBlocks: 8,
-  heightBlocks: 8,
-  title: "Apoiador Premium",
-  description:
-    "Esse é um exemplo de bloco premium comprado. Aqui entraria a imagem, descrição e link do comprador.",
-  link: "https://example.com",
-};
+type BlockCategory = "SOLIDARITY" | "PREMIUM" | "GRAND_CENTER";
 
 type Camera = {
   x: number;
@@ -27,47 +18,99 @@ type Camera = {
   scale: number;
 };
 
+type ApiMapBlock = {
+  id: string;
+  gridX: number;
+  gridY: number;
+  category: BlockCategory;
+  status: string;
+  available: boolean;
+  priceCents: number;
+  owner: {
+    name: string;
+    publicName: string | null;
+    totalApprovedCents: number;
+  } | null;
+  placement: {
+    id: string;
+    kind: string;
+    status: string;
+    title: string | null;
+    description: string | null;
+    imageUrl: string | null;
+    redirectUrl: string | null;
+    linkDisabled: boolean;
+    displayName: string | null;
+    textLabel: string | null;
+    fillColor: string | null;
+    placeholderReason: string | null;
+  } | null;
+};
+
 type SelectedSheet =
   | null
-  | {
-      type: "grand-center";
-    }
-  | {
-      type: "premium";
-    }
-  | {
-      type: "solidarity";
-    };
+  | { type: "grand-center" }
+  | { type: "sold"; block: ApiMapBlock }
+  | { type: "solidarity" }
+  | { type: "premium" };
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function getBlockType(x: number, y: number) {
-  const isGrandCenter =
-    x >= 99 &&
-    x <= 100 &&
-    y >= 70 &&
-    y <= 74;
-
-  if (isGrandCenter) return "grand-center";
-
-  if (y < 25 || y >= 120) return "solidarity";
-
-  return "premium";
+function money(cents: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(cents / 100);
 }
 
-function isInsideFakePremium(x: number, y: number) {
-  return (
-    x >= FAKE_PREMIUM.originX &&
-    x < FAKE_PREMIUM.originX + FAKE_PREMIUM.widthBlocks &&
-    y >= FAKE_PREMIUM.originY &&
-    y < FAKE_PREMIUM.originY + FAKE_PREMIUM.heightBlocks
-  );
+function getBlockType(x: number, y: number): BlockCategory {
+  const isGrandCenter = x >= 99 && x <= 100 && y >= 70 && y <= 74;
+
+  if (isGrandCenter) {
+    return "GRAND_CENTER";
+  }
+
+  if (y < 25 || y >= 120) {
+    return "SOLIDARITY";
+  }
+
+  return "PREMIUM";
 }
 
 function isInsideGrandCenterClickArea(x: number, y: number) {
   return x >= 98 && x <= 101 && y >= 69 && y <= 75;
+}
+
+function getBlockKey(x: number, y: number) {
+  return `${x}:${y}`;
+}
+
+function getSoldBlockColor(block: ApiMapBlock) {
+  if (block.status === "BLOCKED") {
+    return "#64748b";
+  }
+
+  if (block.category === "SOLIDARITY") {
+    return block.placement?.fillColor || "#16a34a";
+  }
+
+  if (block.category === "PREMIUM") {
+    return "#0f172a";
+  }
+
+  return "#facc15";
+}
+
+function getDisplayName(block: ApiMapBlock) {
+  return (
+    block.placement?.displayName ||
+    block.placement?.textLabel ||
+    block.owner?.publicName ||
+    block.owner?.name ||
+    "Apoiador"
+  );
 }
 
 export default function PixelMap() {
@@ -82,6 +125,8 @@ export default function PixelMap() {
   });
 
   const [selectedSheet, setSelectedSheet] = useState<SelectedSheet>(null);
+  const [mapBlocks, setMapBlocks] = useState<ApiMapBlock[]>([]);
+  const [isLoadingBlocks, setIsLoadingBlocks] = useState(true);
 
   const [camera, setCamera] = useState<Camera>({
     x: 0,
@@ -107,8 +152,46 @@ export default function PixelMap() {
   }, []);
 
   useEffect(() => {
+    let isAlive = true;
+
+    async function loadMapBlocks() {
+      try {
+        setIsLoadingBlocks(true);
+
+        const response = await fetch("/api/map/blocks", {
+          cache: "no-store",
+        });
+
+        const data = await response.json();
+
+        if (!isAlive) return;
+
+        if (data.ok) {
+          setMapBlocks(data.blocks);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar blocos do mapa:", error);
+      } finally {
+        if (isAlive) {
+          setIsLoadingBlocks(false);
+        }
+      }
+    }
+
+    loadMapBlocks();
+
+    return () => {
+      isAlive = false;
+    };
+  }, []);
+
+  useEffect(() => {
     drawMap();
-  }, [camera]);
+  }, [camera, mapBlocks]);
+
+  function getMapBlockAt(x: number, y: number) {
+    return mapBlocks.find((block) => block.gridX === x && block.gridY === y);
+  }
 
   function drawMap() {
     const canvas = canvasRef.current;
@@ -129,6 +212,10 @@ export default function PixelMap() {
 
     if (!ctx) return;
 
+    const soldBlockByCoord = new Map(
+      mapBlocks.map((block) => [getBlockKey(block.gridX, block.gridY), block])
+    );
+
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     ctx.clearRect(0, 0, rect.width, rect.height);
@@ -144,15 +231,16 @@ export default function PixelMap() {
     for (let y = 0; y < GRID_ROWS; y++) {
       for (let x = 0; x < GRID_COLS; x++) {
         const type = getBlockType(x, y);
+        const soldBlock = soldBlockByCoord.get(getBlockKey(x, y));
 
         const px = x * BLOCK_SIZE;
         const py = y * BLOCK_SIZE;
 
-        if (isInsideFakePremium(x, y)) {
-          ctx.fillStyle = "#0f172a";
-        } else if (type === "grand-center") {
+        if (soldBlock) {
+          ctx.fillStyle = getSoldBlockColor(soldBlock);
+        } else if (type === "GRAND_CENTER") {
           ctx.fillStyle = "#facc15";
-        } else if (type === "solidarity") {
+        } else if (type === "SOLIDARITY") {
           ctx.fillStyle = "#bbf7d0";
         } else {
           ctx.fillStyle = "#e2e8f0";
@@ -163,27 +251,16 @@ export default function PixelMap() {
         ctx.strokeStyle = "rgba(15, 23, 42, 0.12)";
         ctx.lineWidth = 0.3;
         ctx.strokeRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
+
+        if (soldBlock && camera.scale >= 2) {
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "7px Arial";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("✓", px + BLOCK_SIZE / 2, py + BLOCK_SIZE / 2);
+        }
       }
     }
-
-    const premiumX = FAKE_PREMIUM.originX * BLOCK_SIZE;
-    const premiumY = FAKE_PREMIUM.originY * BLOCK_SIZE;
-    const premiumW = FAKE_PREMIUM.widthBlocks * BLOCK_SIZE;
-    const premiumH = FAKE_PREMIUM.heightBlocks * BLOCK_SIZE;
-
-    ctx.strokeStyle = "#f97316";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(premiumX, premiumY, premiumW, premiumH);
-
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "8px Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(
-      "PREMIUM",
-      premiumX + premiumW / 2,
-      premiumY + premiumH / 2
-    );
 
     ctx.fillStyle = "#78350f";
     ctx.font = "18px Arial";
@@ -232,32 +309,37 @@ export default function PixelMap() {
     if (!wrapper) return;
 
     const rect = wrapper.getBoundingClientRect();
+    const nextScale = 3;
 
-    setCamera((current) => ({
-      ...current,
-      x: rect.width / 2 - 1000 * current.scale,
-      y: rect.height / 2 - 725 * current.scale,
-    }));
+    setCamera({
+      x: rect.width / 2 - 1000 * nextScale,
+      y: rect.height / 2 - 725 * nextScale,
+      scale: nextScale,
+    });
   }
 
-  function goToPremium() {
+  function goToFirstSoldBlock() {
     const wrapper = wrapperRef.current;
 
     if (!wrapper) return;
 
+    if (mapBlocks.length === 0) {
+      alert("Ainda não há blocos vendidos carregados no mapa.");
+      return;
+    }
+
+    const firstBlock = mapBlocks[0];
     const rect = wrapper.getBoundingClientRect();
+    const nextScale = 4;
 
-    const premiumCenterX =
-      (FAKE_PREMIUM.originX + FAKE_PREMIUM.widthBlocks / 2) * BLOCK_SIZE;
+    const blockCenterX = firstBlock.gridX * BLOCK_SIZE + BLOCK_SIZE / 2;
+    const blockCenterY = firstBlock.gridY * BLOCK_SIZE + BLOCK_SIZE / 2;
 
-    const premiumCenterY =
-      (FAKE_PREMIUM.originY + FAKE_PREMIUM.heightBlocks / 2) * BLOCK_SIZE;
-
-    setCamera((current) => ({
-      ...current,
-      x: rect.width / 2 - premiumCenterX * current.scale,
-      y: rect.height / 2 - premiumCenterY * current.scale,
-    }));
+    setCamera({
+      x: rect.width / 2 - blockCenterX * nextScale,
+      y: rect.height / 2 - blockCenterY * nextScale,
+      scale: nextScale,
+    });
   }
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
@@ -298,26 +380,29 @@ export default function PixelMap() {
 
     if (!gridPosition) return;
 
-    if (isInsideFakePremium(gridPosition.x, gridPosition.y)) {
+    const soldBlock = getMapBlockAt(gridPosition.x, gridPosition.y);
+
+    if (soldBlock) {
       setSelectedSheet({
-        type: "premium",
+        type: "sold",
+        block: soldBlock,
       });
 
       return;
     }
 
     if (isInsideGrandCenterClickArea(gridPosition.x, gridPosition.y)) {
-      setSelectedSheet({
-        type: "grand-center",
-      });
-
+      setSelectedSheet({ type: "grand-center" });
       return;
     }
 
-    if (gridPosition.type === "solidarity") {
-      setSelectedSheet({
-        type: "solidarity",
-      });
+    if (gridPosition.type === "SOLIDARITY") {
+      setSelectedSheet({ type: "solidarity" });
+      return;
+    }
+
+    if (gridPosition.type === "PREMIUM") {
+      setSelectedSheet({ type: "premium" });
     }
   }
 
@@ -325,13 +410,11 @@ export default function PixelMap() {
     event.preventDefault();
 
     const nextScale =
-      event.deltaY > 0
-        ? camera.scale * 0.9
-        : camera.scale * 1.1;
+      event.deltaY > 0 ? camera.scale * 0.9 : camera.scale * 1.1;
 
     setCamera((current) => ({
       ...current,
-      scale: clamp(nextScale, 0.4, 4),
+      scale: clamp(nextScale, 0.4, 5),
     }));
   }
 
@@ -353,11 +436,11 @@ export default function PixelMap() {
           type="button"
           onClick={(event) => {
             event.stopPropagation();
-            goToPremium();
+            goToFirstSoldBlock();
           }}
-          className="flex-1 rounded-full bg-orange-500 px-4 py-3 text-xs font-black text-white shadow-lg"
+          className="flex-1 rounded-full bg-green-600 px-4 py-3 text-xs font-black text-white shadow-lg"
         >
-          Ver Premium
+          {isLoadingBlocks ? "Carregando..." : `Vendidos ${mapBlocks.length}`}
         </button>
 
         <button
@@ -404,46 +487,81 @@ export default function PixelMap() {
         </div>
       )}
 
-      {selectedSheet?.type === "premium" && (
+      {selectedSheet?.type === "sold" && (
         <div
           className="fixed inset-x-0 bottom-0 z-[999] rounded-t-3xl border border-slate-200 bg-white p-5 shadow-2xl"
           onClick={(event) => event.stopPropagation()}
         >
-          <div className="flex h-44 w-full items-center justify-center rounded-3xl bg-slate-950 text-center text-white shadow-lg">
+          <div className="flex h-32 w-full items-center justify-center rounded-3xl bg-green-600 text-center text-white shadow-lg">
             <div>
-              <div className="text-4xl">🧡</div>
+              <div className="text-4xl">
+                {selectedSheet.block.category === "PREMIUM" ? "🔥" : "💚"}
+              </div>
+
               <p className="mt-2 text-sm font-black">
-                Imagem Premium
+                Bloco vendido
               </p>
             </div>
           </div>
 
-          <h2 className="mt-4 text-xl font-black text-slate-950">
-            {FAKE_PREMIUM.title}
+          <p className="mt-4 text-xs font-black uppercase tracking-wide text-slate-500">
+            {selectedSheet.block.category === "PREMIUM"
+              ? "Área Premium"
+              : "Mosaico Solidário"}
+          </p>
+
+          <h2 className="mt-1 text-xl font-black text-slate-950">
+            {getDisplayName(selectedSheet.block)}
           </h2>
 
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            {FAKE_PREMIUM.description}
+            {selectedSheet.block.placement?.description ||
+              "Esse apoiador já faz parte do Milhão Solidário."}
           </p>
 
-          <a
-            href={FAKE_PREMIUM.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-5 block w-full rounded-2xl bg-orange-500 py-4 text-center text-sm font-extrabold text-white shadow-lg"
-          >
-            Visitar link do comprador
-          </a>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="rounded-2xl bg-slate-50 p-3 text-center">
+              <p className="text-[10px] font-black uppercase text-slate-500">
+                Posição
+              </p>
+              <p className="text-sm font-black text-slate-950">
+                x{selectedSheet.block.gridX} / y{selectedSheet.block.gridY}
+              </p>
+            </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              alert("Denúncia registrada para teste.");
-            }}
-            className="mt-3 w-full rounded-2xl border border-slate-200 py-4 text-sm font-bold text-slate-500"
-          >
-            Denunciar conteúdo
-          </button>
+            <div className="rounded-2xl bg-green-50 p-3 text-center">
+              <p className="text-[10px] font-black uppercase text-green-700">
+                Valor
+              </p>
+              <p className="text-sm font-black text-green-800">
+                {money(selectedSheet.block.priceCents)}
+              </p>
+            </div>
+          </div>
+
+          {selectedSheet.block.placement?.redirectUrl &&
+            !selectedSheet.block.placement.linkDisabled && (
+              <a
+                href={selectedSheet.block.placement.redirectUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-5 block w-full rounded-2xl bg-orange-500 py-4 text-center text-sm font-extrabold text-white shadow-lg"
+              >
+                Visitar link do comprador
+              </a>
+            )}
+
+          {selectedSheet.block.category === "PREMIUM" && (
+            <button
+              type="button"
+              onClick={() => {
+                alert("Denúncia registrada para teste.");
+              }}
+              className="mt-3 w-full rounded-2xl border border-slate-200 py-4 text-sm font-bold text-slate-500"
+            >
+              Denunciar conteúdo
+            </button>
+          )}
 
           <button
             type="button"
@@ -469,7 +587,7 @@ export default function PixelMap() {
           </h2>
 
           <p className="mt-2 text-center text-sm leading-relaxed text-slate-600">
-            Bloco rápido de R$ 10,00. Aqui o apoiador informa apenas o nome completo.
+            Bloco rápido de R$ 10,00. O apoiador informa apenas o nome completo.
           </p>
 
           <a
@@ -477,6 +595,41 @@ export default function PixelMap() {
             className="mt-5 block w-full rounded-2xl bg-green-500 py-4 text-center text-sm font-extrabold text-white shadow-lg"
           >
             Comprar por R$ 10,00
+          </a>
+
+          <button
+            type="button"
+            onClick={() => setSelectedSheet(null)}
+            className="mt-3 w-full rounded-2xl bg-slate-950 py-4 text-sm font-extrabold text-white"
+          >
+            Fechar
+          </button>
+        </div>
+      )}
+
+      {selectedSheet?.type === "premium" && (
+        <div
+          className="fixed inset-x-0 bottom-0 z-[999] rounded-t-3xl border border-orange-200 bg-white p-5 shadow-2xl"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-orange-500 text-3xl text-white shadow-lg">
+            🔥
+          </div>
+
+          <h2 className="text-center text-xl font-black text-slate-950">
+            Área Premium
+          </h2>
+
+          <p className="mt-2 text-center text-sm leading-relaxed text-slate-600">
+            Bloco premium de R$ 100,00. Permite imagem, título, descrição e
+            link.
+          </p>
+
+          <a
+            href="/checkout"
+            className="mt-5 block w-full rounded-2xl bg-orange-500 py-4 text-center text-sm font-extrabold text-white shadow-lg"
+          >
+            Comprar bloco Premium
           </a>
 
           <button
