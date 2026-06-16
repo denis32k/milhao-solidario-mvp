@@ -1,14 +1,15 @@
 {
   "name": "milhao-solidario-mvp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
     "prisma:generate": "prisma generate",
-    "prisma:push": "prisma db push"
+    "prisma:push": "prisma db push",
+    "seed": "node prisma/seed.js",
+    "fake:sale": "node prisma/fake-approved-solidarity.js"
   },
   "dependencies": {
     "@prisma/client": "6.19.0",
