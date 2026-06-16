@@ -5,6 +5,28 @@ import { useMemo, useState } from "react";
 
 type CheckoutMode = "solidarity" | "premium";
 
+type PixResult = {
+  payment: {
+    id: string | number;
+    status: string;
+    statusDetail: string;
+  };
+  pix: {
+    qrCode: string | null;
+    qrCodeBase64: string | null;
+    ticketUrl: string | null;
+  };
+  transaction: {
+    id: string;
+    totalPaidCents: number;
+  };
+  block: {
+    id: string;
+    gridX: number;
+    gridY: number;
+  };
+};
+
 const OPERATIONAL_FEE_PERCENT = 0.1;
 
 function money(cents: number) {
@@ -14,12 +36,21 @@ function money(cents: number) {
   }).format(cents / 100);
 }
 
+function getQrImageSrc(qrCodeBase64: string) {
+  if (qrCodeBase64.startsWith("data:")) {
+    return qrCodeBase64;
+  }
+
+  return `data:image/png;base64,${qrCodeBase64}`;
+}
+
 export default function CheckoutPage() {
   const [mode, setMode] = useState<CheckoutMode>("solidarity");
   const [quantity, setQuantity] = useState(1);
   const [fullName, setFullName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
+  const [pixResult, setPixResult] = useState<PixResult | null>(null);
+  const [copyMessage, setCopyMessage] = useState("");
 
   const unitPriceCents = mode === "solidarity" ? 1000 : 10000;
 
@@ -35,7 +66,8 @@ export default function CheckoutPage() {
 
   async function handleGeneratePix() {
     try {
-      setSuccessMessage("");
+      setPixResult(null);
+      setCopyMessage("");
 
       if (!fullName.trim()) {
         alert("Digite o nome completo.");
@@ -44,14 +76,14 @@ export default function CheckoutPage() {
 
       if (mode === "premium") {
         alert(
-          "O teste automático agora está liberado apenas para o Mosaico Solidário. Depois vamos ligar o Premium com seleção de blocos, upload e Mercado Pago."
+          "O PIX real agora será conectado primeiro no Mosaico Solidário. Depois vamos ligar o Premium com seleção de blocos, upload e link."
         );
         return;
       }
 
       setIsLoading(true);
 
-      const response = await fetch("/api/checkout/fake-solidarity", {
+      const response = await fetch("/api/checkout/mercado-pago-pix", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -61,25 +93,51 @@ export default function CheckoutPage() {
         }),
       });
 
-      const data = await response.json();
+      const responseText = await response.text();
 
-      if (!data.ok) {
-        throw new Error(data.message || data.error || "Erro ao criar compra.");
+      let data: any = null;
+
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        throw new Error(responseText || "Resposta inválida do servidor.");
       }
 
-      setSuccessMessage(
-        `Compra fake aprovada! Bloco vendido em x${data.block.gridX} / y${data.block.gridY}.`
-      );
+      if (!response.ok || !data.ok) {
+        throw new Error(
+          data.message ||
+            data.error ||
+            "Erro ao criar PIX no Mercado Pago."
+        );
+      }
 
-      setFullName("");
+      setPixResult({
+        payment: data.payment,
+        pix: data.pix,
+        transaction: data.transaction,
+        block: data.block,
+      });
     } catch (error) {
       if (error instanceof Error) {
         alert(error.message);
       } else {
-        alert("Erro inesperado ao gerar PIX de teste.");
+        alert("Erro inesperado ao gerar PIX.");
       }
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function handleCopyPix() {
+    if (!pixResult?.pix.qrCode) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(pixResult.pix.qrCode);
+      setCopyMessage("Código PIX copiado!");
+    } catch {
+      setCopyMessage("Não consegui copiar automaticamente. Selecione e copie manualmente.");
     }
   }
 
@@ -103,32 +161,33 @@ export default function CheckoutPage() {
           </h1>
 
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            Essa tela ainda está em modo de teste. Ao clicar em gerar PIX de
-            teste no Mosaico Solidário, o sistema já cria uma venda aprovada
-            fake no banco.
+            O Mosaico Solidário já pode gerar QR Code PIX pelo Mercado Pago.
+            Depois vamos conectar o webhook para confirmar o pagamento
+            automaticamente.
           </p>
 
-          {successMessage && (
+          {pixResult && (
             <div className="mt-5 rounded-3xl border border-green-200 bg-green-50 p-4">
-              <p className="text-sm font-black text-green-800">
-                {successMessage}
+              <p className="text-xs font-black uppercase tracking-wide text-green-700">
+                PIX criado com sucesso
               </p>
 
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <Link
-                  href="/"
-                  className="rounded-2xl bg-green-600 py-3 text-center text-xs font-black text-white"
-                >
-                  Ver no mapa
-                </Link>
+              <h2 className="mt-2 text-xl font-black text-green-950">
+                Bloco reservado
+              </h2>
 
-                <Link
-                  href="/ranking"
-                  className="rounded-2xl bg-slate-950 py-3 text-center text-xs font-black text-white"
-                >
-                  Ver ranking
-                </Link>
-              </div>
+              <p className="mt-2 text-sm font-bold leading-relaxed text-green-800">
+                Posição reservada: x{pixResult.block.gridX} / y
+                {pixResult.block.gridY}
+              </p>
+
+              <p className="mt-1 text-xs font-semibold leading-relaxed text-green-700">
+                Status Mercado Pago: {pixResult.payment.status}
+              </p>
+
+              <p className="mt-1 text-xs font-semibold leading-relaxed text-green-700">
+                Pagamento: #{pixResult.payment.id}
+              </p>
             </div>
           )}
 
@@ -138,6 +197,7 @@ export default function CheckoutPage() {
               onClick={() => {
                 setMode("solidarity");
                 setQuantity(1);
+                setPixResult(null);
               }}
               className={`rounded-3xl border-2 p-4 text-left transition active:scale-95 ${
                 mode === "solidarity"
@@ -161,6 +221,7 @@ export default function CheckoutPage() {
               onClick={() => {
                 setMode("premium");
                 setQuantity(1);
+                setPixResult(null);
               }}
               className={`rounded-3xl border-2 p-4 text-left transition active:scale-95 ${
                 mode === "premium"
@@ -319,18 +380,78 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          <div className="mt-5 flex h-48 items-center justify-center rounded-3xl border-2 border-dashed border-slate-300 bg-slate-50 text-center">
-            <div>
-              <div className="text-4xl">🔳</div>
+          <div className="mt-5 rounded-3xl border-2 border-dashed border-slate-300 bg-slate-50 p-5 text-center">
+            {!pixResult && (
+              <div className="flex h-40 items-center justify-center">
+                <div>
+                  <div className="text-4xl">🔳</div>
 
-              <p className="mt-2 text-sm font-black text-slate-600">
-                QR Code PIX aparecerá aqui
-              </p>
+                  <p className="mt-2 text-sm font-black text-slate-600">
+                    QR Code PIX aparecerá aqui
+                  </p>
 
-              <p className="mt-1 text-xs font-semibold text-slate-500">
-                Depois da integração com Mercado Pago.
-              </p>
-            </div>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">
+                    Gere o PIX para visualizar o código.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {pixResult?.pix.qrCodeBase64 && (
+              <div>
+                <img
+                  src={getQrImageSrc(pixResult.pix.qrCodeBase64)}
+                  alt="QR Code PIX"
+                  className="mx-auto h-56 w-56 rounded-2xl bg-white p-3 shadow"
+                />
+
+                <p className="mt-3 text-sm font-black text-slate-700">
+                  Escaneie o QR Code pelo app do banco
+                </p>
+              </div>
+            )}
+
+            {pixResult?.pix.ticketUrl && (
+              <a
+                href={pixResult.pix.ticketUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 block rounded-2xl bg-slate-950 py-4 text-sm font-extrabold text-white"
+              >
+                Abrir pagamento no Mercado Pago
+              </a>
+            )}
+
+            {pixResult?.pix.qrCode && (
+              <div className="mt-4">
+                <label className="block text-left">
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-500">
+                    PIX copia e cola
+                  </span>
+
+                  <textarea
+                    value={pixResult.pix.qrCode}
+                    readOnly
+                    rows={5}
+                    className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-semibold text-slate-700 outline-none"
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={handleCopyPix}
+                  className="mt-3 w-full rounded-2xl bg-green-600 py-4 text-sm font-extrabold text-white shadow-lg active:scale-95"
+                >
+                  Copiar código PIX
+                </button>
+
+                {copyMessage && (
+                  <p className="mt-2 text-xs font-black text-green-700">
+                    {copyMessage}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <button
@@ -339,8 +460,13 @@ export default function CheckoutPage() {
             disabled={isLoading}
             className="mt-5 w-full rounded-2xl bg-orange-500 py-4 text-sm font-extrabold text-white shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isLoading ? "Processando..." : "Gerar PIX de teste"}
+            {isLoading ? "Gerando PIX..." : "Gerar PIX Mercado Pago"}
           </button>
+
+          <p className="mt-4 text-center text-[11px] font-semibold leading-relaxed text-slate-500">
+            Nesta etapa, o sistema apenas gera o PIX real. A confirmação
+            automática do pagamento será conectada no próximo passo com webhook.
+          </p>
         </section>
       </div>
     </main>
