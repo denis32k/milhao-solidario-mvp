@@ -1,21 +1,65 @@
 import Link from "next/link";
 import StickyHeader from "@/components/layout/StickyHeader";
 import PixelMap from "@/components/map/PixelMap";
+import { prisma } from "@/lib/prisma";
 
-export default function HomePage() {
-  const goal = 2000000;
-  const raised = 0;
-  const progress = (raised / goal) * 100;
+export const dynamic = "force-dynamic";
 
-  const formattedGoal = new Intl.NumberFormat("pt-BR", {
+const GOAL_CENTS = 200000000;
+
+function money(cents: number) {
+  return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
-  }).format(goal);
+  }).format(cents / 100);
+}
 
-  const formattedRaised = new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(raised);
+async function getHomeStats() {
+  try {
+    const [approvedTotal, totalBlocks, soldBlocks] = await Promise.all([
+      prisma.transaction.aggregate({
+        where: {
+          status: "APPROVED",
+        },
+        _sum: {
+          subtotalCents: true,
+        },
+      }),
+
+      prisma.block.count(),
+
+      prisma.block.count({
+        where: {
+          status: "SOLD",
+        },
+      }),
+    ]);
+
+    const raisedCents = approvedTotal._sum.subtotalCents ?? 0;
+
+    return {
+      raisedCents,
+      totalBlocks,
+      soldBlocks,
+    };
+  } catch (error) {
+    console.error("Erro ao carregar estatísticas da home:", error);
+
+    return {
+      raisedCents: 0,
+      totalBlocks: 29000,
+      soldBlocks: 0,
+    };
+  }
+}
+
+export default async function HomePage() {
+  const stats = await getHomeStats();
+
+  const progress = Math.min(100, (stats.raisedCents / GOAL_CENTS) * 100);
+
+  const formattedGoal = money(GOAL_CENTS);
+  const formattedRaised = money(stats.raisedCents);
 
   return (
     <main className="h-screen bg-slate-100">
@@ -38,6 +82,10 @@ export default function HomePage() {
 
                 <p className="mt-1 text-xs font-bold text-slate-500">
                   Meta principal: {formattedGoal}
+                </p>
+
+                <p className="mt-1 text-[11px] font-bold text-slate-400">
+                  Blocos vendidos: {stats.soldBlocks} de {stats.totalBlocks}
                 </p>
               </div>
 
