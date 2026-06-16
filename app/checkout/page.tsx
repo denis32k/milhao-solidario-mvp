@@ -17,6 +17,9 @@ function money(cents: number) {
 export default function CheckoutPage() {
   const [mode, setMode] = useState<CheckoutMode>("solidarity");
   const [quantity, setQuantity] = useState(1);
+  const [fullName, setFullName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   const unitPriceCents = mode === "solidarity" ? 1000 : 10000;
 
@@ -30,10 +33,54 @@ export default function CheckoutPage() {
 
   const totalCents = subtotalCents + operationalFeeCents;
 
-  function handleGeneratePix() {
-    alert(
-      "Aqui vamos conectar o Mercado Pago para gerar o QR Code PIX real."
-    );
+  async function handleGeneratePix() {
+    try {
+      setSuccessMessage("");
+
+      if (!fullName.trim()) {
+        alert("Digite o nome completo.");
+        return;
+      }
+
+      if (mode === "premium") {
+        alert(
+          "O teste automático agora está liberado apenas para o Mosaico Solidário. Depois vamos ligar o Premium com seleção de blocos, upload e Mercado Pago."
+        );
+        return;
+      }
+
+      setIsLoading(true);
+
+      const response = await fetch("/api/checkout/fake-solidarity", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fullName,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.ok) {
+        throw new Error(data.message || data.error || "Erro ao criar compra.");
+      }
+
+      setSuccessMessage(
+        `Compra fake aprovada! Bloco vendido em x${data.block.gridX} / y${data.block.gridY}.`
+      );
+
+      setFullName("");
+    } catch (error) {
+      if (error instanceof Error) {
+        alert(error.message);
+      } else {
+        alert("Erro inesperado ao gerar PIX de teste.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -56,9 +103,34 @@ export default function CheckoutPage() {
           </h1>
 
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            Essa tela ainda é visual. Depois vamos ligar o Mercado Pago para
-            gerar o QR Code e liberar o bloco automaticamente após o pagamento.
+            Essa tela ainda está em modo de teste. Ao clicar em gerar PIX de
+            teste no Mosaico Solidário, o sistema já cria uma venda aprovada
+            fake no banco.
           </p>
+
+          {successMessage && (
+            <div className="mt-5 rounded-3xl border border-green-200 bg-green-50 p-4">
+              <p className="text-sm font-black text-green-800">
+                {successMessage}
+              </p>
+
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Link
+                  href="/"
+                  className="rounded-2xl bg-green-600 py-3 text-center text-xs font-black text-white"
+                >
+                  Ver no mapa
+                </Link>
+
+                <Link
+                  href="/ranking"
+                  className="rounded-2xl bg-slate-950 py-3 text-center text-xs font-black text-white"
+                >
+                  Ver ranking
+                </Link>
+              </div>
+            </div>
+          )}
 
           <div className="mt-5 grid grid-cols-2 gap-3">
             <button
@@ -116,6 +188,8 @@ export default function CheckoutPage() {
 
               <input
                 type="text"
+                value={fullName}
+                onChange={(event) => setFullName(event.target.value)}
                 placeholder="Digite seu nome"
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-bold outline-none focus:border-slate-950"
               />
@@ -262,9 +336,10 @@ export default function CheckoutPage() {
           <button
             type="button"
             onClick={handleGeneratePix}
-            className="mt-5 w-full rounded-2xl bg-orange-500 py-4 text-sm font-extrabold text-white shadow-lg active:scale-95"
+            disabled={isLoading}
+            className="mt-5 w-full rounded-2xl bg-orange-500 py-4 text-sm font-extrabold text-white shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Gerar PIX de teste
+            {isLoading ? "Processando..." : "Gerar PIX de teste"}
           </button>
         </section>
       </div>
