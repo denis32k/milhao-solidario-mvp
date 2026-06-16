@@ -81,7 +81,7 @@ export async function GET() {
         },
         _sum: {
           subtotalCents: true,
-          operationalFeeCents: true,
+          operatorFeeCents: true,
           totalPaidCents: true,
           creatorShareCents: true,
           hospitalShareCents: true,
@@ -90,7 +90,7 @@ export async function GET() {
     ]);
 
     const raisedCents = approvedTotal._sum.subtotalCents ?? 0;
-    const operationalFeeCents = approvedTotal._sum.operationalFeeCents ?? 0;
+    const operationalFeeCents = approvedTotal._sum.operatorFeeCents ?? 0;
     const totalPaidCents = approvedTotal._sum.totalPaidCents ?? 0;
     const creatorShareCents = approvedTotal._sum.creatorShareCents ?? 0;
     const hospitalShareCents = approvedTotal._sum.hospitalShareCents ?? 0;
