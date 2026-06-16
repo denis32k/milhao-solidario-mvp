@@ -1,13 +1,23 @@
-import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const SUBTOTAL_CENTS = 1000;
-const OPERATOR_FEE_CENTS = 100;
-const TOTAL_PAID_CENTS = 1100;
-const CREATOR_SHARE_CENTS = 500;
-const HOSPITAL_SHARE_CENTS = 500;
+type TransactionStatusValue =
+  | "PENDING"
+  | "APPROVED"
+  | "REJECTED"
+  | "CANCELLED"
+  | "EXPIRED"
+  | "REFUNDED";
+
+type MercadoPagoNotificationBody = {
+  id?: string | number;
+  type?: string;
+  action?: string;
+  data?: {
+    id?: string | number;
+  };
+};
 
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) {
@@ -17,20 +27,361 @@ function getErrorMessage(error: unknown) {
   return String(error);
 }
 
-function centsToReais(cents: number) {
-  return Number((cents / 100).toFixed(2));
+function getPaymentIdFromNotification(
+  request: Request,
+  body: MercadoPagoNotificationBody | null
+) {
+  const url = new URL(request.url);
+
+  const queryDataId = url.searchParams.get("data.id");
+  const queryId = url.searchParams.get("id");
+
+  const bodyDataId = body?.data?.id;
+  const bodyId = body?.id;
+
+  const paymentId = bodyDataId || bodyId || queryDataId || queryId;
+
+  if (!paymentId) {
+    return null;
+  }
+
+  return String(paymentId);
 }
 
-function getFirstName(fullName: string) {
-  return fullName.trim().split(" ")[0] || fullName.trim();
+function getNotificationType(
+  request: Request,
+  body: MercadoPagoNotificationBody | null
+) {
+  const url = new URL(request.url);
+
+  return (
+    body?.type ||
+    url.searchParams.get("type") ||
+    url.searchParams.get("topic") ||
+    ""
+  );
+}
+
+function mapMercadoPagoStatusToTransactionStatus(
+  status: string
+): TransactionStatusValue {
+  if (status === "approved") {
+    return "APPROVED";
+  }
+
+  if (status === "rejected") {
+    return "REJECTED";
+  }
+
+  if (status === "cancelled") {
+    return "CANCELLED";
+  }
+
+  if (status === "refunded") {
+    return "REFUNDED";
+  }
+
+  if (status === "expired") {
+    return "EXPIRED";
+  }
+
+  return "PENDING";
+}
+
+function shouldReleaseReservedBlock(status: string) {
+  return (
+    status === "rejected" ||
+    status === "cancelled" ||
+    status === "refunded" ||
+    status === "expired"
+  );
+}
+
+async function getMercadoPagoPayment(paymentId: string, accessToken: string) {
+  const response = await fetch(
+    `https://api.mercadopago.com/v1/payments/${paymentId}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      cache: "no-store",
+    }
+  );
+
+  const responseText = await response.text();
+
+  let paymentData: any = null;
+
+  try {
+    paymentData = JSON.parse(responseText);
+  } catch {
+    throw new Error(responseText);
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      paymentData?.message ||
+        paymentData?.error ||
+        "Não foi possível consultar o pagamento no Mercado Pago."
+    );
+  }
+
+  return paymentData;
+}
+
+async function approveTransaction(paymentData: any) {
+  const { prisma } = await import("@/lib/prisma");
+
+  const paymentId = String(paymentData.id);
+
+  const externalReference = paymentData.external_reference
+    ? String(paymentData.external_reference)
+    : "";
+
+  const transaction = await prisma.transaction.findFirst({
+    where: {
+      OR: [
+        {
+          mpPaymentId: paymentId,
+        },
+        {
+          mpExternalReference: externalReference,
+        },
+      ],
+    },
+    include: {
+      user: true,
+      items: true,
+    },
+  });
+
+  if (!transaction) {
+    return {
+      ok: false,
+      message: "Transação não encontrada no banco.",
+      paymentId,
+      externalReference,
+    };
+  }
+
+  if (transaction.status === "APPROVED") {
+    return {
+      ok: true,
+      message: "Transação já estava aprovada.",
+      transactionId: transaction.id,
+    };
+  }
+
+  const approvedAt = paymentData.date_approved
+    ? new Date(paymentData.date_approved)
+    : new Date();
+
+  const paidAt = paymentData.money_release_date
+    ? new Date(paymentData.money_release_date)
+    : approvedAt;
+
+  const blockIds = transaction.items.map((item) => item.blockId);
+
+  const result = await prisma.$transaction(async (tx) => {
+    const updatedTransaction = await tx.transaction.update({
+      where: {
+        id: transaction.id,
+      },
+      data: {
+        status: "APPROVED",
+
+        mpPaymentId: paymentId,
+        mpStatus: paymentData.status || "approved",
+        mpStatusDetail: paymentData.status_detail || "accredited",
+
+        approvedAt,
+        paidAt,
+      },
+    });
+
+    const placement = await tx.placement.upsert({
+      where: {
+        transactionId: transaction.id,
+      },
+      update: {
+        status: "ACTIVE",
+        displayName: transaction.user.publicName || transaction.user.name,
+        textLabel: transaction.user.publicName || transaction.user.name,
+        fillColor: "#22c55e",
+      },
+      create: {
+        kind: "SOLIDARITY",
+        status: "ACTIVE",
+
+        userId: transaction.userId,
+        transactionId: transaction.id,
+
+        displayName: transaction.user.publicName || transaction.user.name,
+        textLabel: transaction.user.publicName || transaction.user.name,
+        fillColor: "#22c55e",
+      },
+    });
+
+    await tx.block.updateMany({
+      where: {
+        id: {
+          in: blockIds,
+        },
+        currentTransactionId: transaction.id,
+      },
+      data: {
+        status: "SOLD",
+        available: false,
+        ownerId: transaction.userId,
+        placementId: placement.id,
+        reservationToken: null,
+        reservedUntil: null,
+      },
+    });
+
+    await tx.distributionLedger.createMany({
+      data: [
+        {
+          transactionId: transaction.id,
+          recipient: "CREATOR",
+          amountCents: transaction.creatorShareCents,
+          status: "PENDING",
+        },
+        {
+          transactionId: transaction.id,
+          recipient: "HOSPITAL",
+          amountCents: transaction.hospitalShareCents,
+          status: "PENDING",
+        },
+      ],
+    });
+
+    await tx.user.update({
+      where: {
+        id: transaction.userId,
+      },
+      data: {
+        totalApprovedCents: {
+          increment: transaction.subtotalCents,
+        },
+      },
+    });
+
+    return {
+      transaction: updatedTransaction,
+      placement,
+    };
+  });
+
+  return {
+    ok: true,
+    message: "Pagamento aprovado e bloco vendido.",
+    transactionId: result.transaction.id,
+    placementId: result.placement.id,
+    blockIds,
+  };
+}
+
+async function updatePendingOrReleaseTransaction(paymentData: any) {
+  const { prisma } = await import("@/lib/prisma");
+
+  const paymentId = String(paymentData.id);
+
+  const externalReference = paymentData.external_reference
+    ? String(paymentData.external_reference)
+    : "";
+
+  const transaction = await prisma.transaction.findFirst({
+    where: {
+      OR: [
+        {
+          mpPaymentId: paymentId,
+        },
+        {
+          mpExternalReference: externalReference,
+        },
+      ],
+    },
+    include: {
+      items: true,
+    },
+  });
+
+  if (!transaction) {
+    return {
+      ok: false,
+      message: "Transação não encontrada para atualização.",
+      paymentId,
+      externalReference,
+    };
+  }
+
+  if (transaction.status === "APPROVED") {
+    return {
+      ok: true,
+      message: "Transação já aprovada. Nenhuma alteração feita.",
+      transactionId: transaction.id,
+    };
+  }
+
+  const nextStatus = mapMercadoPagoStatusToTransactionStatus(
+    String(paymentData.status || "")
+  );
+
+  const shouldRelease = shouldReleaseReservedBlock(
+    String(paymentData.status || "")
+  );
+
+  const result = await prisma.$transaction(async (tx) => {
+    const updatedTransaction = await tx.transaction.update({
+      where: {
+        id: transaction.id,
+      },
+      data: {
+        status: nextStatus,
+
+        mpPaymentId: paymentId,
+        mpStatus: paymentData.status || "pending",
+        mpStatusDetail: paymentData.status_detail || null,
+      },
+    });
+
+    if (shouldRelease) {
+      await tx.block.updateMany({
+        where: {
+          currentTransactionId: transaction.id,
+          status: "RESERVED",
+        },
+        data: {
+          status: "AVAILABLE",
+          available: true,
+          ownerId: null,
+          currentTransactionId: null,
+          reservationToken: null,
+          reservedUntil: null,
+        },
+      });
+    }
+
+    return updatedTransaction;
+  });
+
+  return {
+    ok: true,
+    message: shouldRelease
+      ? "Pagamento não aprovado. Bloco reservado foi liberado."
+      : "Pagamento atualizado, mas ainda não aprovado.",
+    transactionId: result.id,
+    status: result.status,
+  };
 }
 
 export async function GET() {
   return NextResponse.json({
     ok: true,
-    message: "API Mercado Pago PIX carregada.",
-    hasAccessToken: Boolean(process.env.MERCADO_PAGO_ACCESS_TOKEN),
-    webhookPath: "/api/mercado-pago-pix/webhook",
+    message: "Webhook Mercado Pago carregado.",
+    path: "/api/mercado-pago-pix/webhook",
   });
 }
 
@@ -42,7 +393,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           ok: false,
-          message: "MERCADO_PAGO_ACCESS_TOKEN não configurado no EasyPanel.",
+          message: "MERCADO_PAGO_ACCESS_TOKEN não configurado.",
         },
         {
           status: 500,
@@ -50,226 +401,64 @@ export async function POST(request: Request) {
       );
     }
 
-    const { prisma } = await import("@/lib/prisma");
-
-    const body = await request.json();
-
-    const fullName = String(body.fullName || "").trim();
-
-    if (!fullName || fullName.length < 3) {
-      return NextResponse.json(
-        {
-          ok: false,
-          message: "Informe um nome completo válido.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    const uniqueId = Date.now();
-    const externalReference = `mp-pix-solidarity-${uniqueId}`;
-    const reservedUntil = new Date(Date.now() + 30 * 60 * 1000);
-
-    const pendingData = await prisma.$transaction(async (tx) => {
-      const availableBlock = await tx.block.findFirst({
-        where: {
-          category: "SOLIDARITY",
-          status: "AVAILABLE",
-          available: true,
-        },
-        orderBy: [
-          {
-            gridY: "asc",
-          },
-          {
-            gridX: "asc",
-          },
-        ],
-      });
-
-      if (!availableBlock) {
-        throw new Error("Nenhum bloco solidário disponível encontrado.");
-      }
-
-      const user = await tx.user.create({
-        data: {
-          name: fullName,
-          publicName: fullName,
-          email: `mp-pix-${uniqueId}@example.com`,
-          totalApprovedCents: 0,
-        },
-      });
-
-      const transaction = await tx.transaction.create({
-        data: {
-          kind: "SOLIDARITY",
-          status: "PENDING",
-          userId: user.id,
-
-          subtotalCents: SUBTOTAL_CENTS,
-          operatorFeeCents: OPERATOR_FEE_CENTS,
-          totalPaidCents: TOTAL_PAID_CENTS,
-
-          creatorShareCents: CREATOR_SHARE_CENTS,
-          hospitalShareCents: HOSPITAL_SHARE_CENTS,
-
-          mpExternalReference: externalReference,
-          mpStatus: "pending",
-          mpStatusDetail: "waiting_pix_payment",
-
-          expiresAt: reservedUntil,
-        },
-      });
-
-      await tx.block.update({
-        where: {
-          id: availableBlock.id,
-        },
-        data: {
-          status: "RESERVED",
-          available: false,
-          ownerId: user.id,
-          currentTransactionId: transaction.id,
-          reservationToken: externalReference,
-          reservedUntil,
-        },
-      });
-
-      await tx.transactionBlock.create({
-        data: {
-          transactionId: transaction.id,
-          blockId: availableBlock.id,
-          gridX: availableBlock.gridX,
-          gridY: availableBlock.gridY,
-          category: availableBlock.category,
-          priceCents: availableBlock.priceCents,
-        },
-      });
-
-      return {
-        user,
-        transaction,
-        block: availableBlock,
-      };
-    });
-
-    const appUrl =
-      process.env.NEXT_PUBLIC_APP_URL ||
-      process.env.APP_URL ||
-      "";
-
-    const cleanAppUrl = appUrl.endsWith("/")
-      ? appUrl.slice(0, -1)
-      : appUrl;
-
-    const notificationUrl = cleanAppUrl
-      ? `${cleanAppUrl}/api/mercado-pago-pix/webhook`
-      : undefined;
-
-    const mercadoPagoPayload = {
-      transaction_amount: centsToReais(TOTAL_PAID_CENTS),
-      description: "Milhão Solidário - Bloco Mosaico Solidário",
-      payment_method_id: "pix",
-      external_reference: externalReference,
-      payer: {
-        email: pendingData.user.email,
-        first_name: getFirstName(fullName),
-      },
-      ...(notificationUrl
-        ? {
-            notification_url: notificationUrl,
-          }
-        : {}),
-    };
-
-    const mercadoPagoResponse = await fetch(
-      "https://api.mercadopago.com/v1/payments",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-          "X-Idempotency-Key": randomUUID(),
-        },
-        body: JSON.stringify(mercadoPagoPayload),
-      }
-    );
-
-    const responseText = await mercadoPagoResponse.text();
-
-    let paymentData: any = null;
+    let body: MercadoPagoNotificationBody | null = null;
 
     try {
-      paymentData = JSON.parse(responseText);
+      body = await request.json();
     } catch {
-      throw new Error(responseText);
+      body = null;
     }
 
-    if (!mercadoPagoResponse.ok) {
-      throw new Error(
-        paymentData?.message ||
-          paymentData?.error ||
-          "Mercado Pago recusou a criação do PIX."
-      );
+    const notificationType = getNotificationType(request, body);
+    const paymentId = getPaymentIdFromNotification(request, body);
+
+    if (!paymentId) {
+      return NextResponse.json({
+        ok: true,
+        message: "Notificação recebida sem paymentId. Ignorada.",
+        notificationType,
+      });
     }
 
-    const transactionData =
-      paymentData?.point_of_interaction?.transaction_data;
-
-    const qrCode = transactionData?.qr_code || null;
-    const qrCodeBase64 = transactionData?.qr_code_base64 || null;
-    const ticketUrl = transactionData?.ticket_url || null;
-
-    if (!qrCode && !qrCodeBase64 && !ticketUrl) {
-      throw new Error("Mercado Pago não retornou os dados do QR Code PIX.");
+    if (
+      notificationType &&
+      notificationType !== "payment" &&
+      notificationType !== "payments"
+    ) {
+      return NextResponse.json({
+        ok: true,
+        message: "Notificação recebida, mas não é de pagamento. Ignorada.",
+        notificationType,
+        paymentId,
+      });
     }
 
-    await prisma.transaction.update({
-      where: {
-        id: pendingData.transaction.id,
-      },
-      data: {
-        mpPaymentId: String(paymentData.id),
-        mpStatus: paymentData.status || "pending",
-        mpStatusDetail: paymentData.status_detail || "pending_waiting_payment",
+    const paymentData = await getMercadoPagoPayment(paymentId, accessToken);
 
-        pixQrCode: ticketUrl,
-        pixQrCodeBase64: qrCodeBase64,
-        pixCopyPaste: qrCode,
-      },
-    });
+    if (paymentData.status === "approved") {
+      const result = await approveTransaction(paymentData);
+
+      return NextResponse.json({
+        ok: true,
+        webhook: "processed",
+        paymentStatus: paymentData.status,
+        result,
+      });
+    }
+
+    const result = await updatePendingOrReleaseTransaction(paymentData);
 
     return NextResponse.json({
       ok: true,
-      message: "PIX criado com sucesso.",
-      webhookUrl: notificationUrl,
-      payment: {
-        id: paymentData.id,
-        status: paymentData.status,
-        statusDetail: paymentData.status_detail,
-      },
-      pix: {
-        qrCode,
-        qrCodeBase64,
-        ticketUrl,
-      },
-      transaction: {
-        id: pendingData.transaction.id,
-        totalPaidCents: pendingData.transaction.totalPaidCents,
-      },
-      block: {
-        id: pendingData.block.id,
-        gridX: pendingData.block.gridX,
-        gridY: pendingData.block.gridY,
-      },
+      webhook: "processed",
+      paymentStatus: paymentData.status,
+      result,
     });
   } catch (error) {
     return NextResponse.json(
       {
         ok: false,
-        message: "Erro ao criar PIX Mercado Pago.",
+        message: "Erro ao processar webhook Mercado Pago.",
         error: getErrorMessage(error),
       },
       {
