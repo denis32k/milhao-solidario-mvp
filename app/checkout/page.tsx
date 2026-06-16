@@ -159,6 +159,7 @@ export default function CheckoutPage() {
 
       setIsCheckingPayment(true);
       setVerifyMessage("");
+      setPaymentApproved(false);
 
       const paymentId = String(pixResult.payment.id);
 
@@ -182,21 +183,32 @@ export default function CheckoutPage() {
         throw new Error(responseText || "Resposta inválida do servidor.");
       }
 
-      const result = data.result;
+      const result = data.result || {};
 
-      const mercadoPagoStatus =
-        result?.mercadoPagoStatus ||
-        result?.paymentStatus ||
-        result?.status ||
-        "";
+      const mercadoPagoStatus = String(
+        result.mercadoPagoStatus ||
+          result.paymentStatus ||
+          result.status ||
+          ""
+      ).toLowerCase();
+
+      const transactionStatus = String(
+        result.transactionStatus ||
+          result.result?.transactionStatus ||
+          ""
+      ).toUpperCase();
 
       const message =
-        result?.message ||
-        result?.result?.message ||
+        result.message ||
+        result.result?.message ||
         data.message ||
         "Consulta realizada.";
 
-      if (mercadoPagoStatus === "approved" || message.includes("aprovado")) {
+      const isApproved =
+        mercadoPagoStatus === "approved" ||
+        transactionStatus === "APPROVED";
+
+      if (isApproved) {
         setPaymentApproved(true);
         setVerifyMessage(
           "Pagamento aprovado! Seu bloco já foi marcado como vendido."
@@ -205,11 +217,14 @@ export default function CheckoutPage() {
         return;
       }
 
+      setPaymentApproved(false);
       setVerifyMessage(
         message ||
-          "Pagamento ainda não aprovado. Aguarde alguns segundos e tente novamente."
+          "Pagamento ainda não aprovado. Se você acabou de pagar, aguarde alguns segundos e tente novamente."
       );
     } catch (error) {
+      setPaymentApproved(false);
+
       if (error instanceof Error) {
         setVerifyMessage(error.message);
       } else {
