@@ -1,16 +1,7 @@
-import { createHash, randomUUID } from "crypto";
+import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
-
-type AreaCode =
-  | "TOP_LEFT"
-  | "TOP_CENTER"
-  | "TOP_RIGHT"
-  | "BOTTOM_LEFT"
-  | "BOTTOM_CENTER"
-  | "BOTTOM_RIGHT"
-  | "SURPRISE";
 
 const SUBTOTAL_CENTS = 1000;
 const OPERATOR_FEE_CENTS = 100;
@@ -31,10 +22,6 @@ function centsToReais(cents: number) {
   return Number((cents / 100).toFixed(2));
 }
 
-function onlyDigits(value: string) {
-  return value.replace(/\D/g, "");
-}
-
 function getFirstName(fullName: string) {
   return fullName.trim().split(" ")[0] || fullName.trim();
 }
@@ -43,122 +30,6 @@ function getCleanAppUrl() {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "";
 
   return appUrl.endsWith("/") ? appUrl.slice(0, -1) : appUrl;
-}
-
-function hashCpf(cpf: string) {
-  return createHash("sha256").update(cpf).digest("hex");
-}
-
-function getAreaBounds(area: AreaCode) {
-  const third = Math.floor(200 / 3);
-
-  if (area === "TOP_LEFT") {
-    return { minX: 0, maxX: third - 1, minY: 0, maxY: 24 };
-  }
-
-  if (area === "TOP_CENTER") {
-    return { minX: third, maxX: third * 2 - 1, minY: 0, maxY: 24 };
-  }
-
-  if (area === "TOP_RIGHT") {
-    return { minX: third * 2, maxX: 199, minY: 0, maxY: 24 };
-  }
-
-  if (area === "BOTTOM_LEFT") {
-    return { minX: 0, maxX: third - 1, minY: 120, maxY: 144 };
-  }
-
-  if (area === "BOTTOM_CENTER") {
-    return { minX: third, maxX: third * 2 - 1, minY: 120, maxY: 144 };
-  }
-
-  if (area === "BOTTOM_RIGHT") {
-    return { minX: third * 2, maxX: 199, minY: 120, maxY: 144 };
-  }
-
-  return null;
-}
-
-function normalizeArea(area: unknown): AreaCode {
-  const value = String(area || "SURPRISE").trim().toUpperCase();
-
-  const allowed: AreaCode[] = [
-    "TOP_LEFT",
-    "TOP_CENTER",
-    "TOP_RIGHT",
-    "BOTTOM_LEFT",
-    "BOTTOM_CENTER",
-    "BOTTOM_RIGHT",
-    "SURPRISE",
-  ];
-
-  if (allowed.includes(value as AreaCode)) {
-    return value as AreaCode;
-  }
-
-  return "SURPRISE";
-}
-
-async function findAvailableBlock(tx: any, area: AreaCode, gridX: number | null, gridY: number | null) {
-  if (typeof gridX === "number" && typeof gridY === "number") {
-    const touchedBlock = await tx.block.findFirst({
-      where: {
-        gridX,
-        gridY,
-        category: "SOLIDARITY",
-        status: "AVAILABLE",
-        available: true,
-      },
-    });
-
-    if (touchedBlock) {
-      return touchedBlock;
-    }
-  }
-
-  const bounds = getAreaBounds(area);
-
-  if (!bounds) {
-    return tx.block.findFirst({
-      where: {
-        category: "SOLIDARITY",
-        status: "AVAILABLE",
-        available: true,
-      },
-      orderBy: [
-        {
-          gridY: "asc",
-        },
-        {
-          gridX: "asc",
-        },
-      ],
-    });
-  }
-
-  return tx.block.findFirst({
-    where: {
-      category: "SOLIDARITY",
-      status: "AVAILABLE",
-      available: true,
-      gridX: {
-        gte: bounds.minX,
-        lte: bounds.maxX,
-      },
-      gridY: {
-        gte: bounds.minY,
-        lte: bounds.maxY,
-      },
-    },
-    orderBy: [
-      {
-        gridY: "asc",
-      },
-      {
-        gridX: "asc",
-      },
-    ],
-  });
 }
 
 export async function GET() {
@@ -173,14 +44,6 @@ export async function GET() {
     webhookUrl: cleanAppUrl
       ? `${cleanAppUrl}/api/mercado-pago-pix/webhook`
       : null,
-    accepts: {
-      fullName: "string",
-      whatsapp: "digits",
-      cpf: "digits",
-      area: "TOP_LEFT | TOP_CENTER | TOP_RIGHT | BOTTOM_LEFT | BOTTOM_CENTER | BOTTOM_RIGHT | SURPRISE",
-      gridX: "optional number",
-      gridY: "optional number",
-    },
   });
 }
 
@@ -206,19 +69,7 @@ export async function POST(request: Request) {
     const { prisma } = await import("@/lib/prisma");
 
     const body = await request.json();
-
     const fullName = String(body.fullName || "").trim();
-    const whatsapp = onlyDigits(String(body.whatsapp || ""));
-    const cpf = onlyDigits(String(body.cpf || ""));
-    const area = normalizeArea(body.area);
-
-    const gridX = Number.isFinite(Number(body.gridX))
-      ? Number(body.gridX)
-      : null;
-
-    const gridY = Number.isFinite(Number(body.gridY))
-      ? Number(body.gridY)
-      : null;
 
     if (!fullName || fullName.length < 3) {
       return NextResponse.json(
@@ -232,39 +83,29 @@ export async function POST(request: Request) {
       );
     }
 
-    if (whatsapp.length < 10) {
-      return NextResponse.json(
-        {
-          ok: false,
-          message: "Informe um WhatsApp válido.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    if (cpf.length !== 11) {
-      return NextResponse.json(
-        {
-          ok: false,
-          message: "Informe um CPF válido com 11 números.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
     const uniqueId = Date.now();
     const externalReference = `mp-pix-solidarity-${uniqueId}`;
     const reservedUntil = new Date(Date.now() + RESERVATION_MINUTES * 60 * 1000);
 
     const pendingData = await prisma.$transaction(async (tx) => {
-      const availableBlock = await findAvailableBlock(tx, area, gridX, gridY);
+      const availableBlock = await tx.block.findFirst({
+        where: {
+          category: "SOLIDARITY",
+          status: "AVAILABLE",
+          available: true,
+        },
+        orderBy: [
+          {
+            gridY: "asc",
+          },
+          {
+            gridX: "asc",
+          },
+        ],
+      });
 
       if (!availableBlock) {
-        throw new Error("Nenhum bloco solidário disponível encontrado nessa região.");
+        throw new Error("Nenhum bloco solidário disponível encontrado.");
       }
 
       const user = await tx.user.create({
@@ -272,9 +113,6 @@ export async function POST(request: Request) {
           name: fullName,
           publicName: fullName,
           email: `mp-pix-${uniqueId}@example.com`,
-          whatsapp,
-          cpfHash: hashCpf(cpf),
-          cpfLast4: cpf.slice(-4),
           totalApprovedCents: 0,
         },
       });
@@ -342,16 +180,12 @@ export async function POST(request: Request) {
 
     const mercadoPagoPayload = {
       transaction_amount: centsToReais(TOTAL_PAID_CENTS),
-      description: `Milhão Solidário - ${fullName}`,
+      description: "Milhão Solidário - Bloco Mosaico Solidário",
       payment_method_id: "pix",
       external_reference: externalReference,
       payer: {
         email: pendingData.user.email,
         first_name: getFirstName(fullName),
-        identification: {
-          type: "CPF",
-          number: cpf,
-        },
       },
       ...(notificationUrl
         ? {
@@ -420,7 +254,6 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       message: "PIX criado com sucesso.",
-      area,
       webhookUrl: notificationUrl,
       payment: {
         id: paymentData.id,

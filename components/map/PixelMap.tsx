@@ -10,19 +10,18 @@ const MAP_WIDTH = GRID_COLS * BLOCK_SIZE;
 const MAP_HEIGHT = GRID_ROWS * BLOCK_SIZE;
 
 type BlockCategory = "SOLIDARITY" | "PREMIUM" | "GRAND_CENTER";
-type AreaCode =
-  | "TOP_LEFT"
-  | "TOP_CENTER"
-  | "TOP_RIGHT"
-  | "BOTTOM_LEFT"
-  | "BOTTOM_CENTER"
-  | "BOTTOM_RIGHT"
-  | "SURPRISE";
 
 type Camera = {
   x: number;
   y: number;
   scale: number;
+};
+
+type SelectedBlock = {
+  gridX: number;
+  gridY: number;
+  category: Exclude<BlockCategory, "GRAND_CENTER">;
+  priceCents: number;
 };
 
 type ApiMapBlock = {
@@ -58,8 +57,7 @@ type SelectedSheet =
   | null
   | { type: "grand-center" }
   | { type: "sold"; block: ApiMapBlock }
-  | { type: "premium" }
-  | { type: "area"; area: AreaCode; gridX: number; gridY: number };
+  | { type: "premium-info" };
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -86,40 +84,47 @@ function getBlockType(x: number, y: number): BlockCategory {
   return "PREMIUM";
 }
 
-function getAreaFromGrid(x: number, y: number): AreaCode | null {
-  const third = GRID_COLS / 3;
-
-  if (y < 25) {
-    if (x < third) return "TOP_LEFT";
-    if (x < third * 2) return "TOP_CENTER";
-    return "TOP_RIGHT";
+function getBlockPrice(category: BlockCategory) {
+  if (category === "SOLIDARITY") {
+    return 1000;
   }
 
-  if (y >= 120) {
-    if (x < third) return "BOTTOM_LEFT";
-    if (x < third * 2) return "BOTTOM_CENTER";
-    return "BOTTOM_RIGHT";
+  if (category === "PREMIUM") {
+    return 10000;
   }
 
-  return null;
-}
-
-function getAreaLabel(area: AreaCode) {
-  const labels: Record<AreaCode, string> = {
-    TOP_LEFT: "Topo esquerdo",
-    TOP_CENTER: "Topo centro",
-    TOP_RIGHT: "Topo direito",
-    BOTTOM_LEFT: "Baixo esquerdo",
-    BOTTOM_CENTER: "Baixo centro",
-    BOTTOM_RIGHT: "Baixo direito",
-    SURPRISE: "Surpreenda-me",
-  };
-
-  return labels[area];
+  return 0;
 }
 
 function getBlockKey(x: number, y: number) {
   return `${x}:${y}`;
+}
+
+function isAdjacentToSelection(
+  selectedBlocks: SelectedBlock[],
+  gridX: number,
+  gridY: number
+) {
+  if (selectedBlocks.length === 0) {
+    return true;
+  }
+
+  return selectedBlocks.some((block) => {
+    const dx = Math.abs(block.gridX - gridX);
+    const dy = Math.abs(block.gridY - gridY);
+
+    return dx + dy === 1;
+  });
+}
+
+function getDisplayName(block: ApiMapBlock) {
+  return (
+    block.placement?.displayName ||
+    block.placement?.textLabel ||
+    block.owner?.publicName ||
+    block.owner?.name ||
+    "Apoiador"
+  );
 }
 
 function getSoldBlockColor(block: ApiMapBlock) {
@@ -138,24 +143,17 @@ function getSoldBlockColor(block: ApiMapBlock) {
   return "#facc15";
 }
 
-function getDisplayName(block: ApiMapBlock) {
-  return (
-    block.placement?.displayName ||
-    block.placement?.textLabel ||
-    block.owner?.publicName ||
-    block.owner?.name ||
-    "Apoiador"
-  );
-}
-
-function getCheckoutHref(area: AreaCode, gridX?: number, gridY?: number) {
+function buildCheckoutHref(selectedBlocks: SelectedBlock[]) {
   const params = new URLSearchParams();
-  params.set("area", area);
 
-  if (typeof gridX === "number" && typeof gridY === "number") {
-    params.set("gridX", String(gridX));
-    params.set("gridY", String(gridY));
-  }
+  params.set(
+    "blocks",
+    selectedBlocks
+      .map((block) => `${block.gridX}:${block.gridY}`)
+      .join(",")
+  );
+
+  params.set("category", selectedBlocks[0]?.category || "SOLIDARITY");
 
   return `/checkout?${params.toString()}`;
 }
@@ -165,11 +163,13 @@ export default function PixelMap() {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
 
   const isDraggingRef = useRef(false);
-  const lastPointerRef = useRef({ x: 0, y: 0 });
   const movedRef = useRef(false);
+  const lastPointerRef = useRef({ x: 0, y: 0 });
 
   const [selectedSheet, setSelectedSheet] = useState<SelectedSheet>(null);
   const [mapBlocks, setMapBlocks] = useState<ApiMapBlock[]>([]);
+  const [selectedBlocks, setSelectedBlocks] = useState<SelectedBlock[]>([]);
+  const [selectionMessage, setSelectionMessage] = useState("");
   const [isLoadingBlocks, setIsLoadingBlocks] = useState(true);
 
   const [camera, setCamera] = useState<Camera>({
@@ -229,20 +229,24 @@ export default function PixelMap() {
 
   useEffect(() => {
     drawMap();
-  }, [camera, mapBlocks]);
+  }, [camera, mapBlocks, selectedBlocks]);
+
+  const selectedSubtotalCents = selectedBlocks.reduce(
+    (total, block) => total + block.priceCents,
+    0
+  );
+
+  const selectedFeeCents = Math.ceil(selectedSubtotalCents * 0.1);
+  const selectedTotalCents = selectedSubtotalCents + selectedFeeCents;
 
   function getMapBlockAt(x: number, y: number) {
     return mapBlocks.find((block) => block.gridX === x && block.gridY === y);
   }
 
-  function drawAreaLabel(ctx: CanvasRenderingContext2D, label: string, x: number, y: number) {
-    ctx.save();
-    ctx.fillStyle = "rgba(15, 23, 42, 0.72)";
-    ctx.font = "700 42px Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(label, x, y);
-    ctx.restore();
+  function isSelected(x: number, y: number) {
+    return selectedBlocks.some(
+      (block) => block.gridX === x && block.gridY === y
+    );
   }
 
   function drawMap() {
@@ -271,15 +275,12 @@ export default function PixelMap() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, rect.width, rect.height);
 
-    ctx.fillStyle = "#bbf7d0";
+    ctx.fillStyle = "#dcfce7";
     ctx.fillRect(0, 0, rect.width, rect.height);
 
     ctx.save();
     ctx.translate(camera.x, camera.y);
     ctx.scale(camera.scale, camera.scale);
-
-    ctx.fillStyle = "#dcfce7";
-    ctx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
 
     for (let y = 0; y < GRID_ROWS; y++) {
       for (let x = 0; x < GRID_COLS; x++) {
@@ -296,14 +297,23 @@ export default function PixelMap() {
         } else if (type === "SOLIDARITY") {
           ctx.fillStyle = "#bbf7d0";
         } else {
-          ctx.fillStyle = "#dcfce7";
+          ctx.fillStyle = "#e2e8f0";
         }
 
         ctx.fillRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
 
-        ctx.strokeStyle = "rgba(22, 101, 52, 0.18)";
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.16)";
         ctx.lineWidth = 0.35;
         ctx.strokeRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
+
+        if (isSelected(x, y)) {
+          ctx.fillStyle = "rgba(37, 99, 235, 0.78)";
+          ctx.fillRect(px + 1, py + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
+
+          ctx.strokeStyle = "#1d4ed8";
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(px + 0.5, py + 0.5, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
+        }
 
         if (soldBlock && camera.scale >= 1.8) {
           ctx.fillStyle = "#ffffff";
@@ -314,9 +324,6 @@ export default function PixelMap() {
         }
       }
     }
-
-    drawAreaLabel(ctx, "TOPO", MAP_WIDTH / 2, 122);
-    drawAreaLabel(ctx, "BAIXO", MAP_WIDTH / 2, MAP_HEIGHT - 122);
 
     ctx.fillStyle = "#78350f";
     ctx.font = "26px Arial";
@@ -374,28 +381,54 @@ export default function PixelMap() {
     });
   }
 
-  function goToFirstSoldBlock() {
-    const wrapper = wrapperRef.current;
+  function clearSelection() {
+    setSelectedBlocks([]);
+    setSelectionMessage("");
+  }
 
-    if (!wrapper) return;
-
-    if (mapBlocks.length === 0) {
-      alert("Ainda não há blocos vendidos carregados no mapa.");
+  function selectBlock(gridX: number, gridY: number, category: BlockCategory) {
+    if (category === "GRAND_CENTER") {
+      setSelectedSheet({ type: "grand-center" });
       return;
     }
 
-    const firstBlock = mapBlocks[0];
-    const rect = wrapper.getBoundingClientRect();
-    const nextScale = 4;
+    const soldBlock = getMapBlockAt(gridX, gridY);
 
-    const blockCenterX = firstBlock.gridX * BLOCK_SIZE + BLOCK_SIZE / 2;
-    const blockCenterY = firstBlock.gridY * BLOCK_SIZE + BLOCK_SIZE / 2;
+    if (soldBlock) {
+      setSelectedSheet({ type: "sold", block: soldBlock });
+      return;
+    }
 
-    setCamera({
-      x: rect.width / 2 - blockCenterX * nextScale,
-      y: rect.height / 2 - blockCenterY * nextScale,
-      scale: nextScale,
-    });
+    if (isSelected(gridX, gridY)) {
+      setSelectionMessage("Esse bloco já está selecionado. Use limpar para começar de novo.");
+      return;
+    }
+
+    if (selectedBlocks.length > 0) {
+      const firstCategory = selectedBlocks[0].category;
+
+      if (firstCategory !== category) {
+        setSelectionMessage("Não misture tipos de bloco na mesma compra.");
+        return;
+      }
+    }
+
+    if (!isAdjacentToSelection(selectedBlocks, gridX, gridY)) {
+      setSelectionMessage("Escolha um bloco encostado nos que já selecionou.");
+      return;
+    }
+
+    setSelectionMessage("");
+
+    setSelectedBlocks((current) => [
+      ...current,
+      {
+        gridX,
+        gridY,
+        category,
+        priceCents: getBlockPrice(category),
+      },
+    ]);
   }
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
@@ -443,37 +476,7 @@ export default function PixelMap() {
 
     if (!gridPosition) return;
 
-    const soldBlock = getMapBlockAt(gridPosition.x, gridPosition.y);
-
-    if (soldBlock) {
-      setSelectedSheet({
-        type: "sold",
-        block: soldBlock,
-      });
-
-      return;
-    }
-
-    if (gridPosition.type === "GRAND_CENTER") {
-      setSelectedSheet({ type: "grand-center" });
-      return;
-    }
-
-    if (gridPosition.type === "PREMIUM") {
-      setSelectedSheet({ type: "premium" });
-      return;
-    }
-
-    const area = getAreaFromGrid(gridPosition.x, gridPosition.y);
-
-    if (area) {
-      setSelectedSheet({
-        type: "area",
-        area,
-        gridX: gridPosition.x,
-        gridY: gridPosition.y,
-      });
-    }
+    selectBlock(gridPosition.x, gridPosition.y, gridPosition.type);
   }
 
   function handleWheel(event: WheelEvent<HTMLDivElement>) {
@@ -491,7 +494,7 @@ export default function PixelMap() {
   return (
     <div
       ref={wrapperRef}
-      className="relative h-screen w-screen cursor-grab touch-none select-none overflow-hidden bg-green-200 active:cursor-grabbing"
+      className="relative h-full w-full cursor-grab touch-none select-none overflow-hidden bg-slate-100 active:cursor-grabbing"
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -501,56 +504,97 @@ export default function PixelMap() {
     >
       <canvas ref={canvasRef} className="block h-full w-full" />
 
-      <div className="pointer-events-none absolute left-0 right-0 top-0 z-40 p-3">
-        <div className="pointer-events-auto mx-auto flex max-w-5xl items-center justify-between gap-2 rounded-full bg-white/90 p-2 shadow-xl backdrop-blur">
-          <div className="flex items-center gap-2 pl-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500 text-lg shadow">
-              💚
-            </div>
-            <div>
-              <p className="text-sm font-black leading-none text-slate-950">
-                Milhão Solidário
-              </p>
-              <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
-                Toque no grid e escolha sua área
-              </p>
-            </div>
-          </div>
+      <div className="absolute left-3 right-3 top-3 z-40 flex gap-2">
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            goToFullGrid();
+          }}
+          className="rounded-full bg-white px-4 py-3 text-xs font-black text-slate-950 shadow-lg"
+        >
+          Ver grid inteiro
+        </button>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                goToFirstSoldBlock();
-              }}
-              className="rounded-full bg-green-600 px-4 py-3 text-xs font-black text-white shadow-lg"
-            >
-              {isLoadingBlocks ? "..." : `Vendidos ${mapBlocks.length}`}
-            </button>
-
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                goToFullGrid();
-              }}
-              className="rounded-full bg-yellow-400 px-4 py-3 text-xs font-black text-yellow-950 shadow-lg"
-            >
-              Ver tudo
-            </button>
-          </div>
+        <div className="ml-auto rounded-full bg-green-600 px-4 py-3 text-xs font-black text-white shadow-lg">
+          {isLoadingBlocks ? "Carregando..." : `Vendidos ${mapBlocks.length}`}
         </div>
       </div>
 
-      <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-40 mx-auto max-w-xl">
-        <div className="pointer-events-auto rounded-3xl bg-slate-950/90 p-4 text-center text-white shadow-2xl backdrop-blur">
-          <p className="text-xs font-black uppercase tracking-wide text-green-300">
-            Selecione uma área antes de comprar
-          </p>
-          <p className="mt-1 text-sm font-semibold text-slate-200">
-            Toque em qualquer bloco verde do topo ou de baixo.
-          </p>
+      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white p-4 shadow-2xl">
+        <div className="mx-auto max-w-3xl">
+          {selectedBlocks.length === 0 && (
+            <div className="text-center">
+              <p className="text-sm font-black text-slate-950">
+                Toque nos blocos que deseja comprar
+              </p>
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                Depois do primeiro bloco, os próximos precisam estar encostados.
+              </p>
+            </div>
+          )}
+
+          {selectedBlocks.length > 0 && (
+            <div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-2xl bg-slate-50 p-3">
+                  <p className="text-[10px] font-black uppercase text-slate-500">
+                    Blocos
+                  </p>
+                  <p className="text-lg font-black text-slate-950">
+                    {selectedBlocks.length}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-green-50 p-3">
+                  <p className="text-[10px] font-black uppercase text-green-700">
+                    Tipo
+                  </p>
+                  <p className="text-sm font-black text-green-900">
+                    {selectedBlocks[0].category === "SOLIDARITY"
+                      ? "Mosaico"
+                      : "Premium"}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-orange-50 p-3">
+                  <p className="text-[10px] font-black uppercase text-orange-700">
+                    Total
+                  </p>
+                  <p className="text-sm font-black text-orange-900">
+                    {money(selectedTotalCents)}
+                  </p>
+                </div>
+              </div>
+
+              {selectionMessage && (
+                <p className="mt-3 rounded-2xl bg-yellow-100 p-3 text-center text-xs font-black text-yellow-800">
+                  {selectionMessage}
+                </p>
+              )}
+
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={clearSelection}
+                  className="rounded-2xl bg-slate-100 py-4 text-sm font-black text-slate-800"
+                >
+                  Limpar seleção
+                </button>
+
+                <a
+                  href={buildCheckoutHref(selectedBlocks)}
+                  className="rounded-2xl bg-green-600 py-4 text-center text-sm font-black text-white shadow-lg"
+                >
+                  Continuar
+                </a>
+              </div>
+
+              <p className="mt-2 text-center text-[11px] font-semibold text-slate-500">
+                Valor inclui taxa operacional de 10%.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -566,15 +610,12 @@ export default function PixelMap() {
             <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-yellow-400 text-4xl shadow-lg">
               🔒
             </div>
-
             <h2 className="text-2xl font-black text-slate-950">
               Área bloqueada
             </h2>
-
             <p className="mt-3 text-sm leading-relaxed text-slate-600">
               Reservado para algo grandioso. Em breve.
             </p>
-
             <button
               type="button"
               onClick={() => setSelectedSheet(null)}
@@ -593,7 +634,6 @@ export default function PixelMap() {
               <div className="text-4xl">
                 {selectedSheet.block.category === "PREMIUM" ? "🔥" : "💚"}
               </div>
-
               <p className="mt-2 text-sm font-black">Bloco vendido</p>
             </div>
           </div>
@@ -639,91 +679,6 @@ export default function PixelMap() {
             className="mt-3 w-full rounded-2xl bg-slate-950 py-4 text-sm font-extrabold text-white"
           >
             Fechar
-          </button>
-        </div>
-      )}
-
-      {selectedSheet?.type === "area" && (
-        <div className="fixed inset-x-0 bottom-0 z-[999] rounded-t-3xl border border-green-200 bg-white p-5 shadow-2xl">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500 text-3xl text-white shadow-lg">
-            💚
-          </div>
-
-          <p className="text-center text-xs font-black uppercase tracking-wide text-green-600">
-            Área selecionada
-          </p>
-
-          <h2 className="mt-1 text-center text-2xl font-black text-slate-950">
-            {getAreaLabel(selectedSheet.area)}
-          </h2>
-
-          <p className="mt-2 text-center text-sm leading-relaxed text-slate-600">
-            Vamos reservar um bloco disponível nessa região. Depois você
-            preenche nome, WhatsApp e CPF para gerar o PIX.
-          </p>
-
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <div className="rounded-2xl bg-green-50 p-3 text-center">
-              <p className="text-[10px] font-black uppercase text-green-700">
-                Bloco tocado
-              </p>
-              <p className="text-sm font-black text-green-900">
-                x{selectedSheet.gridX} / y{selectedSheet.gridY}
-              </p>
-            </div>
-
-            <div className="rounded-2xl bg-orange-50 p-3 text-center">
-              <p className="text-[10px] font-black uppercase text-orange-700">
-                Total
-              </p>
-              <p className="text-sm font-black text-orange-900">
-                R$ 11,00
-              </p>
-            </div>
-          </div>
-
-          <a
-            href={getCheckoutHref(
-              selectedSheet.area,
-              selectedSheet.gridX,
-              selectedSheet.gridY
-            )}
-            className="mt-5 block w-full rounded-2xl bg-green-600 py-4 text-center text-sm font-extrabold text-white shadow-lg active:scale-95"
-          >
-            Continuar para dados
-          </a>
-
-          <button
-            type="button"
-            onClick={() => setSelectedSheet(null)}
-            className="mt-3 w-full rounded-2xl bg-slate-950 py-4 text-sm font-extrabold text-white"
-          >
-            Escolher outra área
-          </button>
-        </div>
-      )}
-
-      {selectedSheet?.type === "premium" && (
-        <div className="fixed inset-x-0 bottom-0 z-[999] rounded-t-3xl border border-orange-200 bg-white p-5 shadow-2xl">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-orange-500 text-3xl text-white shadow-lg">
-            🔥
-          </div>
-
-          <h2 className="text-center text-xl font-black text-slate-950">
-            Área Premium
-          </h2>
-
-          <p className="mt-2 text-center text-sm leading-relaxed text-slate-600">
-            A compra premium com imagem, descrição e link será liberada na
-            próxima etapa.
-          </p>
-
-          <button
-            type="button"
-            onClick={() => setSelectedSheet(null)}
-            className="mt-5 w-full rounded-2xl bg-slate-950 py-4 text-sm font-extrabold text-white"
-          >
-            Entendi
           </button>
         </div>
       )}
