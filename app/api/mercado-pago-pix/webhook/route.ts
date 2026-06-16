@@ -27,7 +27,7 @@ function getErrorMessage(error: unknown) {
   return String(error);
 }
 
-function getPaymentIdFromNotification(
+function getPaymentIdFromRequest(
   request: Request,
   body: MercadoPagoNotificationBody | null
 ) {
@@ -62,9 +62,7 @@ function getNotificationType(
   );
 }
 
-function mapMercadoPagoStatusToTransactionStatus(
-  status: string
-): TransactionStatusValue {
+function mapStatus(status: string): TransactionStatusValue {
   if (status === "approved") {
     return "APPROVED";
   }
@@ -88,7 +86,7 @@ function mapMercadoPagoStatusToTransactionStatus(
   return "PENDING";
 }
 
-function shouldReleaseReservedBlock(status: string) {
+function shouldReleaseBlock(status: string) {
   return (
     status === "rejected" ||
     status === "cancelled" ||
@@ -130,10 +128,20 @@ async function getMercadoPagoPayment(paymentId: string, accessToken: string) {
   return paymentData;
 }
 
-async function approveTransaction(paymentData: any) {
+async function processPayment(paymentId: string) {
+  const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
+
+  if (!accessToken) {
+    return {
+      ok: false,
+      message: "MERCADO_PAGO_ACCESS_TOKEN não configurado.",
+      paymentId,
+    };
+  }
+
   const { prisma } = await import("@/lib/prisma");
 
-  const paymentId = String(paymentData.id);
+  const paymentData = await getMercadoPagoPayment(paymentId, accessToken);
 
   const externalReference = paymentData.external_reference
     ? String(paymentData.external_reference)
@@ -159,9 +167,11 @@ async function approveTransaction(paymentData: any) {
   if (!transaction) {
     return {
       ok: false,
-      message: "Transação não encontrada no banco.",
+      message: "Pagamento encontrado no Mercado Pago, mas transação não encontrada no banco.",
       paymentId,
       externalReference,
+      mercadoPagoStatus: paymentData.status,
+      mercadoPagoStatusDetail: paymentData.status_detail,
     };
   }
 
@@ -169,7 +179,61 @@ async function approveTransaction(paymentData: any) {
     return {
       ok: true,
       message: "Transação já estava aprovada.",
+      paymentId,
       transactionId: transaction.id,
+      mercadoPagoStatus: paymentData.status,
+      mercadoPagoStatusDetail: paymentData.status_detail,
+    };
+  }
+
+  if (paymentData.status !== "approved") {
+    const nextStatus = mapStatus(String(paymentData.status || ""));
+    const shouldRelease = shouldReleaseBlock(String(paymentData.status || ""));
+
+    const updatedTransaction = await prisma.$transaction(async (tx) => {
+      const updated = await tx.transaction.update({
+        where: {
+          id: transaction.id,
+        },
+        data: {
+          status: nextStatus,
+
+          mpPaymentId: paymentId,
+          mpStatus: paymentData.status || "pending",
+          mpStatusDetail: paymentData.status_detail || null,
+        },
+      });
+
+      if (shouldRelease) {
+        await tx.block.updateMany({
+          where: {
+            currentTransactionId: transaction.id,
+            status: "RESERVED",
+          },
+          data: {
+            status: "AVAILABLE",
+            available: true,
+            ownerId: null,
+            currentTransactionId: null,
+            reservationToken: null,
+            reservedUntil: null,
+          },
+        });
+      }
+
+      return updated;
+    });
+
+    return {
+      ok: true,
+      message: shouldRelease
+        ? "Pagamento não aprovado. Bloco liberado."
+        : "Pagamento ainda não aprovado.",
+      paymentId,
+      transactionId: updatedTransaction.id,
+      transactionStatus: updatedTransaction.status,
+      mercadoPagoStatus: paymentData.status,
+      mercadoPagoStatusDetail: paymentData.status_detail,
     };
   }
 
@@ -277,139 +341,18 @@ async function approveTransaction(paymentData: any) {
   return {
     ok: true,
     message: "Pagamento aprovado e bloco vendido.",
+    paymentId,
     transactionId: result.transaction.id,
     placementId: result.placement.id,
     blockIds,
-  };
-}
-
-async function updatePendingOrReleaseTransaction(paymentData: any) {
-  const { prisma } = await import("@/lib/prisma");
-
-  const paymentId = String(paymentData.id);
-
-  const externalReference = paymentData.external_reference
-    ? String(paymentData.external_reference)
-    : "";
-
-  const transaction = await prisma.transaction.findFirst({
-    where: {
-      OR: [
-        {
-          mpPaymentId: paymentId,
-        },
-        {
-          mpExternalReference: externalReference,
-        },
-      ],
-    },
-    include: {
-      items: true,
-    },
-  });
-
-  if (!transaction) {
-    return {
-      ok: false,
-      message: "Transação não encontrada para atualização.",
-      paymentId,
-      externalReference,
-    };
-  }
-
-  if (transaction.status === "APPROVED") {
-    return {
-      ok: true,
-      message: "Transação já aprovada. Nenhuma alteração feita.",
-      transactionId: transaction.id,
-    };
-  }
-
-  const nextStatus = mapMercadoPagoStatusToTransactionStatus(
-    String(paymentData.status || "")
-  );
-
-  const shouldRelease = shouldReleaseReservedBlock(
-    String(paymentData.status || "")
-  );
-
-  const result = await prisma.$transaction(async (tx) => {
-    const updatedTransaction = await tx.transaction.update({
-      where: {
-        id: transaction.id,
-      },
-      data: {
-        status: nextStatus,
-
-        mpPaymentId: paymentId,
-        mpStatus: paymentData.status || "pending",
-        mpStatusDetail: paymentData.status_detail || null,
-      },
-    });
-
-    if (shouldRelease) {
-      await tx.block.updateMany({
-        where: {
-          currentTransactionId: transaction.id,
-          status: "RESERVED",
-        },
-        data: {
-          status: "AVAILABLE",
-          available: true,
-          ownerId: null,
-          currentTransactionId: null,
-          reservationToken: null,
-          reservedUntil: null,
-        },
-      });
-    }
-
-    return updatedTransaction;
-  });
-
-  return {
-    ok: true,
-    message: shouldRelease
-      ? "Pagamento não aprovado. Bloco reservado foi liberado."
-      : "Pagamento atualizado, mas ainda não aprovado.",
-    transactionId: result.id,
-    status: result.status,
-  };
-}
-
-async function processPayment(paymentId: string, accessToken: string) {
-  const paymentData = await getMercadoPagoPayment(paymentId, accessToken);
-
-  if (paymentData.status === "approved") {
-    const result = await approveTransaction(paymentData);
-
-    return {
-      ok: true,
-      processed: true,
-      paymentId,
-      paymentStatus: paymentData.status,
-      paymentStatusDetail: paymentData.status_detail,
-      result,
-    };
-  }
-
-  const result = await updatePendingOrReleaseTransaction(paymentData);
-
-  return {
-    ok: true,
-    processed: true,
-    paymentId,
-    paymentStatus: paymentData.status,
-    paymentStatusDetail: paymentData.status_detail,
-    result,
+    mercadoPagoStatus: paymentData.status,
+    mercadoPagoStatusDetail: paymentData.status_detail,
   };
 }
 
 export async function GET(request: Request) {
   try {
-    const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
-
-    const paymentId = getPaymentIdFromNotification(request, null);
+    const paymentId = getPaymentIdFromRequest(request, null);
 
     if (!paymentId) {
       return NextResponse.json({
@@ -421,19 +364,7 @@ export async function GET(request: Request) {
       });
     }
 
-    if (!accessToken) {
-      return NextResponse.json(
-        {
-          ok: false,
-          message: "MERCADO_PAGO_ACCESS_TOKEN não configurado.",
-        },
-        {
-          status: 500,
-        }
-      );
-    }
-
-    const result = await processPayment(paymentId, accessToken);
+    const result = await processPayment(paymentId);
 
     return NextResponse.json({
       ok: true,
@@ -448,7 +379,7 @@ export async function GET(request: Request) {
         error: getErrorMessage(error),
       },
       {
-        status: 500,
+        status: 200,
       }
     );
   }
@@ -456,20 +387,6 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
-
-    if (!accessToken) {
-      return NextResponse.json(
-        {
-          ok: false,
-          message: "MERCADO_PAGO_ACCESS_TOKEN não configurado.",
-        },
-        {
-          status: 500,
-        }
-      );
-    }
-
     let body: MercadoPagoNotificationBody | null = null;
 
     try {
@@ -479,7 +396,7 @@ export async function POST(request: Request) {
     }
 
     const notificationType = getNotificationType(request, body);
-    const paymentId = getPaymentIdFromNotification(request, body);
+    const paymentId = getPaymentIdFromRequest(request, body);
 
     if (!paymentId) {
       return NextResponse.json({
@@ -502,7 +419,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const result = await processPayment(paymentId, accessToken);
+    const result = await processPayment(paymentId);
 
     return NextResponse.json({
       ok: true,
@@ -513,11 +430,12 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         ok: false,
-        message: "Erro ao processar webhook Mercado Pago.",
+        mode: "webhook",
+        message: "Webhook recebeu a notificação, mas ocorreu erro ao processar.",
         error: getErrorMessage(error),
       },
       {
-        status: 500,
+        status: 200,
       }
     );
   }
