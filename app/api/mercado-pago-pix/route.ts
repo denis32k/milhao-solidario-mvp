@@ -8,6 +8,7 @@ const OPERATOR_FEE_CENTS = 100;
 const TOTAL_PAID_CENTS = 1100;
 const CREATOR_SHARE_CENTS = 500;
 const HOSPITAL_SHARE_CENTS = 500;
+const RESERVATION_MINUTES = 30;
 
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) {
@@ -25,15 +26,31 @@ function getFirstName(fullName: string) {
   return fullName.trim().split(" ")[0] || fullName.trim();
 }
 
+function getCleanAppUrl() {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "";
+
+  return appUrl.endsWith("/") ? appUrl.slice(0, -1) : appUrl;
+}
+
 export async function GET() {
+  const cleanAppUrl = getCleanAppUrl();
+
   return NextResponse.json({
     ok: true,
     message: "API Mercado Pago PIX carregada.",
     hasAccessToken: Boolean(process.env.MERCADO_PAGO_ACCESS_TOKEN),
+    appUrl: cleanAppUrl || null,
+    webhookPath: "/api/mercado-pago-pix/webhook",
+    webhookUrl: cleanAppUrl
+      ? `${cleanAppUrl}/api/mercado-pago-pix/webhook`
+      : null,
   });
 }
 
 export async function POST(request: Request) {
+  let pendingTransactionId: string | null = null;
+  let reservedBlockId: string | null = null;
+
   try {
     const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
 
@@ -52,7 +69,6 @@ export async function POST(request: Request) {
     const { prisma } = await import("@/lib/prisma");
 
     const body = await request.json();
-
     const fullName = String(body.fullName || "").trim();
 
     if (!fullName || fullName.length < 3) {
@@ -69,7 +85,7 @@ export async function POST(request: Request) {
 
     const uniqueId = Date.now();
     const externalReference = `mp-pix-solidarity-${uniqueId}`;
-    const reservedUntil = new Date(Date.now() + 30 * 60 * 1000);
+    const reservedUntil = new Date(Date.now() + RESERVATION_MINUTES * 60 * 1000);
 
     const pendingData = await prisma.$transaction(async (tx) => {
       const availableBlock = await tx.block.findFirst({
@@ -154,17 +170,12 @@ export async function POST(request: Request) {
       };
     });
 
-    const appUrl =
-      process.env.NEXT_PUBLIC_APP_URL ||
-      process.env.APP_URL ||
-      "";
+    pendingTransactionId = pendingData.transaction.id;
+    reservedBlockId = pendingData.block.id;
 
-    const cleanAppUrl = appUrl.endsWith("/")
-      ? appUrl.slice(0, -1)
-      : appUrl;
-
+    const cleanAppUrl = getCleanAppUrl();
     const notificationUrl = cleanAppUrl
-      ? `${cleanAppUrl}/api/mercado-pago/webhook`
+      ? `${cleanAppUrl}/api/mercado-pago-pix/webhook`
       : undefined;
 
     const mercadoPagoPayload = {
@@ -243,6 +254,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       message: "PIX criado com sucesso.",
+      webhookUrl: notificationUrl,
       payment: {
         id: paymentData.id,
         status: paymentData.status,
@@ -264,6 +276,46 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    try {
+      if (pendingTransactionId || reservedBlockId) {
+        const { prisma } = await import("@/lib/prisma");
+
+        await prisma.$transaction(async (tx) => {
+          if (pendingTransactionId) {
+            await tx.transaction.updateMany({
+              where: {
+                id: pendingTransactionId,
+                status: "PENDING",
+              },
+              data: {
+                status: "CANCELLED",
+                mpStatusDetail: "pix_creation_failed",
+              },
+            });
+          }
+
+          if (reservedBlockId) {
+            await tx.block.updateMany({
+              where: {
+                id: reservedBlockId,
+                status: "RESERVED",
+              },
+              data: {
+                status: "AVAILABLE",
+                available: true,
+                ownerId: null,
+                currentTransactionId: null,
+                reservationToken: null,
+                reservedUntil: null,
+              },
+            });
+          }
+        });
+      }
+    } catch (cleanupError) {
+      console.error("Erro ao limpar reserva após falha no PIX:", cleanupError);
+    }
+
     return NextResponse.json(
       {
         ok: false,

@@ -83,7 +83,7 @@ export default function CheckoutPage() {
 
       if (mode === "premium") {
         alert(
-          "O PIX real agora está conectado primeiro no Mosaico Solidário. Depois vamos ligar o Premium com seleção de blocos, upload e link."
+          "O PIX real está conectado primeiro no Mosaico Solidário. Depois vamos ligar o Premium com seleção de blocos, upload e link."
         );
         return;
       }
@@ -112,9 +112,7 @@ export default function CheckoutPage() {
 
       if (!response.ok || !data.ok) {
         throw new Error(
-          data.message ||
-            data.error ||
-            "Erro ao criar PIX no Mercado Pago."
+          data.message || data.error || "Erro ao criar PIX no Mercado Pago."
         );
       }
 
@@ -184,29 +182,34 @@ export default function CheckoutPage() {
       }
 
       const result = data.result || {};
+      const nestedResult = result.result || {};
 
       const mercadoPagoStatus = String(
         result.mercadoPagoStatus ||
           result.paymentStatus ||
           result.status ||
+          nestedResult.mercadoPagoStatus ||
+          nestedResult.paymentStatus ||
+          nestedResult.status ||
           ""
       ).toLowerCase();
 
       const transactionStatus = String(
         result.transactionStatus ||
-          result.result?.transactionStatus ||
+          nestedResult.transactionStatus ||
+          result.status ||
+          nestedResult.status ||
           ""
       ).toUpperCase();
 
       const message =
         result.message ||
-        result.result?.message ||
+        nestedResult.message ||
         data.message ||
         "Consulta realizada.";
 
       const isApproved =
-        mercadoPagoStatus === "approved" ||
-        transactionStatus === "APPROVED";
+        mercadoPagoStatus === "approved" || transactionStatus === "APPROVED";
 
       if (isApproved) {
         setPaymentApproved(true);
@@ -490,9 +493,7 @@ export default function CheckoutPage() {
 
             <div className="border-t border-slate-200 pt-3">
               <div className="flex justify-between">
-                <span className="font-black text-slate-950">
-                  Total PIX
-                </span>
+                <span className="font-black text-slate-950">Total PIX</span>
 
                 <span className="text-xl font-black text-slate-950">
                   {money(totalCents)}

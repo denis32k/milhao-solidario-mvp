@@ -128,6 +128,44 @@ async function getMercadoPagoPayment(paymentId: string, accessToken: string) {
   return paymentData;
 }
 
+async function createLedgerIfMissing(transactionId: string) {
+  const { prisma } = await import("@/lib/prisma");
+
+  const transaction = await prisma.transaction.findUnique({
+    where: {
+      id: transactionId,
+    },
+    include: {
+      ledgerEntries: true,
+    },
+  });
+
+  if (!transaction) {
+    return;
+  }
+
+  if (transaction.ledgerEntries.length > 0) {
+    return;
+  }
+
+  await prisma.distributionLedger.createMany({
+    data: [
+      {
+        transactionId: transaction.id,
+        recipient: "CREATOR",
+        amountCents: transaction.creatorShareCents,
+        status: "PENDING",
+      },
+      {
+        transactionId: transaction.id,
+        recipient: "HOSPITAL",
+        amountCents: transaction.hospitalShareCents,
+        status: "PENDING",
+      },
+    ],
+  });
+}
+
 async function processPayment(paymentId: string) {
   const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
 
@@ -167,7 +205,8 @@ async function processPayment(paymentId: string) {
   if (!transaction) {
     return {
       ok: false,
-      message: "Pagamento encontrado no Mercado Pago, mas transação não encontrada no banco.",
+      message:
+        "Pagamento encontrado no Mercado Pago, mas transação não encontrada no banco.",
       paymentId,
       externalReference,
       mercadoPagoStatus: paymentData.status,
@@ -176,6 +215,8 @@ async function processPayment(paymentId: string) {
   }
 
   if (transaction.status === "APPROVED") {
+    await createLedgerIfMissing(transaction.id);
+
     return {
       ok: true,
       message: "Transação já estava aprovada.",
@@ -304,23 +345,6 @@ async function processPayment(paymentId: string) {
       },
     });
 
-    await tx.distributionLedger.createMany({
-      data: [
-        {
-          transactionId: transaction.id,
-          recipient: "CREATOR",
-          amountCents: transaction.creatorShareCents,
-          status: "PENDING",
-        },
-        {
-          transactionId: transaction.id,
-          recipient: "HOSPITAL",
-          amountCents: transaction.hospitalShareCents,
-          status: "PENDING",
-        },
-      ],
-    });
-
     await tx.user.update({
       where: {
         id: transaction.userId,
@@ -337,6 +361,8 @@ async function processPayment(paymentId: string) {
       placement,
     };
   });
+
+  await createLedgerIfMissing(result.transaction.id);
 
   return {
     ok: true,
