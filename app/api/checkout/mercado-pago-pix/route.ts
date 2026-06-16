@@ -159,8 +159,12 @@ export async function POST(request: Request) {
       process.env.APP_URL ||
       "";
 
-    const notificationUrl = appUrl
-      ? `${appUrl.replace(/\\/$/, "")}/api/mercado-pago/webhook`
+    const cleanAppUrl = appUrl.endsWith("/")
+      ? appUrl.slice(0, -1)
+      : appUrl;
+
+    const notificationUrl = cleanAppUrl
+      ? `${cleanAppUrl}/api/mercado-pago/webhook`
       : undefined;
 
     const mercadoPagoPayload = {
