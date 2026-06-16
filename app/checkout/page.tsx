@@ -83,7 +83,7 @@ export default function CheckoutPage() {
 
       setIsLoading(true);
 
-      const response = await fetch("/api/mercado-pago-pi", {
+      const response = await fetch("/api/mercado-pago-pix", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
