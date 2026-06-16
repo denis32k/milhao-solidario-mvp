@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-type BuyableCategory = "SOLIDARITY" | "PREMIUM";
+type BuyableCategory = "SOLIDARITY" | "PREMIUM" | "GOLD";
 
 type SelectedBlockInput = {
   gridX: number;
@@ -11,6 +11,14 @@ type SelectedBlockInput = {
 };
 
 const RESERVATION_MINUTES = 30;
+const ALLOWED_COLORS = new Set([
+  "#22c55e",
+  "#2563eb",
+  "#ec4899",
+  "#8b5cf6",
+  "#f97316",
+  "#eab308",
+]);
 
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) {
@@ -41,6 +49,35 @@ function hashCpf(cpf: string) {
   return createHash("sha256").update(cpf).digest("hex");
 }
 
+function safeText(value: unknown, maxLength: number) {
+  return String(value || "").trim().slice(0, maxLength);
+}
+
+function normalizePublicLink(value: unknown) {
+  const raw = String(value || "").trim();
+
+  if (!raw) return "";
+
+  if (raw.startsWith("@")) {
+    const handle = raw.replace("@", "").replace(/[^a-zA-Z0-9._]/g, "");
+    return handle ? `https://instagram.com/${handle}` : "";
+  }
+
+  if (/^https?:\/\//i.test(raw)) {
+    return raw.slice(0, 300);
+  }
+
+  if (/^[a-zA-Z0-9._-]+$/.test(raw)) {
+    return `https://instagram.com/${raw}`;
+  }
+
+  if (raw.includes(".") && !raw.includes(" ")) {
+    return `https://${raw}`.slice(0, 300);
+  }
+
+  return "";
+}
+
 function normalizeSelectedBlocks(value: unknown): SelectedBlockInput[] {
   if (!Array.isArray(value)) {
     return [];
@@ -58,7 +95,7 @@ function normalizeSelectedBlocks(value: unknown): SelectedBlockInput[] {
       gridX >= 0 &&
       gridX <= 199 &&
       gridY >= 0 &&
-      gridY <= 145
+      gridY <= 144
     ) {
       unique.set(`${gridX}:${gridY}`, { gridX, gridY });
     }
@@ -105,8 +142,31 @@ function areBlocksContiguous(blocks: SelectedBlockInput[]) {
   return visited.size === blocks.length;
 }
 
+function blocksFormRectangle(blocks: SelectedBlockInput[]) {
+  if (blocks.length <= 1) {
+    return true;
+  }
+
+  const minX = Math.min(...blocks.map((block) => block.gridX));
+  const maxX = Math.max(...blocks.map((block) => block.gridX));
+  const minY = Math.min(...blocks.map((block) => block.gridY));
+  const maxY = Math.max(...blocks.map((block) => block.gridY));
+  const width = maxX - minX + 1;
+  const height = maxY - minY + 1;
+
+  return width * height === blocks.length;
+}
+
 function mapCategoryToKind(category: BuyableCategory) {
-  return category === "PREMIUM" ? "PREMIUM" : "SOLIDARITY";
+  if (category === "GOLD") return "GOLD";
+  if (category === "PREMIUM") return "PREMIUM";
+  return "SOLIDARITY";
+}
+
+function getCategoryDescription(category: BuyableCategory, fullName: string) {
+  if (category === "GOLD") return `Milhão Solidário Área Ouro - ${fullName}`;
+  if (category === "PREMIUM") return `Milhão Solidário Premium - ${fullName}`;
+  return `Milhão Solidário Mosaico - ${fullName}`;
 }
 
 export async function GET() {
@@ -123,13 +183,15 @@ export async function GET() {
       : null,
     accepts: {
       fullName: "string",
+      publicName: "string",
       whatsapp: "digits",
       cpf: "digits",
       selectedBlocks: [{ gridX: 7, gridY: 0 }],
-      title: "optional premium title",
-      description: "optional premium description",
-      redirectUrl: "optional premium link",
-      imageUrl: "optional premium image url",
+      title: "public title/name",
+      description: "short public description",
+      redirectUrl: "optional public link or instagram",
+      imageUrl: "optional premium/gold image url",
+      fillColor: "optional solidarity color",
     },
   });
 }
@@ -151,18 +213,27 @@ export async function POST(request: Request) {
     const { prisma } = await import("@/lib/prisma");
 
     const body = await request.json();
-    const fullName = String(body.fullName || "").trim();
+    const fullName = safeText(body.fullName, 120);
+    const publicName = safeText(body.publicName || body.title || body.fullName, 60);
     const whatsapp = onlyDigits(String(body.whatsapp || ""));
     const cpf = onlyDigits(String(body.cpf || ""));
     const selectedBlocksInput = normalizeSelectedBlocks(body.selectedBlocks);
 
-    const title = String(body.title || "").trim();
-    const description = String(body.description || "").trim();
-    const redirectUrl = String(body.redirectUrl || "").trim();
-    const imageUrl = String(body.imageUrl || "").trim();
+    const title = safeText(body.title || publicName, 80);
+    const description = safeText(body.description, 180);
+    const redirectUrl = normalizePublicLink(body.redirectUrl || body.instagram || body.publicLink);
+    const imageUrl = safeText(body.imageUrl, 500);
+    const requestedFillColor = safeText(body.fillColor, 20);
+    const fillColor = ALLOWED_COLORS.has(requestedFillColor)
+      ? requestedFillColor
+      : "#22c55e";
 
     if (!fullName || fullName.length < 3) {
       return NextResponse.json({ ok: false, message: "Informe um nome completo válido." }, { status: 400 });
+    }
+
+    if (!publicName || publicName.length < 2) {
+      return NextResponse.json({ ok: false, message: "Informe um nome público válido." }, { status: 400 });
     }
 
     if (whatsapp.length < 10) {
@@ -195,7 +266,7 @@ export async function POST(request: Request) {
           status: "AVAILABLE",
           available: true,
           category: {
-            in: ["SOLIDARITY", "PREMIUM"],
+            in: ["SOLIDARITY", "PREMIUM", "GOLD"],
           },
         },
         orderBy: [{ gridY: "asc" }, { gridX: "asc" }],
@@ -212,6 +283,15 @@ export async function POST(request: Request) {
       }
 
       const category = categories[0] as BuyableCategory;
+
+      if ((category === "PREMIUM" || category === "GOLD") && !blocksFormRectangle(selectedBlocksInput)) {
+        throw new Error("Para usar imagem, selecione uma área retangular.");
+      }
+
+      if ((category === "PREMIUM" || category === "GOLD") && !title.trim()) {
+        throw new Error("Informe um título público para essa área.");
+      }
+
       const subtotalCents = foundBlocks.reduce((total, block) => total + block.priceCents, 0);
       const operatorFeeCents = Math.ceil(subtotalCents * 0.1);
       const totalPaidCents = subtotalCents + operatorFeeCents;
@@ -221,7 +301,7 @@ export async function POST(request: Request) {
       const user = await tx.user.create({
         data: {
           name: fullName,
-          publicName: fullName,
+          publicName,
           email: `mp-pix-${uniqueId}@example.com`,
           whatsapp,
           cpfHash: hashCpf(cpf),
@@ -247,10 +327,11 @@ export async function POST(request: Request) {
           checkoutCpfHash: hashCpf(cpf),
           checkoutCpfLast4: cpf.slice(-4),
 
-          placementTitle: category === "PREMIUM" ? title || fullName : null,
-          placementDescription: category === "PREMIUM" ? description || null : null,
-          placementRedirectUrl: category === "PREMIUM" ? redirectUrl || null : null,
-          placementImageUrl: category === "PREMIUM" ? imageUrl || null : null,
+          placementTitle: title || publicName,
+          placementDescription: description || null,
+          placementRedirectUrl: redirectUrl || null,
+          placementImageUrl: category === "SOLIDARITY" ? null : imageUrl || null,
+          placementFillColor: category === "SOLIDARITY" ? fillColor : null,
 
           mpExternalReference: externalReference,
           mpStatus: "pending",
@@ -305,10 +386,7 @@ export async function POST(request: Request) {
 
     const mercadoPagoPayload = {
       transaction_amount: centsToReais(pendingData.transaction.totalPaidCents),
-      description:
-        pendingData.category === "PREMIUM"
-          ? `Milhão Solidário Premium - ${fullName}`
-          : `Milhão Solidário Mosaico - ${fullName}`,
+      description: getCategoryDescription(pendingData.category, fullName),
       payment_method_id: "pix",
       external_reference: externalReference,
       payer: {

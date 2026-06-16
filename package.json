@@ -9,7 +9,8 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "seed": "node prisma/seed.js",
-    "fake:sale": "node prisma/fake-approved-solidarity.js"
+    "fake:sale": "node prisma/fake-approved-solidarity.js",
+    "sync:grid": "node prisma/sync-grid-categories.js"
   },
   "dependencies": {
     "@prisma/client": "6.19.0",

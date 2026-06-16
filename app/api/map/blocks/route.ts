@@ -50,6 +50,10 @@ export async function GET() {
             textLabel: true,
             fillColor: true,
             placeholderReason: true,
+            originX: true,
+            originY: true,
+            widthBlocks: true,
+            heightBlocks: true,
           },
         },
       },
@@ -61,7 +65,7 @@ export async function GET() {
           gridX: "asc",
         },
       ],
-      take: 5000,
+      take: 29000,
     });
 
     return NextResponse.json({

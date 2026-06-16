@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-type BuyableCategory = "SOLIDARITY" | "PREMIUM";
+type BuyableCategory = "SOLIDARITY" | "PREMIUM" | "GOLD";
 type CheckoutStep = "data" | "pix";
 
 type SelectedBlock = {
@@ -36,6 +36,15 @@ type PixResult = {
     priceCents: number;
   }>;
 };
+
+const SOLIDARITY_COLORS = [
+  { name: "Verde esperança", value: "#22c55e" },
+  { name: "Azul confiança", value: "#2563eb" },
+  { name: "Rosa carinho", value: "#ec4899" },
+  { name: "Roxo apoio", value: "#8b5cf6" },
+  { name: "Laranja energia", value: "#f97316" },
+  { name: "Amarelo destaque", value: "#eab308" },
+];
 
 function money(cents: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -72,17 +81,12 @@ function formatWhatsApp(value: string) {
 }
 
 function getQrImageSrc(qrCodeBase64: string) {
-  if (qrCodeBase64.startsWith("data:")) {
-    return qrCodeBase64;
-  }
-
+  if (qrCodeBase64.startsWith("data:")) return qrCodeBase64;
   return `data:image/png;base64,${qrCodeBase64}`;
 }
 
 function parseBlocksFromQuery(value: string | null) {
-  if (!value) {
-    return [];
-  }
+  if (!value) return [];
 
   const unique = new Map<string, SelectedBlock>();
 
@@ -106,12 +110,57 @@ function parseBlocksFromQuery(value: string | null) {
   return Array.from(unique.values());
 }
 
+function blocksFormRectangle(blocks: SelectedBlock[]) {
+  if (blocks.length <= 1) return true;
+
+  const minX = Math.min(...blocks.map((block) => block.gridX));
+  const maxX = Math.max(...blocks.map((block) => block.gridX));
+  const minY = Math.min(...blocks.map((block) => block.gridY));
+  const maxY = Math.max(...blocks.map((block) => block.gridY));
+
+  return (maxX - minX + 1) * (maxY - minY + 1) === blocks.length;
+}
+
 function getCategoryLabel(category: BuyableCategory) {
-  return category === "PREMIUM" ? "Premium" : "Mosaico";
+  if (category === "GOLD") return "Área Ouro";
+  if (category === "PREMIUM") return "Premium";
+  return "Mosaico Solidário";
 }
 
 function getUnitPrice(category: BuyableCategory) {
-  return category === "PREMIUM" ? 10000 : 1000;
+  if (category === "GOLD") return 50000;
+  if (category === "PREMIUM") return 10000;
+  return 1000;
+}
+
+function getCategoryTheme(category: BuyableCategory) {
+  if (category === "GOLD") {
+    return {
+      border: "border-yellow-300",
+      bg: "bg-yellow-50",
+      text: "text-yellow-800",
+      button: "bg-yellow-500",
+      buttonText: "text-yellow-950",
+    };
+  }
+
+  if (category === "PREMIUM") {
+    return {
+      border: "border-orange-200",
+      bg: "bg-orange-50",
+      text: "text-orange-700",
+      button: "bg-orange-500",
+      buttonText: "text-white",
+    };
+  }
+
+  return {
+    border: "border-green-200",
+    bg: "bg-green-50",
+    text: "text-green-700",
+    button: "bg-green-600",
+    buttonText: "text-white",
+  };
 }
 
 export default function CheckoutPage() {
@@ -120,13 +169,16 @@ export default function CheckoutPage() {
   const [category, setCategory] = useState<BuyableCategory>("SOLIDARITY");
 
   const [fullName, setFullName] = useState("");
+  const [publicName, setPublicName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [cpf, setCpf] = useState("");
 
-  const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [redirectUrl, setRedirectUrl] = useState("");
+  const [fillColor, setFillColor] = useState(SOLIDARITY_COLORS[0].value);
+
   const [imageUrl, setImageUrl] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
@@ -143,7 +195,9 @@ export default function CheckoutPage() {
 
     setSelectedBlocks(blocks);
 
-    if (categoryParam === "PREMIUM") {
+    if (categoryParam === "GOLD") {
+      setCategory("GOLD");
+    } else if (categoryParam === "PREMIUM") {
       setCategory("PREMIUM");
     } else {
       setCategory("SOLIDARITY");
@@ -151,16 +205,33 @@ export default function CheckoutPage() {
   }, []);
 
   const unitPriceCents = getUnitPrice(category);
-
-  const subtotalCents = useMemo(() => {
-    return unitPriceCents * selectedBlocks.length;
-  }, [unitPriceCents, selectedBlocks.length]);
-
-  const operationalFeeCents = useMemo(() => {
-    return Math.ceil(subtotalCents * 0.1);
-  }, [subtotalCents]);
-
+  const subtotalCents = useMemo(() => unitPriceCents * selectedBlocks.length, [unitPriceCents, selectedBlocks.length]);
+  const operationalFeeCents = useMemo(() => Math.ceil(subtotalCents * 0.1), [subtotalCents]);
   const totalCents = subtotalCents + operationalFeeCents;
+  const theme = getCategoryTheme(category);
+  const requiresImageShape = category === "PREMIUM" || category === "GOLD";
+  const isRectangle = blocksFormRectangle(selectedBlocks);
+
+  async function uploadImageIfNeeded() {
+    if (!imageFile) return imageUrl.trim();
+
+    const formData = new FormData();
+    formData.set("file", imageFile);
+
+    const response = await fetch("/api/uploads", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.ok) {
+      throw new Error(data.message || "Erro ao enviar imagem.");
+    }
+
+    setImageUrl(data.url);
+    return String(data.url || "");
+  }
 
   async function handleGeneratePix() {
     try {
@@ -174,8 +245,20 @@ export default function CheckoutPage() {
         return;
       }
 
+      if (requiresImageShape && !isRectangle) {
+        alert("Para Premium e Área Ouro, selecione uma área retangular.");
+        return;
+      }
+
       if (!fullName.trim() || fullName.trim().length < 3) {
         alert("Digite o nome completo.");
+        return;
+      }
+
+      const publicNameToSend = publicName.trim() || fullName.trim();
+
+      if (publicNameToSend.length < 2) {
+        alert("Digite o nome que vai aparecer no mapa.");
         return;
       }
 
@@ -193,32 +276,27 @@ export default function CheckoutPage() {
         return;
       }
 
-      if (category === "PREMIUM" && !title.trim()) {
-        alert("Digite um título para o bloco Premium.");
-        return;
-      }
-
       setIsLoading(true);
+      const finalImageUrl = category === "SOLIDARITY" ? "" : await uploadImageIfNeeded();
 
       const response = await fetch("/api/mercado-pago-pix", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fullName,
+          publicName: publicNameToSend,
           whatsapp: whatsappDigits,
           cpf: cpfDigits,
           selectedBlocks,
-          title,
+          title: publicNameToSend,
           description,
           redirectUrl,
-          imageUrl,
+          imageUrl: finalImageUrl,
+          fillColor,
         }),
       });
 
       const responseText = await response.text();
-
       let data: any = null;
 
       try {
@@ -228,9 +306,7 @@ export default function CheckoutPage() {
       }
 
       if (!response.ok || !data.ok) {
-        throw new Error(
-          data.message || data.error || "Erro ao criar PIX no Mercado Pago."
-        );
+        throw new Error(data.message || data.error || "Erro ao criar PIX no Mercado Pago.");
       }
 
       setPixResult({
@@ -242,28 +318,20 @@ export default function CheckoutPage() {
 
       setStep("pix");
     } catch (error) {
-      if (error instanceof Error) {
-        alert(error.message);
-      } else {
-        alert("Erro inesperado ao gerar PIX.");
-      }
+      alert(error instanceof Error ? error.message : "Erro inesperado ao gerar PIX.");
     } finally {
       setIsLoading(false);
     }
   }
 
   async function handleCopyPix() {
-    if (!pixResult?.pix.qrCode) {
-      return;
-    }
+    if (!pixResult?.pix.qrCode) return;
 
     try {
       await navigator.clipboard.writeText(pixResult.pix.qrCode);
       setCopyMessage("Código PIX copiado!");
     } catch {
-      setCopyMessage(
-        "Não consegui copiar automaticamente. Selecione e copie manualmente."
-      );
+      setCopyMessage("Não consegui copiar automaticamente. Selecione e copie manualmente.");
     }
   }
 
@@ -279,19 +347,12 @@ export default function CheckoutPage() {
       setPaymentApproved(false);
 
       const paymentId = String(pixResult.payment.id);
-
       const response = await fetch(
-        `/api/mercado-pago-pix/webhook?type=payment&data.id=${encodeURIComponent(
-          paymentId
-        )}`,
-        {
-          method: "GET",
-          cache: "no-store",
-        }
+        `/api/mercado-pago-pix/webhook?type=payment&data.id=${encodeURIComponent(paymentId)}`,
+        { method: "GET", cache: "no-store" }
       );
 
       const responseText = await response.text();
-
       let data: any = null;
 
       try {
@@ -302,7 +363,6 @@ export default function CheckoutPage() {
 
       const result = data.result || {};
       const nestedResult = result.result || {};
-
       const mercadoPagoStatus = String(
         result.mercadoPagoStatus ||
           result.paymentStatus ||
@@ -312,7 +372,6 @@ export default function CheckoutPage() {
           nestedResult.status ||
           ""
       ).toLowerCase();
-
       const transactionStatus = String(
         result.transactionStatus ||
           nestedResult.transactionStatus ||
@@ -321,36 +380,18 @@ export default function CheckoutPage() {
           ""
       ).toUpperCase();
 
-      const message =
-        result.message ||
-        nestedResult.message ||
-        data.message ||
-        "Consulta realizada.";
-
-      const isApproved =
-        mercadoPagoStatus === "approved" || transactionStatus === "APPROVED";
+      const isApproved = mercadoPagoStatus === "approved" || transactionStatus === "APPROVED";
 
       if (isApproved) {
         setPaymentApproved(true);
-        setVerifyMessage(
-          "Pagamento aprovado! Seus blocos já foram marcados como vendidos."
-        );
+        setVerifyMessage("Pagamento aprovado! Seus blocos já foram marcados como vendidos.");
         return;
       }
 
-      setPaymentApproved(false);
-      setVerifyMessage(
-        message ||
-          "Pagamento ainda não aprovado. Se você acabou de pagar, aguarde alguns segundos e tente novamente."
-      );
+      setVerifyMessage("Pagamento ainda não aprovado. Aguarde alguns segundos e tente novamente.");
     } catch (error) {
       setPaymentApproved(false);
-
-      if (error instanceof Error) {
-        setVerifyMessage(error.message);
-      } else {
-        setVerifyMessage("Erro inesperado ao verificar pagamento.");
-      }
+      setVerifyMessage(error instanceof Error ? error.message : "Erro inesperado ao verificar pagamento.");
     } finally {
       setIsCheckingPayment(false);
     }
@@ -361,16 +402,11 @@ export default function CheckoutPage() {
       <main className="min-h-screen bg-slate-100 px-4 py-6">
         <div className="mx-auto max-w-md rounded-3xl bg-white p-6 text-center shadow-xl">
           <div className="text-5xl">🧩</div>
-          <h1 className="mt-4 text-2xl font-black text-slate-950">
-            Selecione os blocos primeiro
-          </h1>
+          <h1 className="mt-4 text-2xl font-black text-slate-950">Selecione os blocos primeiro</h1>
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
             Volte ao grid, toque nos blocos desejados e depois continue para o checkout.
           </p>
-          <Link
-            href="/"
-            className="mt-5 block rounded-2xl bg-green-600 py-4 text-sm font-black text-white shadow-lg"
-          >
+          <Link href="/" className="mt-5 block rounded-2xl bg-green-600 py-4 text-sm font-black text-white shadow-lg">
             Voltar ao grid
           </Link>
         </div>
@@ -381,73 +417,67 @@ export default function CheckoutPage() {
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-6">
       <div className="mx-auto max-w-md">
-        <Link
-          href="/"
-          className="mb-5 inline-flex rounded-full bg-white px-4 py-2 text-sm font-black text-slate-950 shadow"
-        >
+        <Link href="/" className="mb-5 inline-flex rounded-full bg-white px-4 py-2 text-sm font-black text-slate-950 shadow">
           ← Voltar ao grid
         </Link>
 
         <section className="rounded-3xl bg-white p-5 shadow-xl">
-          <p className="text-xs font-black uppercase tracking-wide text-orange-500">
-            Pagamento via PIX
+          <p className={`text-xs font-black uppercase tracking-wide ${theme.text}`}>
+            Checkout {getCategoryLabel(category)}
           </p>
+          <h1 className="mt-2 text-2xl font-black text-slate-950">Finalizar participação</h1>
 
-          <h1 className="mt-2 text-2xl font-black text-slate-950">
-            Finalizar compra
-          </h1>
-
-          <div className="mt-5 grid grid-cols-3 gap-2 text-center text-[11px] font-black">
-            <div className="rounded-2xl bg-green-500 p-3 text-white">
-              1. Blocos
-            </div>
-            <div
-              className={`rounded-2xl p-3 ${
-                step === "data" ? "bg-green-500 text-white" : "bg-slate-100 text-slate-500"
-              }`}
-            >
-              2. Dados
-            </div>
-            <div
-              className={`rounded-2xl p-3 ${
-                step === "pix" ? "bg-green-500 text-white" : "bg-slate-100 text-slate-500"
-              }`}
-            >
-              3. PIX
-            </div>
+          <div className="mt-5 grid grid-cols-3 gap-2 text-center text-xs font-black">
+            <div className="rounded-2xl bg-green-500 p-3 text-white">1. Blocos</div>
+            <div className={`rounded-2xl p-3 ${step === "data" ? "bg-green-500 text-white" : "bg-slate-100 text-slate-500"}`}>2. Dados</div>
+            <div className={`rounded-2xl p-3 ${step === "pix" ? "bg-green-500 text-white" : "bg-slate-100 text-slate-500"}`}>3. PIX</div>
           </div>
 
           {step === "data" && (
             <div className="mt-6 space-y-4">
-              <div className="rounded-3xl border border-green-200 bg-green-50 p-4">
-                <p className="text-xs font-black uppercase text-green-700">
-                  Blocos selecionados
-                </p>
-                <h2 className="mt-1 text-xl font-black text-green-950">
+              <div className={`rounded-3xl border ${theme.border} ${theme.bg} p-4`}>
+                <p className={`text-xs font-black uppercase ${theme.text}`}>Blocos selecionados</p>
+                <h2 className="mt-1 text-xl font-black text-slate-950">
                   {selectedBlocks.length} bloco(s) — {getCategoryLabel(category)}
                 </h2>
-                <p className="mt-1 text-xs font-bold text-green-700">
+                <p className="mt-1 text-xs font-bold text-slate-600">
                   {selectedBlocks.map((block) => `x${block.gridX}/y${block.gridY}`).join(" • ")}
                 </p>
+                {requiresImageShape && !isRectangle && (
+                  <p className="mt-3 rounded-2xl bg-yellow-100 p-3 text-xs font-black text-yellow-800">
+                    Para usar imagem, a área precisa formar um retângulo. Volte ao grid e complete os blocos.
+                  </p>
+                )}
               </div>
 
               <label className="block">
-                <span className="text-xs font-black uppercase tracking-wide text-slate-500">
-                  Nome completo
-                </span>
+                <span className="text-xs font-black uppercase tracking-wide text-slate-500">Nome completo</span>
                 <input
                   type="text"
                   value={fullName}
-                  onChange={(event) => setFullName(event.target.value)}
-                  placeholder="Digite seu nome"
+                  onChange={(event) => {
+                    setFullName(event.target.value);
+                    if (!publicName.trim()) setPublicName(event.target.value);
+                  }}
+                  placeholder="Digite seu nome completo"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-bold outline-none focus:border-slate-950"
+                />
+                <p className="mt-2 text-xs font-semibold text-slate-500">Esse dado fica privado no admin.</p>
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-black uppercase tracking-wide text-slate-500">Nome que vai aparecer no mapa</span>
+                <input
+                  type="text"
+                  value={publicName}
+                  onChange={(event) => setPublicName(event.target.value)}
+                  placeholder="Ex: Denis, Terê Personalizados, Minha empresa..."
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-bold outline-none focus:border-slate-950"
                 />
               </label>
 
               <label className="block">
-                <span className="text-xs font-black uppercase tracking-wide text-slate-500">
-                  WhatsApp
-                </span>
+                <span className="text-xs font-black uppercase tracking-wide text-slate-500">WhatsApp</span>
                 <input
                   type="tel"
                   value={whatsapp}
@@ -455,12 +485,11 @@ export default function CheckoutPage() {
                   placeholder="(35) 99999-9999"
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-bold outline-none focus:border-slate-950"
                 />
+                <p className="mt-2 text-xs font-semibold text-slate-500">O WhatsApp fica privado no admin.</p>
               </label>
 
               <label className="block">
-                <span className="text-xs font-black uppercase tracking-wide text-slate-500">
-                  CPF
-                </span>
+                <span className="text-xs font-black uppercase tracking-wide text-slate-500">CPF</span>
                 <input
                   type="text"
                   value={cpf}
@@ -468,97 +497,93 @@ export default function CheckoutPage() {
                   placeholder="000.000.000-00"
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-bold outline-none focus:border-slate-950"
                 />
-                <p className="mt-2 text-xs font-semibold text-slate-500">
-                  O CPF não aparece publicamente no mapa.
-                </p>
+                <p className="mt-2 text-xs font-semibold text-slate-500">O CPF não aparece publicamente no mapa.</p>
               </label>
 
-              {category === "PREMIUM" && (
-                <div className="space-y-4 rounded-3xl border border-orange-200 bg-orange-50 p-4">
-                  <p className="text-xs font-black uppercase tracking-wide text-orange-700">
-                    Dados Premium
-                  </p>
+              <div className={`space-y-4 rounded-3xl border ${theme.border} ${theme.bg} p-4`}>
+                <p className={`text-xs font-black uppercase tracking-wide ${theme.text}`}>Informações públicas do bloco</p>
 
-                  <label className="block">
-                    <span className="text-xs font-black uppercase tracking-wide text-orange-700">
-                      Título do bloco
-                    </span>
-                    <input
-                      type="text"
-                      value={title}
-                      onChange={(event) => setTitle(event.target.value)}
-                      placeholder="Ex: Minha marca apoiando essa causa"
-                      className="mt-2 w-full rounded-2xl border border-orange-200 bg-white px-4 py-4 text-sm font-bold outline-none focus:border-orange-500"
-                    />
-                  </label>
+                <label className="block">
+                  <span className={`text-xs font-black uppercase tracking-wide ${theme.text}`}>Instagram, site ou link</span>
+                  <input
+                    type="text"
+                    value={redirectUrl}
+                    onChange={(event) => setRedirectUrl(event.target.value)}
+                    placeholder="@instagram ou https://..."
+                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-bold outline-none focus:border-slate-950"
+                  />
+                </label>
 
-                  <label className="block">
-                    <span className="text-xs font-black uppercase tracking-wide text-orange-700">
-                      Descrição
-                    </span>
-                    <textarea
-                      value={description}
-                      onChange={(event) => setDescription(event.target.value)}
-                      placeholder="Escreva uma pequena descrição"
-                      rows={3}
-                      className="mt-2 w-full resize-none rounded-2xl border border-orange-200 bg-white px-4 py-4 text-sm font-bold outline-none focus:border-orange-500"
-                    />
-                  </label>
+                <label className="block">
+                  <span className={`text-xs font-black uppercase tracking-wide ${theme.text}`}>Descrição curta</span>
+                  <textarea
+                    value={description}
+                    onChange={(event) => setDescription(event.target.value.slice(0, 180))}
+                    placeholder="Escreva uma mensagem curta para aparecer no balãozinho"
+                    rows={3}
+                    className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-bold outline-none focus:border-slate-950"
+                  />
+                  <p className="mt-2 text-right text-xs font-bold text-slate-500">{description.length}/180</p>
+                </label>
 
-                  <label className="block">
-                    <span className="text-xs font-black uppercase tracking-wide text-orange-700">
-                      Link de redirecionamento
-                    </span>
-                    <input
-                      type="url"
-                      value={redirectUrl}
-                      onChange={(event) => setRedirectUrl(event.target.value)}
-                      placeholder="https://..."
-                      className="mt-2 w-full rounded-2xl border border-orange-200 bg-white px-4 py-4 text-sm font-bold outline-none focus:border-orange-500"
-                    />
-                  </label>
+                {category === "SOLIDARITY" && (
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-wide text-green-700">Cor do bloco</p>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      {SOLIDARITY_COLORS.map((color) => (
+                        <button
+                          key={color.value}
+                          type="button"
+                          onClick={() => setFillColor(color.value)}
+                          className={`flex items-center gap-2 rounded-2xl border p-3 text-left text-xs font-black ${fillColor === color.value ? "border-slate-950 bg-white" : "border-transparent bg-white/70"}`}
+                        >
+                          <span className="h-5 w-5 rounded-full" style={{ backgroundColor: color.value }} />
+                          {color.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-                  <label className="block">
-                    <span className="text-xs font-black uppercase tracking-wide text-orange-700">
-                      URL da imagem
-                    </span>
-                    <input
-                      type="url"
-                      value={imageUrl}
-                      onChange={(event) => setImageUrl(event.target.value)}
-                      placeholder="https://..."
-                      className="mt-2 w-full rounded-2xl border border-orange-200 bg-white px-4 py-4 text-sm font-bold outline-none focus:border-orange-500"
-                    />
-                    <p className="mt-2 text-xs font-semibold text-orange-700">
-                      Upload direto será lapidado depois. Por enquanto pode usar URL de imagem.
-                    </p>
-                  </label>
-                </div>
-              )}
+                {category !== "SOLIDARITY" && (
+                  <div className="space-y-3">
+                    <label className="block">
+                      <span className={`text-xs font-black uppercase tracking-wide ${theme.text}`}>Imagem que aparecerá no grid</span>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={(event) => setImageFile(event.target.files?.[0] || null)}
+                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-bold outline-none focus:border-slate-950"
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className={`text-xs font-black uppercase tracking-wide ${theme.text}`}>Ou URL de imagem</span>
+                      <input
+                        type="url"
+                        value={imageUrl}
+                        onChange={(event) => setImageUrl(event.target.value)}
+                        placeholder="https://..."
+                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-bold outline-none focus:border-slate-950"
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
 
               <div className="space-y-3 rounded-3xl bg-slate-50 p-4">
                 <div className="flex justify-between text-sm">
-                  <span className="font-bold text-slate-600">
-                    Valor principal dos blocos
-                  </span>
-                  <span className="font-black text-slate-950">
-                    {money(subtotalCents)}
-                  </span>
+                  <span className="font-bold text-slate-600">Valor principal dos blocos</span>
+                  <span className="font-black text-slate-950">{money(subtotalCents)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="font-bold text-slate-600">
-                    Taxa operacional e tributária 10%
-                  </span>
-                  <span className="font-black text-slate-950">
-                    {money(operationalFeeCents)}
-                  </span>
+                  <span className="font-bold text-slate-600">Taxa operacional e tributária 10%</span>
+                  <span className="font-black text-slate-950">{money(operationalFeeCents)}</span>
                 </div>
                 <div className="border-t border-slate-200 pt-3">
                   <div className="flex justify-between">
                     <span className="font-black text-slate-950">Total PIX</span>
-                    <span className="text-xl font-black text-slate-950">
-                      {money(totalCents)}
-                    </span>
+                    <span className="text-xl font-black text-slate-950">{money(totalCents)}</span>
                   </div>
                 </div>
               </div>
@@ -566,8 +591,8 @@ export default function CheckoutPage() {
               <button
                 type="button"
                 onClick={handleGeneratePix}
-                disabled={isLoading}
-                className="w-full rounded-2xl bg-orange-500 py-4 text-sm font-extrabold text-white shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isLoading || (requiresImageShape && !isRectangle)}
+                className={`w-full rounded-2xl ${theme.button} py-4 text-sm font-extrabold ${theme.buttonText} shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-60`}
               >
                 {isLoading ? "Gerando PIX..." : "Gerar PIX Mercado Pago"}
               </button>
@@ -577,127 +602,54 @@ export default function CheckoutPage() {
           {step === "pix" && pixResult && (
             <div className="mt-6">
               <div className="rounded-3xl border border-green-200 bg-green-50 p-4">
-                <p className="text-xs font-black uppercase tracking-wide text-green-700">
-                  PIX criado com sucesso
-                </p>
-                <h2 className="mt-2 text-xl font-black text-green-950">
-                  Blocos reservados
-                </h2>
-                <p className="mt-2 text-sm font-bold leading-relaxed text-green-800">
-                  {pixResult.blocks.length} bloco(s) reservado(s)
-                </p>
-                <p className="mt-1 text-xs font-semibold leading-relaxed text-green-700">
-                  Pagamento: #{pixResult.payment.id}
-                </p>
-                <p className="mt-1 text-xs font-semibold leading-relaxed text-green-700">
-                  Status inicial: {pixResult.payment.status}
-                </p>
+                <p className="text-xs font-black uppercase tracking-wide text-green-700">PIX criado com sucesso</p>
+                <h2 className="mt-2 text-xl font-black text-green-950">Blocos reservados</h2>
+                <p className="mt-2 text-sm font-bold leading-relaxed text-green-800">{pixResult.blocks.length} bloco(s) reservado(s)</p>
+                <p className="mt-1 text-xs font-semibold leading-relaxed text-green-700">Pagamento: #{pixResult.payment.id}</p>
+                <p className="mt-1 text-xs font-semibold leading-relaxed text-green-700">Status inicial: {pixResult.payment.status}</p>
               </div>
 
               {paymentApproved && (
                 <div className="mt-5 rounded-3xl border border-emerald-200 bg-emerald-50 p-4">
                   <div className="text-3xl">✅</div>
-                  <h2 className="mt-2 text-xl font-black text-emerald-950">
-                    Pagamento confirmado
-                  </h2>
-                  <p className="mt-2 text-sm font-bold leading-relaxed text-emerald-800">
-                    Seus blocos já entraram no Milhão Solidário.
-                  </p>
+                  <h2 className="mt-2 text-xl font-black text-emerald-950">Pagamento confirmado</h2>
+                  <p className="mt-2 text-sm font-bold leading-relaxed text-emerald-800">Seus blocos já entraram no Milhão Solidário.</p>
                   <div className="mt-4 grid grid-cols-2 gap-2">
-                    <Link
-                      href="/"
-                      className="rounded-2xl bg-emerald-600 py-3 text-center text-xs font-black text-white"
-                    >
-                      Ver no mapa
-                    </Link>
-                    <Link
-                      href="/ranking"
-                      className="rounded-2xl bg-slate-950 py-3 text-center text-xs font-black text-white"
-                    >
-                      Ver ranking
-                    </Link>
+                    <Link href="/" className="rounded-2xl bg-emerald-600 py-3 text-center text-xs font-black text-white">Ver no mapa</Link>
+                    <Link href="/ranking" className="rounded-2xl bg-slate-950 py-3 text-center text-xs font-black text-white">Ver ranking</Link>
                   </div>
                 </div>
               )}
 
-              <div className="mt-5 rounded-3xl border-2 border-dashed border-slate-300 bg-slate-50 p-5 text-center">
-                {pixResult.pix.qrCodeBase64 && (
-                  <div>
-                    <img
-                      src={getQrImageSrc(pixResult.pix.qrCodeBase64)}
-                      alt="QR Code PIX"
-                      className="mx-auto h-56 w-56 rounded-2xl bg-white p-3 shadow"
-                    />
-                    <p className="mt-3 text-sm font-black text-slate-700">
-                      Escaneie o QR Code pelo app do banco
-                    </p>
-                  </div>
-                )}
+              {pixResult.pix.qrCodeBase64 && (
+                <div className="mt-5 rounded-3xl bg-white p-4 text-center shadow">
+                  <img src={getQrImageSrc(pixResult.pix.qrCodeBase64)} alt="QR Code PIX" className="mx-auto h-64 w-64 rounded-2xl" />
+                </div>
+              )}
 
-                {pixResult.pix.ticketUrl && (
-                  <a
-                    href={pixResult.pix.ticketUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-4 block rounded-2xl bg-slate-950 py-4 text-sm font-extrabold text-white"
-                  >
-                    Abrir pagamento no Mercado Pago
-                  </a>
-                )}
+              {pixResult.pix.qrCode && (
+                <div className="mt-5 rounded-3xl bg-slate-50 p-4">
+                  <p className="text-xs font-black uppercase tracking-wide text-slate-500">PIX copia e cola</p>
+                  <textarea readOnly value={pixResult.pix.qrCode} rows={5} className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white p-3 text-xs font-bold text-slate-700" />
+                  <button type="button" onClick={handleCopyPix} className="mt-3 w-full rounded-2xl bg-slate-950 py-3 text-sm font-black text-white">Copiar código PIX</button>
+                  {copyMessage && <p className="mt-2 text-center text-xs font-black text-green-700">{copyMessage}</p>}
+                </div>
+              )}
 
-                {pixResult.pix.qrCode && (
-                  <div className="mt-4">
-                    <label className="block text-left">
-                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">
-                        PIX copia e cola
-                      </span>
-                      <textarea
-                        value={pixResult.pix.qrCode}
-                        readOnly
-                        rows={5}
-                        className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-semibold text-slate-700 outline-none"
-                      />
-                    </label>
+              <button
+                type="button"
+                onClick={handleCheckPayment}
+                disabled={isCheckingPayment}
+                className="mt-5 w-full rounded-2xl bg-green-600 py-4 text-sm font-extrabold text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isCheckingPayment ? "Verificando..." : "Já paguei, verificar pagamento"}
+              </button>
 
-                    <button
-                      type="button"
-                      onClick={handleCopyPix}
-                      className="mt-3 w-full rounded-2xl bg-green-600 py-4 text-sm font-extrabold text-white shadow-lg active:scale-95"
-                    >
-                      Copiar código PIX
-                    </button>
-
-                    {copyMessage && (
-                      <p className="mt-2 text-xs font-black text-green-700">
-                        {copyMessage}
-                      </p>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={handleCheckPayment}
-                      disabled={isCheckingPayment}
-                      className="mt-3 w-full rounded-2xl bg-slate-950 py-4 text-sm font-extrabold text-white shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isCheckingPayment
-                        ? "Verificando pagamento..."
-                        : "Já paguei, verificar pagamento"}
-                    </button>
-
-                    {verifyMessage && (
-                      <p
-                        className={`mt-3 rounded-2xl p-3 text-xs font-black ${
-                          paymentApproved
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-yellow-100 text-yellow-800"
-                        }`}
-                      >
-                        {verifyMessage}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
+              {verifyMessage && (
+                <div className={`mt-4 rounded-3xl p-4 text-sm font-black ${paymentApproved ? "bg-emerald-50 text-emerald-800" : "bg-yellow-50 text-yellow-800"}`}>
+                  {verifyMessage}
+                </div>
+              )}
             </div>
           )}
         </section>

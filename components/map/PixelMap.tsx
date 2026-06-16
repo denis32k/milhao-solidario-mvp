@@ -10,8 +10,8 @@ const MAP_WIDTH = GRID_COLS * BLOCK_SIZE;
 const MAP_HEIGHT = GRID_ROWS * BLOCK_SIZE;
 const MAX_SCALE = 8;
 
-type BlockCategory = "SOLIDARITY" | "PREMIUM" | "GRAND_CENTER";
-type BuyableCategory = "SOLIDARITY" | "PREMIUM";
+type BlockCategory = "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTER";
+type BuyableCategory = "SOLIDARITY" | "PREMIUM" | "GOLD";
 
 type Camera = {
   x: number;
@@ -52,13 +52,17 @@ type ApiMapBlock = {
     textLabel: string | null;
     fillColor: string | null;
     placeholderReason: string | null;
+    originX: number | null;
+    originY: number | null;
+    widthBlocks: number | null;
+    heightBlocks: number | null;
   } | null;
 };
 
 type SelectedSheet =
   | null
   | { type: "grand-center" }
-  | { type: "sold"; block: ApiMapBlock };
+  | { type: "sold"; block: ApiMapBlock; anchorX: number; anchorY: number };
 
 type PointerPoint = {
   x: number;
@@ -84,28 +88,20 @@ function money(cents: number) {
 }
 
 function getBlockType(x: number, y: number): BlockCategory {
-  const isGrandCenter = x >= 99 && x <= 100 && y >= 70 && y <= 74;
+  const isGrandCenter = x >= 95 && x <= 104 && y >= 68 && y <= 77;
+  const isGoldRing = x >= 90 && x <= 109 && y >= 63 && y <= 82 && !isGrandCenter;
+  const isSolidarityFrame = y < 10 || y >= 135 || x < 24 || x >= 176;
 
-  if (isGrandCenter) {
-    return "GRAND_CENTER";
-  }
-
-  if (y < 25 || y >= 120) {
-    return "SOLIDARITY";
-  }
-
+  if (isGrandCenter) return "GRAND_CENTER";
+  if (isGoldRing) return "GOLD";
+  if (isSolidarityFrame) return "SOLIDARITY";
   return "PREMIUM";
 }
 
 function getBlockPrice(category: BlockCategory) {
-  if (category === "SOLIDARITY") {
-    return 1000;
-  }
-
-  if (category === "PREMIUM") {
-    return 10000;
-  }
-
+  if (category === "SOLIDARITY") return 1000;
+  if (category === "PREMIUM") return 10000;
+  if (category === "GOLD") return 50000;
   return 0;
 }
 
@@ -141,6 +137,19 @@ function isAdjacentToSelection(
   });
 }
 
+function blocksFormRectangle(blocks: Array<{ gridX: number; gridY: number }>) {
+  if (blocks.length <= 1) return true;
+
+  const minX = Math.min(...blocks.map((block) => block.gridX));
+  const maxX = Math.max(...blocks.map((block) => block.gridX));
+  const minY = Math.min(...blocks.map((block) => block.gridY));
+  const maxY = Math.max(...blocks.map((block) => block.gridY));
+  const width = maxX - minX + 1;
+  const height = maxY - minY + 1;
+
+  return width * height === blocks.length;
+}
+
 function getDisplayName(block: ApiMapBlock) {
   return (
     block.placement?.title ||
@@ -153,23 +162,25 @@ function getDisplayName(block: ApiMapBlock) {
 }
 
 function getSoldBlockColor(block: ApiMapBlock) {
-  if (block.status === "BLOCKED") {
-    return "#64748b";
-  }
+  if (block.status === "BLOCKED") return "#64748b";
+  if (block.placement?.status === "BANNED" || block.placement?.status === "REMOVED") return "#64748b";
+  if (block.category === "SOLIDARITY") return block.placement?.fillColor || "#22c55e";
+  if (block.category === "GOLD") return "#f59e0b";
+  if (block.category === "PREMIUM") return "#0f172a";
+  return "#facc15";
+}
 
-  if (block.category === "SOLIDARITY") {
-    return block.placement?.fillColor || "#16a34a";
-  }
-
-  if (block.category === "PREMIUM") {
-    return "#0f172a";
-  }
-
+function getAvailableBlockColor(category: BlockCategory) {
+  if (category === "SOLIDARITY") return "#dcfce7";
+  if (category === "GOLD") return "#fde68a";
+  if (category === "PREMIUM") return "#eef2ff";
   return "#facc15";
 }
 
 function getCategoryLabel(category: BuyableCategory) {
-  return category === "SOLIDARITY" ? "Mosaico" : "Premium";
+  if (category === "GOLD") return "Área Ouro";
+  if (category === "PREMIUM") return "Premium";
+  return "Mosaico";
 }
 
 function buildCheckoutHref(selectedBlocks: SelectedBlock[]) {
@@ -187,11 +198,42 @@ function buildCheckoutHref(selectedBlocks: SelectedBlock[]) {
   return `/checkout?${params.toString()}`;
 }
 
+function normalizeExternalUrl(url: string | null | undefined) {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  return `https://${url}`;
+}
+
+function drawImageCover(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+) {
+  if (!image.naturalWidth || !image.naturalHeight) return;
+
+  const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
+  const sourceWidth = width / scale;
+  const sourceHeight = height / scale;
+  const sourceX = (image.naturalWidth - sourceWidth) / 2;
+  const sourceY = (image.naturalHeight - sourceHeight) / 2;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, width, height);
+  ctx.clip();
+  ctx.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, x, y, width, height);
+  ctx.restore();
+}
+
 export default function PixelMap() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
 
   const activePointersRef = useRef(new Map<number, PointerPoint>());
+  const imageCacheRef = useRef(new Map<string, HTMLImageElement>());
   const isDraggingRef = useRef(false);
   const movedRef = useRef(false);
   const lastPointerRef = useRef({ x: 0, y: 0 });
@@ -202,34 +244,34 @@ export default function PixelMap() {
   const [selectedBlocks, setSelectedBlocks] = useState<SelectedBlock[]>([]);
   const [selectionMessage, setSelectionMessage] = useState("");
   const [isLoadingBlocks, setIsLoadingBlocks] = useState(true);
+  const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, scale: 1 });
 
-  const [camera, setCamera] = useState<Camera>({
-    x: 0,
-    y: 0,
-    scale: 1,
-  });
+  const selectedCategory = selectedBlocks[0]?.category || null;
+  const selectedNeedsRectangle = selectedCategory === "PREMIUM" || selectedCategory === "GOLD";
+  const selectedIsRectangle = blocksFormRectangle(selectedBlocks);
+  const canContinue = selectedBlocks.length > 0 && (!selectedNeedsRectangle || selectedIsRectangle);
+
+  const selectedSubtotalCents = selectedBlocks.reduce(
+    (total, block) => total + block.priceCents,
+    0
+  );
+  const selectedFeeCents = Math.ceil(selectedSubtotalCents * 0.1);
+  const selectedTotalCents = selectedSubtotalCents + selectedFeeCents;
 
   function getMinScale() {
     const wrapper = wrapperRef.current;
-
-    if (!wrapper) {
-      return 1;
-    }
-
+    if (!wrapper) return 1;
     const rect = wrapper.getBoundingClientRect();
-
     return Math.max(rect.width / MAP_WIDTH, rect.height / MAP_HEIGHT);
   }
 
   function clampCamera(nextCamera: Camera): Camera {
     const wrapper = wrapperRef.current;
-
     if (!wrapper) return nextCamera;
 
     const rect = wrapper.getBoundingClientRect();
     const minScale = getMinScale();
     const scale = clamp(nextCamera.scale, minScale, MAX_SCALE);
-
     const scaledWidth = MAP_WIDTH * scale;
     const scaledHeight = MAP_HEIGHT * scale;
 
@@ -248,42 +290,35 @@ export default function PixelMap() {
       nextY = clamp(nextY, rect.height - scaledHeight, 0);
     }
 
-    return {
-      x: nextX,
-      y: nextY,
-      scale,
-    };
+    return { x: nextX, y: nextY, scale };
   }
 
-  function fitGridToScreen() {
+  function focusCenter() {
     const wrapper = wrapperRef.current;
-
     if (!wrapper) return;
 
     const rect = wrapper.getBoundingClientRect();
-    const nextScale = Math.max(rect.width / MAP_WIDTH, rect.height / MAP_HEIGHT);
+    const minScale = getMinScale();
+    const nextScale = clamp(minScale * 2.15, minScale, MAX_SCALE);
 
     setCamera(
       clampCamera({
-        x: (rect.width - MAP_WIDTH * nextScale) / 2,
-        y: (rect.height - MAP_HEIGHT * nextScale) / 2,
+        x: rect.width / 2 - (MAP_WIDTH / 2) * nextScale,
+        y: rect.height / 2 - (MAP_HEIGHT / 2) * nextScale,
         scale: nextScale,
       })
     );
   }
 
   useEffect(() => {
-    fitGridToScreen();
+    focusCenter();
 
     function handleResize() {
-      fitGridToScreen();
+      focusCenter();
     }
 
     window.addEventListener("resize", handleResize);
-
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   useEffect(() => {
@@ -292,29 +327,18 @@ export default function PixelMap() {
     async function loadMapBlocks() {
       try {
         setIsLoadingBlocks(true);
-
-        const response = await fetch("/api/map/blocks", {
-          cache: "no-store",
-        });
-
+        const response = await fetch("/api/map/blocks", { cache: "no-store" });
         const data = await response.json();
-
         if (!isAlive) return;
-
-        if (data.ok) {
-          setMapBlocks(data.blocks);
-        }
+        if (data.ok) setMapBlocks(data.blocks);
       } catch (error) {
         console.error("Erro ao carregar blocos do mapa:", error);
       } finally {
-        if (isAlive) {
-          setIsLoadingBlocks(false);
-        }
+        if (isAlive) setIsLoadingBlocks(false);
       }
     }
 
     loadMapBlocks();
-
     return () => {
       isAlive = false;
     };
@@ -324,28 +348,30 @@ export default function PixelMap() {
     drawMap();
   }, [camera, mapBlocks, selectedBlocks]);
 
-  const selectedSubtotalCents = selectedBlocks.reduce(
-    (total, block) => total + block.priceCents,
-    0
-  );
-
-  const selectedFeeCents = Math.ceil(selectedSubtotalCents * 0.1);
-  const selectedTotalCents = selectedSubtotalCents + selectedFeeCents;
-
   function getMapBlockAt(x: number, y: number) {
     return mapBlocks.find((block) => block.gridX === x && block.gridY === y);
   }
 
   function isSelected(x: number, y: number) {
-    return selectedBlocks.some(
-      (block) => block.gridX === x && block.gridY === y
-    );
+    return selectedBlocks.some((block) => block.gridX === x && block.gridY === y);
+  }
+
+  function getImage(url: string) {
+    const cached = imageCacheRef.current.get(url);
+
+    if (cached) return cached;
+
+    const image = new Image();
+    image.src = url;
+    image.onload = () => drawMap();
+    image.onerror = () => console.warn("Não foi possível carregar imagem do grid:", url);
+    imageCacheRef.current.set(url, image);
+    return image;
   }
 
   function drawMap() {
     const canvas = canvasRef.current;
     const wrapper = wrapperRef.current;
-
     if (!canvas || !wrapper) return;
 
     const rect = wrapper.getBoundingClientRect();
@@ -353,12 +379,10 @@ export default function PixelMap() {
 
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
-
     canvas.style.width = `${rect.width}px`;
     canvas.style.height = `${rect.height}px`;
 
     const ctx = canvas.getContext("2d");
-
     if (!ctx) return;
 
     const soldBlockByCoord = new Map(
@@ -367,7 +391,6 @@ export default function PixelMap() {
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, rect.width, rect.height);
-
     ctx.fillStyle = "#e2e8f0";
     ctx.fillRect(0, 0, rect.width, rect.height);
 
@@ -379,84 +402,100 @@ export default function PixelMap() {
       for (let x = 0; x < GRID_COLS; x++) {
         const type = getBlockType(x, y);
         const soldBlock = soldBlockByCoord.get(getBlockKey(x, y));
-
         const px = x * BLOCK_SIZE;
         const py = y * BLOCK_SIZE;
 
-        if (soldBlock) {
-          ctx.fillStyle = getSoldBlockColor(soldBlock);
-        } else if (type === "GRAND_CENTER") {
-          ctx.fillStyle = "#facc15";
-        } else if (type === "SOLIDARITY") {
-          ctx.fillStyle = "#bbf7d0";
-        } else {
-          ctx.fillStyle = "#eef2ff";
-        }
-
+        ctx.fillStyle = soldBlock ? getSoldBlockColor(soldBlock) : getAvailableBlockColor(type);
         ctx.fillRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
 
-        ctx.strokeStyle = "rgba(15, 23, 42, 0.24)";
-        ctx.lineWidth = 0.38;
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.22)";
+        ctx.lineWidth = 0.35;
         ctx.strokeRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
-
-        if (isSelected(x, y)) {
-          ctx.fillStyle = "rgba(37, 99, 235, 0.85)";
-          ctx.fillRect(px + 1, py + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
-
-          ctx.strokeStyle = "#1d4ed8";
-          ctx.lineWidth = 1.8;
-          ctx.strokeRect(px + 0.5, py + 0.5, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
-        }
-
-        if (soldBlock && camera.scale >= 1.8) {
-          ctx.fillStyle = "#ffffff";
-          ctx.font = "7px Arial";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText("✓", px + BLOCK_SIZE / 2, py + BLOCK_SIZE / 2);
-        }
       }
     }
 
+    const imageGroups = new Map<string, ApiMapBlock[]>();
+
+    for (const block of mapBlocks) {
+      const placement = block.placement;
+      if (!placement?.imageUrl) continue;
+      if (placement.status !== "ACTIVE") continue;
+      if (block.category === "SOLIDARITY") continue;
+
+      const group = imageGroups.get(placement.id) || [];
+      group.push(block);
+      imageGroups.set(placement.id, group);
+    }
+
+    for (const blocks of imageGroups.values()) {
+      const placement = blocks[0]?.placement;
+      if (!placement?.imageUrl) continue;
+
+      const image = getImage(placement.imageUrl);
+      if (!image.complete || !image.naturalWidth) continue;
+
+      const minX = Math.min(...blocks.map((block) => block.gridX));
+      const maxX = Math.max(...blocks.map((block) => block.gridX));
+      const minY = Math.min(...blocks.map((block) => block.gridY));
+      const maxY = Math.max(...blocks.map((block) => block.gridY));
+      const x = minX * BLOCK_SIZE;
+      const y = minY * BLOCK_SIZE;
+      const width = (maxX - minX + 1) * BLOCK_SIZE;
+      const height = (maxY - minY + 1) * BLOCK_SIZE;
+
+      drawImageCover(ctx, image, x, y, width, height);
+
+      ctx.strokeStyle = blocks[0].category === "GOLD" ? "#92400e" : "#020617";
+      ctx.lineWidth = 2.2;
+      ctx.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
+    }
+
+    for (const block of selectedBlocks) {
+      const px = block.gridX * BLOCK_SIZE;
+      const py = block.gridY * BLOCK_SIZE;
+
+      ctx.fillStyle = "rgba(37, 99, 235, 0.86)";
+      ctx.fillRect(px + 1, py + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
+
+      ctx.strokeStyle = "#1d4ed8";
+      ctx.lineWidth = 1.8;
+      ctx.strokeRect(px + 0.5, py + 0.5, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
+    }
+
     ctx.fillStyle = "#78350f";
-    ctx.font = "26px Arial";
+    ctx.font = "34px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("🔒", 1000, 725);
+
+    if (isLoadingBlocks) {
+      ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
+      ctx.fillRect(850, 675, 300, 80);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "22px Arial";
+      ctx.fillText("Carregando mapa...", 1000, 715);
+    }
 
     ctx.restore();
   }
 
   function getGridPosition(clientX: number, clientY: number) {
     const wrapper = wrapperRef.current;
-
     if (!wrapper) return null;
 
     const rect = wrapper.getBoundingClientRect();
-
     const screenX = clientX - rect.left;
     const screenY = clientY - rect.top;
-
     const worldX = (screenX - camera.x) / camera.scale;
     const worldY = (screenY - camera.y) / camera.scale;
-
     const gridX = Math.floor(worldX / BLOCK_SIZE);
     const gridY = Math.floor(worldY / BLOCK_SIZE);
 
-    if (
-      gridX < 0 ||
-      gridX >= GRID_COLS ||
-      gridY < 0 ||
-      gridY >= GRID_ROWS
-    ) {
+    if (gridX < 0 || gridX >= GRID_COLS || gridY < 0 || gridY >= GRID_ROWS) {
       return null;
     }
 
-    return {
-      x: gridX,
-      y: gridY,
-      type: getBlockType(gridX, gridY),
-    };
+    return { x: gridX, y: gridY, type: getBlockType(gridX, gridY) };
   }
 
   function clearSelection(event?: MouseEvent<HTMLButtonElement>) {
@@ -465,7 +504,7 @@ export default function PixelMap() {
     setSelectionMessage("");
   }
 
-  function selectBlock(gridX: number, gridY: number, category: BlockCategory) {
+  function selectBlock(gridX: number, gridY: number, category: BlockCategory, clientX: number, clientY: number) {
     if (category === "GRAND_CENTER") {
       setSelectedSheet({ type: "grand-center" });
       return;
@@ -474,7 +513,7 @@ export default function PixelMap() {
     const soldBlock = getMapBlockAt(gridX, gridY);
 
     if (soldBlock) {
-      setSelectedSheet({ type: "sold", block: soldBlock });
+      setSelectedSheet({ type: "sold", block: soldBlock, anchorX: clientX, anchorY: clientY });
       return;
     }
 
@@ -497,17 +536,18 @@ export default function PixelMap() {
       return;
     }
 
-    setSelectionMessage("");
+    const nextBlocks = [
+      ...selectedBlocks,
+      { gridX, gridY, category, priceCents: getBlockPrice(category) },
+    ];
 
-    setSelectedBlocks((current) => [
-      ...current,
-      {
-        gridX,
-        gridY,
-        category,
-        priceCents: getBlockPrice(category),
-      },
-    ]);
+    if ((category === "PREMIUM" || category === "GOLD") && !blocksFormRectangle(nextBlocks)) {
+      setSelectionMessage("A imagem precisa de uma área retangular. Complete o retângulo para continuar.");
+    } else {
+      setSelectionMessage("");
+    }
+
+    setSelectedBlocks(nextBlocks as SelectedBlock[]);
   }
 
   function getPointerList() {
@@ -515,30 +555,24 @@ export default function PixelMap() {
   }
 
   function updatePointer(event: PointerEvent<HTMLDivElement>) {
-    activePointersRef.current.set(event.pointerId, {
-      x: event.clientX,
-      y: event.clientY,
-    });
+    activePointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
   }
 
   function startPinchIfPossible() {
     const wrapper = wrapperRef.current;
     const pointers = getPointerList();
-
     if (!wrapper || pointers.length < 2) {
       pinchStartRef.current = null;
       return;
     }
 
     const rect = wrapper.getBoundingClientRect();
-    const first = pointers[0];
-    const second = pointers[1];
-    const center = getPointerCenter(first, second);
+    const center = getPointerCenter(pointers[0], pointers[1]);
     const screenX = center.x - rect.left;
     const screenY = center.y - rect.top;
 
     pinchStartRef.current = {
-      distance: getPointerDistance(first, second),
+      distance: getPointerDistance(pointers[0], pointers[1]),
       scale: camera.scale,
       worldX: (screenX - camera.x) / camera.scale,
       worldY: (screenY - camera.y) / camera.scale,
@@ -548,7 +582,6 @@ export default function PixelMap() {
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
     event.currentTarget.setPointerCapture(event.pointerId);
     updatePointer(event);
-
     movedRef.current = false;
 
     if (activePointersRef.current.size >= 2) {
@@ -559,15 +592,11 @@ export default function PixelMap() {
 
     isDraggingRef.current = true;
     pinchStartRef.current = null;
-    lastPointerRef.current = {
-      x: event.clientX,
-      y: event.clientY,
-    };
+    lastPointerRef.current = { x: event.clientX, y: event.clientY };
   }
 
   function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
     if (!activePointersRef.current.has(event.pointerId)) return;
-
     updatePointer(event);
 
     const pointers = getPointerList();
@@ -575,23 +604,17 @@ export default function PixelMap() {
     if (pointers.length >= 2) {
       const wrapper = wrapperRef.current;
       const pinchStart = pinchStartRef.current;
-
       if (!wrapper || !pinchStart) return;
 
       movedRef.current = true;
-
       const rect = wrapper.getBoundingClientRect();
-      const first = pointers[0];
-      const second = pointers[1];
-      const center = getPointerCenter(first, second);
-      const distance = getPointerDistance(first, second);
-
+      const center = getPointerCenter(pointers[0], pointers[1]);
+      const distance = getPointerDistance(pointers[0], pointers[1]);
       const screenX = center.x - rect.left;
       const screenY = center.y - rect.top;
-      const minScale = getMinScale();
       const nextScale = clamp(
         pinchStart.scale * (distance / pinchStart.distance),
-        minScale,
+        getMinScale(),
         MAX_SCALE
       );
 
@@ -602,7 +625,6 @@ export default function PixelMap() {
           scale: nextScale,
         })
       );
-
       return;
     }
 
@@ -611,21 +633,12 @@ export default function PixelMap() {
     const dx = event.clientX - lastPointerRef.current.x;
     const dy = event.clientY - lastPointerRef.current.y;
 
-    if (Math.abs(dx) + Math.abs(dy) > 3) {
-      movedRef.current = true;
-    }
+    if (Math.abs(dx) + Math.abs(dy) > 3) movedRef.current = true;
 
-    lastPointerRef.current = {
-      x: event.clientX,
-      y: event.clientY,
-    };
+    lastPointerRef.current = { x: event.clientX, y: event.clientY };
 
     setCamera((current) =>
-      clampCamera({
-        ...current,
-        x: current.x + dx,
-        y: current.y + dy,
-      })
+      clampCamera({ ...current, x: current.x + dx, y: current.y + dy })
     );
   }
 
@@ -634,7 +647,6 @@ export default function PixelMap() {
     pinchStartRef.current = null;
 
     const pointers = getPointerList();
-
     if (pointers.length === 1) {
       isDraggingRef.current = true;
       lastPointerRef.current = pointers[0];
@@ -647,38 +659,14 @@ export default function PixelMap() {
     if (movedRef.current) return;
 
     const gridPosition = getGridPosition(event.clientX, event.clientY);
-
     if (!gridPosition) return;
 
-    selectBlock(gridPosition.x, gridPosition.y, gridPosition.type);
-  }
-
-  function zoomBy(multiplier: number) {
-    const wrapper = wrapperRef.current;
-
-    if (!wrapper) return;
-
-    const rect = wrapper.getBoundingClientRect();
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-    const worldX = (centerX - camera.x) / camera.scale;
-    const worldY = (centerY - camera.y) / camera.scale;
-    const nextScale = clamp(camera.scale * multiplier, getMinScale(), MAX_SCALE);
-
-    setCamera(
-      clampCamera({
-        x: centerX - worldX * nextScale,
-        y: centerY - worldY * nextScale,
-        scale: nextScale,
-      })
-    );
+    selectBlock(gridPosition.x, gridPosition.y, gridPosition.type, event.clientX, event.clientY);
   }
 
   function handleWheel(event: WheelEvent<HTMLDivElement>) {
     event.preventDefault();
-
     const wrapper = wrapperRef.current;
-
     if (!wrapper) return;
 
     const rect = wrapper.getBoundingClientRect();
@@ -701,6 +689,42 @@ export default function PixelMap() {
     );
   }
 
+  function getBubbleStyle(anchorX: number, anchorY: number) {
+    if (typeof window === "undefined") {
+      return { left: anchorX, top: anchorY };
+    }
+
+    const width = 292;
+    const height = 230;
+    return {
+      left: clamp(anchorX + 14, 12, window.innerWidth - width - 12),
+      top: clamp(anchorY + 14, 74, window.innerHeight - height - 12),
+    };
+  }
+
+  async function reportBlock(block: ApiMapBlock) {
+    const reason = window.prompt("Conte rapidamente o motivo da denúncia:");
+    if (!reason || reason.trim().length < 3) return;
+
+    try {
+      const response = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ blockId: block.id, reason }),
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || "Erro ao enviar denúncia.");
+      }
+
+      alert("Denúncia enviada. Obrigado por ajudar a manter o mapa seguro.");
+      setSelectedSheet(null);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Erro ao denunciar.");
+    }
+  }
+
   return (
     <div
       ref={wrapperRef}
@@ -714,33 +738,6 @@ export default function PixelMap() {
     >
       <canvas ref={canvasRef} className="block h-full w-full" />
 
-      <div
-        className="absolute right-3 top-3 z-40 flex flex-col gap-2"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <button
-          type="button"
-          onClick={() => zoomBy(1.25)}
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-xl font-black text-slate-950 shadow-lg"
-        >
-          +
-        </button>
-        <button
-          type="button"
-          onClick={() => zoomBy(0.8)}
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-xl font-black text-slate-950 shadow-lg"
-        >
-          -
-        </button>
-        <button
-          type="button"
-          onClick={fitGridToScreen}
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-lg font-black text-slate-950 shadow-lg"
-        >
-          ⌂
-        </button>
-      </div>
-
       {selectedBlocks.length > 0 && (
         <div
           className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white p-3 shadow-2xl"
@@ -749,42 +746,30 @@ export default function PixelMap() {
           <div className="mx-auto max-w-3xl">
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="rounded-2xl bg-slate-50 p-2">
-                <p className="text-[10px] font-black uppercase text-slate-500">
-                  Blocos
-                </p>
-                <p className="text-base font-black text-slate-950">
-                  {selectedBlocks.length}
-                </p>
+                <p className="text-[10px] font-black uppercase text-slate-500">Blocos</p>
+                <p className="text-base font-black text-slate-950">{selectedBlocks.length}</p>
               </div>
 
               <div className="rounded-2xl bg-green-50 p-2">
-                <p className="text-[10px] font-black uppercase text-green-700">
-                  Tipo
-                </p>
+                <p className="text-[10px] font-black uppercase text-green-700">Tipo</p>
                 <p className="text-xs font-black text-green-900">
                   {getCategoryLabel(selectedBlocks[0].category)}
                 </p>
               </div>
 
               <div className="rounded-2xl bg-orange-50 p-2">
-                <p className="text-[10px] font-black uppercase text-orange-700">
-                  Total
-                </p>
-                <p className="text-xs font-black text-orange-900">
-                  {money(selectedTotalCents)}
-                </p>
+                <p className="text-[10px] font-black uppercase text-orange-700">Total</p>
+                <p className="text-xs font-black text-orange-900">{money(selectedTotalCents)}</p>
               </div>
             </div>
 
             <p className="mt-2 overflow-hidden text-ellipsis whitespace-nowrap text-center text-[11px] font-bold text-slate-500">
-              {selectedBlocks
-                .map((block) => `x${block.gridX}/y${block.gridY}`)
-                .join(" • ")}
+              {selectedBlocks.map((block) => `x${block.gridX}/y${block.gridY}`).join(" • ")}
             </p>
 
-            {selectionMessage && (
+            {(selectionMessage || (selectedNeedsRectangle && !selectedIsRectangle)) && (
               <p className="mt-2 rounded-2xl bg-yellow-100 p-2 text-center text-xs font-black text-yellow-800">
-                {selectionMessage}
+                {selectionMessage || "A imagem precisa de uma área retangular."}
               </p>
             )}
 
@@ -797,18 +782,27 @@ export default function PixelMap() {
                 Limpar
               </button>
 
-              <a
-                href={buildCheckoutHref(selectedBlocks)}
-                onClick={(event) => event.stopPropagation()}
-                className="rounded-2xl bg-green-600 py-3 text-center text-sm font-black text-white shadow-lg"
-              >
-                Continuar
-              </a>
+              {canContinue ? (
+                <a
+                  href={buildCheckoutHref(selectedBlocks)}
+                  onClick={(event) => event.stopPropagation()}
+                  className="rounded-2xl bg-green-600 py-3 text-center text-sm font-black text-white shadow-lg"
+                >
+                  Continuar
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="rounded-2xl bg-slate-300 py-3 text-center text-sm font-black text-slate-500"
+                >
+                  Continuar
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
-
 
       {selectedSheet?.type === "grand-center" && (
         <div
@@ -822,9 +816,7 @@ export default function PixelMap() {
             <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-yellow-400 text-4xl shadow-lg">
               🔒
             </div>
-            <h2 className="text-2xl font-black text-slate-950">
-              Área bloqueada
-            </h2>
+            <h2 className="text-2xl font-black text-slate-950">Área bloqueada</h2>
             <p className="mt-3 text-sm leading-relaxed text-slate-600">
               Reservado para algo grandioso. Em breve.
             </p>
@@ -840,58 +832,58 @@ export default function PixelMap() {
       )}
 
       {selectedSheet?.type === "sold" && (
-        <div className="fixed inset-x-0 bottom-0 z-[999] rounded-t-3xl border border-slate-200 bg-white p-5 shadow-2xl">
-          <div className="flex h-32 w-full items-center justify-center rounded-3xl bg-green-600 text-center text-white shadow-lg">
-            <div>
-              <div className="text-4xl">
-                {selectedSheet.block.category === "PREMIUM" ? "🔥" : "💚"}
-              </div>
-              <p className="mt-2 text-sm font-black">Bloco vendido</p>
-            </div>
-          </div>
-
-          <p className="mt-4 text-xs font-black uppercase tracking-wide text-slate-500">
-            {selectedSheet.block.category === "PREMIUM"
-              ? "Área Premium"
-              : "Mosaico Solidário"}
-          </p>
-
-          <h2 className="mt-1 text-xl font-black text-slate-950">
-            {getDisplayName(selectedSheet.block)}
-          </h2>
-
-          <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            {selectedSheet.block.placement?.description ||
-              "Esse apoiador já faz parte do Milhão Solidário."}
-          </p>
-
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <div className="rounded-2xl bg-slate-50 p-3 text-center">
-              <p className="text-[10px] font-black uppercase text-slate-500">
-                Posição
-              </p>
-              <p className="text-sm font-black text-slate-950">
-                x{selectedSheet.block.gridX} / y{selectedSheet.block.gridY}
-              </p>
-            </div>
-
-            <div className="rounded-2xl bg-green-50 p-3 text-center">
-              <p className="text-[10px] font-black uppercase text-green-700">
-                Valor
-              </p>
-              <p className="text-sm font-black text-green-800">
-                {money(selectedSheet.block.priceCents)}
-              </p>
-            </div>
-          </div>
-
+        <div
+          className="fixed z-[999] w-[292px] rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl"
+          style={getBubbleStyle(selectedSheet.anchorX, selectedSheet.anchorY)}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="absolute -left-2 top-6 h-4 w-4 rotate-45 border-b border-l border-slate-200 bg-white" />
           <button
             type="button"
             onClick={() => setSelectedSheet(null)}
-            className="mt-3 w-full rounded-2xl bg-slate-950 py-4 text-sm font-extrabold text-white"
+            className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-black text-slate-700"
           >
-            Fechar
+            ×
           </button>
+
+          <p className="pr-8 text-xs font-black uppercase tracking-wide text-slate-500">
+            {selectedSheet.block.category === "GOLD"
+              ? "Área Ouro"
+              : selectedSheet.block.category === "PREMIUM"
+                ? "Premium"
+                : "Mosaico Solidário"}
+          </p>
+
+          <h2 className="mt-1 pr-8 text-lg font-black leading-tight text-slate-950">
+            {getDisplayName(selectedSheet.block)}
+          </h2>
+
+          {selectedSheet.block.placement?.description && (
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">
+              {selectedSheet.block.placement.description}
+            </p>
+          )}
+
+          <div className="mt-4 grid gap-2">
+            {selectedSheet.block.placement?.redirectUrl && !selectedSheet.block.placement.linkDisabled && (
+              <a
+                href={normalizeExternalUrl(selectedSheet.block.placement.redirectUrl)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-2xl bg-slate-950 py-3 text-center text-xs font-black text-white"
+              >
+                Visitar link
+              </a>
+            )}
+
+            <button
+              type="button"
+              onClick={() => reportBlock(selectedSheet.block)}
+              className="rounded-2xl bg-red-50 py-3 text-xs font-black text-red-700"
+            >
+              Denunciar
+            </button>
+          </div>
         </div>
       )}
     </div>

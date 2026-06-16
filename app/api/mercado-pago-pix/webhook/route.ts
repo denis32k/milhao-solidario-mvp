@@ -305,34 +305,57 @@ async function processPayment(paymentId: string) {
       },
     });
 
+    const minX = Math.min(...transaction.items.map((item) => item.gridX));
+    const maxX = Math.max(...transaction.items.map((item) => item.gridX));
+    const minY = Math.min(...transaction.items.map((item) => item.gridY));
+    const maxY = Math.max(...transaction.items.map((item) => item.gridY));
+    const widthBlocks = maxX - minX + 1;
+    const heightBlocks = maxY - minY + 1;
+    const placementKind = transaction.kind as any;
+    const defaultFillColor =
+      transaction.kind === "GOLD"
+        ? "#f59e0b"
+        : transaction.kind === "PREMIUM"
+          ? "#0f172a"
+          : "#22c55e";
+
     const placement = await tx.placement.upsert({
       where: {
         transactionId: transaction.id,
       },
       update: {
         status: "ACTIVE",
-        title: transaction.placementTitle || undefined,
+        kind: placementKind,
+        title: transaction.placementTitle || transaction.user.publicName || transaction.user.name,
         description: transaction.placementDescription || undefined,
         imageUrl: transaction.placementImageUrl || undefined,
         redirectUrl: transaction.placementRedirectUrl || undefined,
-        displayName: transaction.user.publicName || transaction.user.name,
-        textLabel: transaction.user.publicName || transaction.user.name,
-        fillColor: transaction.kind === "PREMIUM" ? "#0f172a" : "#22c55e",
+        displayName: transaction.placementTitle || transaction.user.publicName || transaction.user.name,
+        textLabel: transaction.placementTitle || transaction.user.publicName || transaction.user.name,
+        fillColor: transaction.placementFillColor || defaultFillColor,
+        originX: minX,
+        originY: minY,
+        widthBlocks,
+        heightBlocks,
       },
       create: {
-        kind: "SOLIDARITY",
+        kind: placementKind,
         status: "ACTIVE",
 
         userId: transaction.userId,
         transactionId: transaction.id,
 
-        title: transaction.placementTitle || undefined,
+        title: transaction.placementTitle || transaction.user.publicName || transaction.user.name,
         description: transaction.placementDescription || undefined,
         imageUrl: transaction.placementImageUrl || undefined,
         redirectUrl: transaction.placementRedirectUrl || undefined,
-        displayName: transaction.user.publicName || transaction.user.name,
-        textLabel: transaction.user.publicName || transaction.user.name,
-        fillColor: transaction.kind === "PREMIUM" ? "#0f172a" : "#22c55e",
+        displayName: transaction.placementTitle || transaction.user.publicName || transaction.user.name,
+        textLabel: transaction.placementTitle || transaction.user.publicName || transaction.user.name,
+        fillColor: transaction.placementFillColor || defaultFillColor,
+        originX: minX,
+        originY: minY,
+        widthBlocks,
+        heightBlocks,
       },
     });
 

@@ -24,6 +24,7 @@ export async function GET() {
       totalBlocks,
       solidarityBlocks,
       premiumBlocks,
+      goldBlocks,
       grandCenterBlocks,
       availableBlocks,
       soldBlocks,
@@ -42,6 +43,12 @@ export async function GET() {
       prisma.block.count({
         where: {
           category: "PREMIUM",
+        },
+      }),
+
+      prisma.block.count({
+        where: {
+          category: "GOLD",
         },
       }),
 
@@ -141,6 +148,7 @@ export async function GET() {
         locked: lockedBlocks,
         solidarity: solidarityBlocks,
         premium: premiumBlocks,
+        gold: goldBlocks,
         grandCenter: grandCenterBlocks,
       },
     });
