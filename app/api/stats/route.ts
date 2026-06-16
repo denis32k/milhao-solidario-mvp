@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -9,129 +8,152 @@ function moneyFromCents(cents: number) {
   return cents / 100;
 }
 
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
+}
+
 export async function GET() {
-  const [
-    totalBlocks,
-    solidarityBlocks,
-    premiumBlocks,
-    grandCenterBlocks,
-    availableBlocks,
-    soldBlocks,
-    lockedBlocks,
-    approvedTransactions,
-    approvedTotal,
-  ] = await Promise.all([
-    prisma.block.count(),
+  try {
+    const { prisma } = await import("@/lib/prisma");
 
-    prisma.block.count({
-      where: {
-        category: "SOLIDARITY",
+    const [
+      totalBlocks,
+      solidarityBlocks,
+      premiumBlocks,
+      grandCenterBlocks,
+      availableBlocks,
+      soldBlocks,
+      lockedBlocks,
+      approvedTransactions,
+      approvedTotal,
+    ] = await Promise.all([
+      prisma.block.count(),
+
+      prisma.block.count({
+        where: {
+          category: "SOLIDARITY",
+        },
+      }),
+
+      prisma.block.count({
+        where: {
+          category: "PREMIUM",
+        },
+      }),
+
+      prisma.block.count({
+        where: {
+          category: "GRAND_CENTER",
+        },
+      }),
+
+      prisma.block.count({
+        where: {
+          available: true,
+        },
+      }),
+
+      prisma.block.count({
+        where: {
+          status: "SOLD",
+        },
+      }),
+
+      prisma.block.count({
+        where: {
+          status: "LOCKED",
+        },
+      }),
+
+      prisma.transaction.count({
+        where: {
+          status: "APPROVED",
+        },
+      }),
+
+      prisma.transaction.aggregate({
+        where: {
+          status: "APPROVED",
+        },
+        _sum: {
+          subtotalCents: true,
+          operationalFeeCents: true,
+          totalPaidCents: true,
+          creatorShareCents: true,
+          hospitalShareCents: true,
+        },
+      }),
+    ]);
+
+    const raisedCents = approvedTotal._sum.subtotalCents ?? 0;
+    const operationalFeeCents = approvedTotal._sum.operationalFeeCents ?? 0;
+    const totalPaidCents = approvedTotal._sum.totalPaidCents ?? 0;
+    const creatorShareCents = approvedTotal._sum.creatorShareCents ?? 0;
+    const hospitalShareCents = approvedTotal._sum.hospitalShareCents ?? 0;
+
+    return NextResponse.json({
+      ok: true,
+
+      goal: {
+        cents: GOAL_CENTS,
+        reais: moneyFromCents(GOAL_CENTS),
       },
-    }),
 
-    prisma.block.count({
-      where: {
-        category: "PREMIUM",
+      raised: {
+        cents: raisedCents,
+        reais: moneyFromCents(raisedCents),
+        progressPercent: Number(((raisedCents / GOAL_CENTS) * 100).toFixed(4)),
       },
-    }),
 
-    prisma.block.count({
-      where: {
-        category: "GRAND_CENTER",
+      operationalFee: {
+        cents: operationalFeeCents,
+        reais: moneyFromCents(operationalFeeCents),
       },
-    }),
 
-    prisma.block.count({
-      where: {
-        available: true,
+      totalPaid: {
+        cents: totalPaidCents,
+        reais: moneyFromCents(totalPaidCents),
       },
-    }),
 
-    prisma.block.count({
-      where: {
-        status: "SOLD",
+      split: {
+        creator: {
+          cents: creatorShareCents,
+          reais: moneyFromCents(creatorShareCents),
+        },
+        hospital: {
+          cents: hospitalShareCents,
+          reais: moneyFromCents(hospitalShareCents),
+        },
       },
-    }),
 
-    prisma.block.count({
-      where: {
-        status: "LOCKED",
+      transactions: {
+        approved: approvedTransactions,
       },
-    }),
 
-    prisma.transaction.count({
-      where: {
-        status: "APPROVED",
+      blocks: {
+        total: totalBlocks,
+        available: availableBlocks,
+        sold: soldBlocks,
+        locked: lockedBlocks,
+        solidarity: solidarityBlocks,
+        premium: premiumBlocks,
+        grandCenter: grandCenterBlocks,
       },
-    }),
-
-    prisma.transaction.aggregate({
-      where: {
-        status: "APPROVED",
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: "Erro ao buscar estatísticas do banco.",
+        error: getErrorMessage(error),
       },
-      _sum: {
-        subtotalCents: true,
-        operationalFeeCents: true,
-        totalPaidCents: true,
-        creatorShareCents: true,
-        hospitalShareCents: true,
-      },
-    }),
-  ]);
-
-  const raisedCents = approvedTotal._sum.subtotalCents ?? 0;
-  const operationalFeeCents = approvedTotal._sum.operationalFeeCents ?? 0;
-  const totalPaidCents = approvedTotal._sum.totalPaidCents ?? 0;
-  const creatorShareCents = approvedTotal._sum.creatorShareCents ?? 0;
-  const hospitalShareCents = approvedTotal._sum.hospitalShareCents ?? 0;
-
-  return NextResponse.json({
-    ok: true,
-
-    goal: {
-      cents: GOAL_CENTS,
-      reais: moneyFromCents(GOAL_CENTS),
-    },
-
-    raised: {
-      cents: raisedCents,
-      reais: moneyFromCents(raisedCents),
-      progressPercent: Number(((raisedCents / GOAL_CENTS) * 100).toFixed(4)),
-    },
-
-    operationalFee: {
-      cents: operationalFeeCents,
-      reais: moneyFromCents(operationalFeeCents),
-    },
-
-    totalPaid: {
-      cents: totalPaidCents,
-      reais: moneyFromCents(totalPaidCents),
-    },
-
-    split: {
-      creator: {
-        cents: creatorShareCents,
-        reais: moneyFromCents(creatorShareCents),
-      },
-      hospital: {
-        cents: hospitalShareCents,
-        reais: moneyFromCents(hospitalShareCents),
-      },
-    },
-
-    transactions: {
-      approved: approvedTransactions,
-    },
-
-    blocks: {
-      total: totalBlocks,
-      available: availableBlocks,
-      sold: soldBlocks,
-      locked: lockedBlocks,
-      solidarity: solidarityBlocks,
-      premium: premiumBlocks,
-      grandCenter: grandCenterBlocks,
-    },
-  });
+      {
+        status: 500,
+      }
+    );
+  }
 }
