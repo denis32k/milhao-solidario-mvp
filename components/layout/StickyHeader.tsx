@@ -10,7 +10,8 @@ export default function StickyHeader(){
      <Link className="block border-b border-slate-100 px-5 py-4 text-sm font-black" href="/ranking">🏆 Hall da Fama</Link>
      <Link className="block border-b border-slate-100 px-5 py-4 text-sm font-black" href="/checkout">💳 Checkout teste</Link>
      <Link className="block border-b border-slate-100 px-5 py-4 text-sm font-black" href="/transparencia">📊 Transparência</Link>
-     <Link className="block px-5 py-4 text-sm font-black" href="/termos">📜 Termos de Uso</Link>
+     <Link className="block border-b border-slate-100 px-5 py-4 text-sm font-black" href="/termos">📜 Termos de Uso</Link>
+     <Link className="block px-5 py-4 text-sm font-black" href="/privacidade">🔒 Privacidade</Link>
     </nav>
    </details>
   </div>

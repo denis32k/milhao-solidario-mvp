@@ -133,6 +133,60 @@ function getUnitPrice(category: BuyableCategory) {
   return 1000;
 }
 
+
+async function compressImageFile(file: File) {
+  if (!file.type.startsWith("image/")) return file;
+
+  return new Promise<File>((resolve) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+
+      const maxSide = 1400;
+      const ratio = Math.min(1, maxSide / Math.max(image.width, image.height));
+      const width = Math.max(1, Math.round(image.width * ratio));
+      const height = Math.max(1, Math.round(image.height * ratio));
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+
+      if (!context) {
+        resolve(file);
+        return;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      context.drawImage(image, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            resolve(file);
+            return;
+          }
+
+          resolve(
+            new File([blob], `imagem-premium-${Date.now()}.jpg`, {
+              type: "image/jpeg",
+            })
+          );
+        },
+        "image/jpeg",
+        0.84
+      );
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file);
+    };
+
+    image.src = objectUrl;
+  });
+}
+
 function getCategoryTheme(category: BuyableCategory) {
   if (category === "GOLD") {
     return {
@@ -216,7 +270,8 @@ export default function CheckoutPage() {
     if (!imageFile) return imageUrl.trim();
 
     const formData = new FormData();
-    formData.set("file", imageFile);
+    const compressedFile = await compressImageFile(imageFile);
+    formData.set("file", compressedFile);
 
     const response = await fetch("/api/uploads", {
       method: "POST",
@@ -556,6 +611,7 @@ export default function CheckoutPage() {
                         className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-bold outline-none focus:border-slate-950"
                       />
                     </label>
+                    <p className="text-xs font-bold text-slate-500">A imagem é compactada automaticamente antes do envio.</p>
 
                     <label className="block">
                       <span className={`text-xs font-black uppercase tracking-wide ${theme.text}`}>Ou URL de imagem</span>
