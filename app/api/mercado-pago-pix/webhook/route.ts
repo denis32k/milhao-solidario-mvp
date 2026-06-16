@@ -311,9 +311,13 @@ async function processPayment(paymentId: string) {
       },
       update: {
         status: "ACTIVE",
+        title: transaction.placementTitle || undefined,
+        description: transaction.placementDescription || undefined,
+        imageUrl: transaction.placementImageUrl || undefined,
+        redirectUrl: transaction.placementRedirectUrl || undefined,
         displayName: transaction.user.publicName || transaction.user.name,
         textLabel: transaction.user.publicName || transaction.user.name,
-        fillColor: "#22c55e",
+        fillColor: transaction.kind === "PREMIUM" ? "#0f172a" : "#22c55e",
       },
       create: {
         kind: "SOLIDARITY",
@@ -322,9 +326,13 @@ async function processPayment(paymentId: string) {
         userId: transaction.userId,
         transactionId: transaction.id,
 
+        title: transaction.placementTitle || undefined,
+        description: transaction.placementDescription || undefined,
+        imageUrl: transaction.placementImageUrl || undefined,
+        redirectUrl: transaction.placementRedirectUrl || undefined,
         displayName: transaction.user.publicName || transaction.user.name,
         textLabel: transaction.user.publicName || transaction.user.name,
-        fillColor: "#22c55e",
+        fillColor: transaction.kind === "PREMIUM" ? "#0f172a" : "#22c55e",
       },
     });
 

@@ -11,6 +11,8 @@ const MAP_HEIGHT = GRID_ROWS * BLOCK_SIZE;
 
 type BlockCategory = "SOLIDARITY" | "PREMIUM" | "GRAND_CENTER";
 
+type BuyableCategory = "SOLIDARITY" | "PREMIUM";
+
 type Camera = {
   x: number;
   y: number;
@@ -20,7 +22,7 @@ type Camera = {
 type SelectedBlock = {
   gridX: number;
   gridY: number;
-  category: Exclude<BlockCategory, "GRAND_CENTER">;
+  category: BuyableCategory;
   priceCents: number;
 };
 
@@ -56,8 +58,7 @@ type ApiMapBlock = {
 type SelectedSheet =
   | null
   | { type: "grand-center" }
-  | { type: "sold"; block: ApiMapBlock }
-  | { type: "premium-info" };
+  | { type: "sold"; block: ApiMapBlock };
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -119,6 +120,7 @@ function isAdjacentToSelection(
 
 function getDisplayName(block: ApiMapBlock) {
   return (
+    block.placement?.title ||
     block.placement?.displayName ||
     block.placement?.textLabel ||
     block.owner?.publicName ||
@@ -141,6 +143,14 @@ function getSoldBlockColor(block: ApiMapBlock) {
   }
 
   return "#facc15";
+}
+
+function getCategoryLabel(category: BuyableCategory) {
+  if (category === "SOLIDARITY") {
+    return "Mosaico";
+  }
+
+  return "Premium";
 }
 
 function buildCheckoutHref(selectedBlocks: SelectedBlock[]) {
@@ -178,7 +188,38 @@ export default function PixelMap() {
     scale: 1,
   });
 
-  useEffect(() => {
+  function clampCamera(nextCamera: Camera): Camera {
+    const wrapper = wrapperRef.current;
+
+    if (!wrapper) return nextCamera;
+
+    const rect = wrapper.getBoundingClientRect();
+    const scaledWidth = MAP_WIDTH * nextCamera.scale;
+    const scaledHeight = MAP_HEIGHT * nextCamera.scale;
+
+    let nextX = nextCamera.x;
+    let nextY = nextCamera.y;
+
+    if (scaledWidth <= rect.width) {
+      nextX = (rect.width - scaledWidth) / 2;
+    } else {
+      nextX = clamp(nextX, rect.width - scaledWidth, 0);
+    }
+
+    if (scaledHeight <= rect.height) {
+      nextY = (rect.height - scaledHeight) / 2;
+    } else {
+      nextY = clamp(nextY, rect.height - scaledHeight, 0);
+    }
+
+    return {
+      ...nextCamera,
+      x: nextX,
+      y: nextY,
+    };
+  }
+
+  function fitGridToScreen() {
     const wrapper = wrapperRef.current;
 
     if (!wrapper) return;
@@ -186,11 +227,27 @@ export default function PixelMap() {
     const rect = wrapper.getBoundingClientRect();
     const nextScale = Math.max(rect.width / MAP_WIDTH, rect.height / MAP_HEIGHT);
 
-    setCamera({
-      x: (rect.width - MAP_WIDTH * nextScale) / 2,
-      y: (rect.height - MAP_HEIGHT * nextScale) / 2,
-      scale: nextScale,
-    });
+    setCamera(
+      clampCamera({
+        x: (rect.width - MAP_WIDTH * nextScale) / 2,
+        y: (rect.height - MAP_HEIGHT * nextScale) / 2,
+        scale: nextScale,
+      })
+    );
+  }
+
+  useEffect(() => {
+    fitGridToScreen();
+
+    function handleResize() {
+      fitGridToScreen();
+    }
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
   }, []);
 
   useEffect(() => {
@@ -275,7 +332,7 @@ export default function PixelMap() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, rect.width, rect.height);
 
-    ctx.fillStyle = "#dcfce7";
+    ctx.fillStyle = "#e2e8f0";
     ctx.fillRect(0, 0, rect.width, rect.height);
 
     ctx.save();
@@ -297,21 +354,21 @@ export default function PixelMap() {
         } else if (type === "SOLIDARITY") {
           ctx.fillStyle = "#bbf7d0";
         } else {
-          ctx.fillStyle = "#e2e8f0";
+          ctx.fillStyle = "#eef2ff";
         }
 
         ctx.fillRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
 
-        ctx.strokeStyle = "rgba(15, 23, 42, 0.16)";
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.22)";
         ctx.lineWidth = 0.35;
         ctx.strokeRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
 
         if (isSelected(x, y)) {
-          ctx.fillStyle = "rgba(37, 99, 235, 0.78)";
+          ctx.fillStyle = "rgba(37, 99, 235, 0.82)";
           ctx.fillRect(px + 1, py + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
 
           ctx.strokeStyle = "#1d4ed8";
-          ctx.lineWidth = 1.5;
+          ctx.lineWidth = 1.6;
           ctx.strokeRect(px + 0.5, py + 0.5, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
         }
 
@@ -366,22 +423,8 @@ export default function PixelMap() {
     };
   }
 
-  function goToFullGrid() {
-    const wrapper = wrapperRef.current;
-
-    if (!wrapper) return;
-
-    const rect = wrapper.getBoundingClientRect();
-    const nextScale = Math.max(rect.width / MAP_WIDTH, rect.height / MAP_HEIGHT);
-
-    setCamera({
-      x: (rect.width - MAP_WIDTH * nextScale) / 2,
-      y: (rect.height - MAP_HEIGHT * nextScale) / 2,
-      scale: nextScale,
-    });
-  }
-
-  function clearSelection() {
+  function clearSelection(event?: MouseEvent<HTMLButtonElement>) {
+    event?.stopPropagation();
     setSelectedBlocks([]);
     setSelectionMessage("");
   }
@@ -408,7 +451,7 @@ export default function PixelMap() {
       const firstCategory = selectedBlocks[0].category;
 
       if (firstCategory !== category) {
-        setSelectionMessage("Não misture tipos de bloco na mesma compra.");
+        setSelectionMessage("Continue selecionando blocos do mesmo tipo ou limpe para começar outro tipo.");
         return;
       }
     }
@@ -458,11 +501,13 @@ export default function PixelMap() {
       y: event.clientY,
     };
 
-    setCamera((current) => ({
-      ...current,
-      x: current.x + dx,
-      y: current.y + dy,
-    }));
+    setCamera((current) =>
+      clampCamera({
+        ...current,
+        x: current.x + dx,
+        y: current.y + dy,
+      })
+    );
   }
 
   function handlePointerUp() {
@@ -485,10 +530,12 @@ export default function PixelMap() {
     const nextScale =
       event.deltaY > 0 ? camera.scale * 0.9 : camera.scale * 1.1;
 
-    setCamera((current) => ({
-      ...current,
-      scale: clamp(nextScale, 0.55, 7),
-    }));
+    setCamera((current) =>
+      clampCamera({
+        ...current,
+        scale: clamp(nextScale, 0.55, 7),
+      })
+    );
   }
 
   return (
@@ -504,24 +551,10 @@ export default function PixelMap() {
     >
       <canvas ref={canvasRef} className="block h-full w-full" />
 
-      <div className="absolute left-3 right-3 top-3 z-40 flex gap-2">
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            goToFullGrid();
-          }}
-          className="rounded-full bg-white px-4 py-3 text-xs font-black text-slate-950 shadow-lg"
-        >
-          Ver grid inteiro
-        </button>
-
-        <div className="ml-auto rounded-full bg-green-600 px-4 py-3 text-xs font-black text-white shadow-lg">
-          {isLoadingBlocks ? "Carregando..." : `Vendidos ${mapBlocks.length}`}
-        </div>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white p-4 shadow-2xl">
+      <div
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white p-4 shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="mx-auto max-w-3xl">
           {selectedBlocks.length === 0 && (
             <div className="text-center">
@@ -551,9 +584,7 @@ export default function PixelMap() {
                     Tipo
                   </p>
                   <p className="text-sm font-black text-green-900">
-                    {selectedBlocks[0].category === "SOLIDARITY"
-                      ? "Mosaico"
-                      : "Premium"}
+                    {getCategoryLabel(selectedBlocks[0].category)}
                   </p>
                 </div>
 
@@ -584,6 +615,7 @@ export default function PixelMap() {
 
                 <a
                   href={buildCheckoutHref(selectedBlocks)}
+                  onClick={(event) => event.stopPropagation()}
                   className="rounded-2xl bg-green-600 py-4 text-center text-sm font-black text-white shadow-lg"
                 >
                   Continuar

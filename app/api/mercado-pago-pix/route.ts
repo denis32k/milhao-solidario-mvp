@@ -1,13 +1,15 @@
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const SUBTOTAL_CENTS = 1000;
-const OPERATOR_FEE_CENTS = 100;
-const TOTAL_PAID_CENTS = 1100;
-const CREATOR_SHARE_CENTS = 500;
-const HOSPITAL_SHARE_CENTS = 500;
+type BuyableCategory = "SOLIDARITY" | "PREMIUM";
+
+type SelectedBlockInput = {
+  gridX: number;
+  gridY: number;
+};
+
 const RESERVATION_MINUTES = 30;
 
 function getErrorMessage(error: unknown) {
@@ -22,14 +24,89 @@ function centsToReais(cents: number) {
   return Number((cents / 100).toFixed(2));
 }
 
+function onlyDigits(value: string) {
+  return value.replace(/\D/g, "");
+}
+
 function getFirstName(fullName: string) {
   return fullName.trim().split(" ")[0] || fullName.trim();
 }
 
 function getCleanAppUrl() {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "";
-
   return appUrl.endsWith("/") ? appUrl.slice(0, -1) : appUrl;
+}
+
+function hashCpf(cpf: string) {
+  return createHash("sha256").update(cpf).digest("hex");
+}
+
+function normalizeSelectedBlocks(value: unknown): SelectedBlockInput[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const unique = new Map<string, SelectedBlockInput>();
+
+  for (const item of value) {
+    const gridX = Number(item?.gridX);
+    const gridY = Number(item?.gridY);
+
+    if (
+      Number.isInteger(gridX) &&
+      Number.isInteger(gridY) &&
+      gridX >= 0 &&
+      gridX <= 199 &&
+      gridY >= 0 &&
+      gridY <= 145
+    ) {
+      unique.set(`${gridX}:${gridY}`, { gridX, gridY });
+    }
+  }
+
+  return Array.from(unique.values());
+}
+
+function areBlocksContiguous(blocks: SelectedBlockInput[]) {
+  if (blocks.length <= 1) {
+    return true;
+  }
+
+  const keys = new Set(blocks.map((block) => `${block.gridX}:${block.gridY}`));
+  const visited = new Set<string>();
+  const queue = [blocks[0]];
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+
+    if (!current) continue;
+
+    const currentKey = `${current.gridX}:${current.gridY}`;
+
+    if (visited.has(currentKey)) continue;
+
+    visited.add(currentKey);
+
+    const neighbors = [
+      { gridX: current.gridX + 1, gridY: current.gridY },
+      { gridX: current.gridX - 1, gridY: current.gridY },
+      { gridX: current.gridX, gridY: current.gridY + 1 },
+      { gridX: current.gridX, gridY: current.gridY - 1 },
+    ];
+
+    for (const neighbor of neighbors) {
+      const neighborKey = `${neighbor.gridX}:${neighbor.gridY}`;
+      if (keys.has(neighborKey) && !visited.has(neighborKey)) {
+        queue.push(neighbor);
+      }
+    }
+  }
+
+  return visited.size === blocks.length;
+}
+
+function mapCategoryToKind(category: BuyableCategory) {
+  return category === "PREMIUM" ? "PREMIUM" : "SOLIDARITY";
 }
 
 export async function GET() {
@@ -44,25 +121,30 @@ export async function GET() {
     webhookUrl: cleanAppUrl
       ? `${cleanAppUrl}/api/mercado-pago-pix/webhook`
       : null,
+    accepts: {
+      fullName: "string",
+      whatsapp: "digits",
+      cpf: "digits",
+      selectedBlocks: [{ gridX: 7, gridY: 0 }],
+      title: "optional premium title",
+      description: "optional premium description",
+      redirectUrl: "optional premium link",
+      imageUrl: "optional premium image url",
+    },
   });
 }
 
 export async function POST(request: Request) {
   let pendingTransactionId: string | null = null;
-  let reservedBlockId: string | null = null;
+  let reservedBlockIds: string[] = [];
 
   try {
     const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
 
     if (!accessToken) {
       return NextResponse.json(
-        {
-          ok: false,
-          message: "MERCADO_PAGO_ACCESS_TOKEN não configurado no EasyPanel.",
-        },
-        {
-          status: 500,
-        }
+        { ok: false, message: "MERCADO_PAGO_ACCESS_TOKEN não configurado no EasyPanel." },
+        { status: 500 }
       );
     }
 
@@ -70,65 +152,105 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const fullName = String(body.fullName || "").trim();
+    const whatsapp = onlyDigits(String(body.whatsapp || ""));
+    const cpf = onlyDigits(String(body.cpf || ""));
+    const selectedBlocksInput = normalizeSelectedBlocks(body.selectedBlocks);
+
+    const title = String(body.title || "").trim();
+    const description = String(body.description || "").trim();
+    const redirectUrl = String(body.redirectUrl || "").trim();
+    const imageUrl = String(body.imageUrl || "").trim();
 
     if (!fullName || fullName.length < 3) {
-      return NextResponse.json(
-        {
-          ok: false,
-          message: "Informe um nome completo válido.",
-        },
-        {
-          status: 400,
-        }
-      );
+      return NextResponse.json({ ok: false, message: "Informe um nome completo válido." }, { status: 400 });
+    }
+
+    if (whatsapp.length < 10) {
+      return NextResponse.json({ ok: false, message: "Informe um WhatsApp válido." }, { status: 400 });
+    }
+
+    if (cpf.length !== 11) {
+      return NextResponse.json({ ok: false, message: "Informe um CPF válido com 11 números." }, { status: 400 });
+    }
+
+    if (selectedBlocksInput.length === 0) {
+      return NextResponse.json({ ok: false, message: "Selecione pelo menos um bloco no grid." }, { status: 400 });
+    }
+
+    if (!areBlocksContiguous(selectedBlocksInput)) {
+      return NextResponse.json({ ok: false, message: "Os blocos selecionados precisam estar encostados." }, { status: 400 });
     }
 
     const uniqueId = Date.now();
-    const externalReference = `mp-pix-solidarity-${uniqueId}`;
+    const externalReference = `mp-pix-${uniqueId}`;
     const reservedUntil = new Date(Date.now() + RESERVATION_MINUTES * 60 * 1000);
 
     const pendingData = await prisma.$transaction(async (tx) => {
-      const availableBlock = await tx.block.findFirst({
+      const foundBlocks = await tx.block.findMany({
         where: {
-          category: "SOLIDARITY",
+          OR: selectedBlocksInput.map((block) => ({
+            gridX: block.gridX,
+            gridY: block.gridY,
+          })),
           status: "AVAILABLE",
           available: true,
+          category: {
+            in: ["SOLIDARITY", "PREMIUM"],
+          },
         },
-        orderBy: [
-          {
-            gridY: "asc",
-          },
-          {
-            gridX: "asc",
-          },
-        ],
+        orderBy: [{ gridY: "asc" }, { gridX: "asc" }],
       });
 
-      if (!availableBlock) {
-        throw new Error("Nenhum bloco solidário disponível encontrado.");
+      if (foundBlocks.length !== selectedBlocksInput.length) {
+        throw new Error("Um ou mais blocos selecionados não estão disponíveis.");
       }
+
+      const categories = Array.from(new Set(foundBlocks.map((block) => block.category)));
+
+      if (categories.length !== 1) {
+        throw new Error("Não misture blocos de tipos diferentes na mesma compra.");
+      }
+
+      const category = categories[0] as BuyableCategory;
+      const subtotalCents = foundBlocks.reduce((total, block) => total + block.priceCents, 0);
+      const operatorFeeCents = Math.ceil(subtotalCents * 0.1);
+      const totalPaidCents = subtotalCents + operatorFeeCents;
+      const creatorShareCents = Math.floor(subtotalCents / 2);
+      const hospitalShareCents = subtotalCents - creatorShareCents;
 
       const user = await tx.user.create({
         data: {
           name: fullName,
           publicName: fullName,
           email: `mp-pix-${uniqueId}@example.com`,
+          whatsapp,
+          cpfHash: hashCpf(cpf),
+          cpfLast4: cpf.slice(-4),
           totalApprovedCents: 0,
         },
       });
 
       const transaction = await tx.transaction.create({
         data: {
-          kind: "SOLIDARITY",
+          kind: mapCategoryToKind(category),
           status: "PENDING",
           userId: user.id,
 
-          subtotalCents: SUBTOTAL_CENTS,
-          operatorFeeCents: OPERATOR_FEE_CENTS,
-          totalPaidCents: TOTAL_PAID_CENTS,
+          subtotalCents,
+          operatorFeeCents,
+          totalPaidCents,
 
-          creatorShareCents: CREATOR_SHARE_CENTS,
-          hospitalShareCents: HOSPITAL_SHARE_CENTS,
+          creatorShareCents,
+          hospitalShareCents,
+
+          checkoutWhatsapp: whatsapp,
+          checkoutCpfHash: hashCpf(cpf),
+          checkoutCpfLast4: cpf.slice(-4),
+
+          placementTitle: category === "PREMIUM" ? title || fullName : null,
+          placementDescription: category === "PREMIUM" ? description || null : null,
+          placementRedirectUrl: category === "PREMIUM" ? redirectUrl || null : null,
+          placementImageUrl: category === "PREMIUM" ? imageUrl || null : null,
 
           mpExternalReference: externalReference,
           mpStatus: "pending",
@@ -138,9 +260,11 @@ export async function POST(request: Request) {
         },
       });
 
-      await tx.block.update({
+      await tx.block.updateMany({
         where: {
-          id: availableBlock.id,
+          id: {
+            in: foundBlocks.map((block) => block.id),
+          },
         },
         data: {
           status: "RESERVED",
@@ -152,26 +276,27 @@ export async function POST(request: Request) {
         },
       });
 
-      await tx.transactionBlock.create({
-        data: {
+      await tx.transactionBlock.createMany({
+        data: foundBlocks.map((block) => ({
           transactionId: transaction.id,
-          blockId: availableBlock.id,
-          gridX: availableBlock.gridX,
-          gridY: availableBlock.gridY,
-          category: availableBlock.category,
-          priceCents: availableBlock.priceCents,
-        },
+          blockId: block.id,
+          gridX: block.gridX,
+          gridY: block.gridY,
+          category: block.category,
+          priceCents: block.priceCents,
+        })),
       });
 
       return {
         user,
         transaction,
-        block: availableBlock,
+        blocks: foundBlocks,
+        category,
       };
     });
 
     pendingTransactionId = pendingData.transaction.id;
-    reservedBlockId = pendingData.block.id;
+    reservedBlockIds = pendingData.blocks.map((block) => block.id);
 
     const cleanAppUrl = getCleanAppUrl();
     const notificationUrl = cleanAppUrl
@@ -179,36 +304,35 @@ export async function POST(request: Request) {
       : undefined;
 
     const mercadoPagoPayload = {
-      transaction_amount: centsToReais(TOTAL_PAID_CENTS),
-      description: "Milhão Solidário - Bloco Mosaico Solidário",
+      transaction_amount: centsToReais(pendingData.transaction.totalPaidCents),
+      description:
+        pendingData.category === "PREMIUM"
+          ? `Milhão Solidário Premium - ${fullName}`
+          : `Milhão Solidário Mosaico - ${fullName}`,
       payment_method_id: "pix",
       external_reference: externalReference,
       payer: {
         email: pendingData.user.email,
         first_name: getFirstName(fullName),
+        identification: {
+          type: "CPF",
+          number: cpf,
+        },
       },
-      ...(notificationUrl
-        ? {
-            notification_url: notificationUrl,
-          }
-        : {}),
+      ...(notificationUrl ? { notification_url: notificationUrl } : {}),
     };
 
-    const mercadoPagoResponse = await fetch(
-      "https://api.mercadopago.com/v1/payments",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-          "X-Idempotency-Key": randomUUID(),
-        },
-        body: JSON.stringify(mercadoPagoPayload),
-      }
-    );
+    const mercadoPagoResponse = await fetch("https://api.mercadopago.com/v1/payments", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        "X-Idempotency-Key": randomUUID(),
+      },
+      body: JSON.stringify(mercadoPagoPayload),
+    });
 
     const responseText = await mercadoPagoResponse.text();
-
     let paymentData: any = null;
 
     try {
@@ -219,15 +343,11 @@ export async function POST(request: Request) {
 
     if (!mercadoPagoResponse.ok) {
       throw new Error(
-        paymentData?.message ||
-          paymentData?.error ||
-          "Mercado Pago recusou a criação do PIX."
+        paymentData?.message || paymentData?.error || "Mercado Pago recusou a criação do PIX."
       );
     }
 
-    const transactionData =
-      paymentData?.point_of_interaction?.transaction_data;
-
+    const transactionData = paymentData?.point_of_interaction?.transaction_data;
     const qrCode = transactionData?.qr_code || null;
     const qrCodeBase64 = transactionData?.qr_code_base64 || null;
     const ticketUrl = transactionData?.ticket_url || null;
@@ -237,14 +357,11 @@ export async function POST(request: Request) {
     }
 
     await prisma.transaction.update({
-      where: {
-        id: pendingData.transaction.id,
-      },
+      where: { id: pendingData.transaction.id },
       data: {
         mpPaymentId: String(paymentData.id),
         mpStatus: paymentData.status || "pending",
         mpStatusDetail: paymentData.status_detail || "pending_waiting_payment",
-
         pixQrCode: ticketUrl,
         pixQrCodeBase64: qrCodeBase64,
         pixCopyPaste: qrCode,
@@ -254,52 +371,49 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       message: "PIX criado com sucesso.",
+      category: pendingData.category,
       webhookUrl: notificationUrl,
       payment: {
         id: paymentData.id,
         status: paymentData.status,
         statusDetail: paymentData.status_detail,
       },
-      pix: {
-        qrCode,
-        qrCodeBase64,
-        ticketUrl,
-      },
+      pix: { qrCode, qrCodeBase64, ticketUrl },
       transaction: {
         id: pendingData.transaction.id,
+        subtotalCents: pendingData.transaction.subtotalCents,
+        operatorFeeCents: pendingData.transaction.operatorFeeCents,
         totalPaidCents: pendingData.transaction.totalPaidCents,
       },
+      blocks: pendingData.blocks.map((block) => ({
+        id: block.id,
+        gridX: block.gridX,
+        gridY: block.gridY,
+        category: block.category,
+        priceCents: block.priceCents,
+      })),
       block: {
-        id: pendingData.block.id,
-        gridX: pendingData.block.gridX,
-        gridY: pendingData.block.gridY,
+        id: pendingData.blocks[0].id,
+        gridX: pendingData.blocks[0].gridX,
+        gridY: pendingData.blocks[0].gridY,
       },
     });
   } catch (error) {
     try {
-      if (pendingTransactionId || reservedBlockId) {
+      if (pendingTransactionId || reservedBlockIds.length > 0) {
         const { prisma } = await import("@/lib/prisma");
 
         await prisma.$transaction(async (tx) => {
           if (pendingTransactionId) {
             await tx.transaction.updateMany({
-              where: {
-                id: pendingTransactionId,
-                status: "PENDING",
-              },
-              data: {
-                status: "CANCELLED",
-                mpStatusDetail: "pix_creation_failed",
-              },
+              where: { id: pendingTransactionId, status: "PENDING" },
+              data: { status: "CANCELLED", mpStatusDetail: "pix_creation_failed" },
             });
           }
 
-          if (reservedBlockId) {
+          if (reservedBlockIds.length > 0) {
             await tx.block.updateMany({
-              where: {
-                id: reservedBlockId,
-                status: "RESERVED",
-              },
+              where: { id: { in: reservedBlockIds }, status: "RESERVED" },
               data: {
                 status: "AVAILABLE",
                 available: true,
@@ -317,14 +431,8 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      {
-        ok: false,
-        message: "Erro ao criar PIX Mercado Pago.",
-        error: getErrorMessage(error),
-      },
-      {
-        status: 500,
-      }
+      { ok: false, message: "Erro ao criar PIX Mercado Pago.", error: getErrorMessage(error) },
+      { status: 500 }
     );
   }
 }

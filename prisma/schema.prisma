@@ -193,6 +193,15 @@ model Transaction {
   creatorShareCents   Int
   hospitalShareCents  Int
 
+  checkoutWhatsapp    String?
+  checkoutCpfHash     String?
+  checkoutCpfLast4    String?
+
+  placementTitle      String?
+  placementDescription String?          @db.Text
+  placementRedirectUrl String?
+  placementImageUrl   String?
+
   mpPaymentId         String?           @unique
   mpExternalReference String            @unique
   mpStatus            String?
