@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +16,17 @@ function getErrorMessage(error: unknown) {
   return String(error);
 }
 
+export async function GET() {
+  return NextResponse.json({
+    ok: true,
+    message: "API do checkout fake está funcionando.",
+  });
+}
+
 export async function POST(request: Request) {
   try {
+    const { prisma } = await import("@/lib/prisma");
+
     const body = await request.json();
 
     const fullName = String(body.fullName || "").trim();
