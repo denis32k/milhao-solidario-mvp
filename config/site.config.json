@@ -1,0 +1,58 @@
+{
+  "brand": {
+    "name": "Milhão Solidário",
+    "shortName": "Milhão Solidário",
+    "subtitle": "Doe, apareça e ajude",
+    "logoEmoji": "💚"
+  },
+  "goalCents": 200000000,
+  "operationalFeePercent": 10,
+  "areas": {
+    "SOLIDARITY": {
+      "name": "Mosaico Apoiador",
+      "shortName": "Mosaico",
+      "priceCents": 1000,
+      "description": "Apoie, escolha uma cor e deixe seu nome no mapa."
+    },
+    "PREMIUM": {
+      "name": "Área Gold",
+      "shortName": "Gold",
+      "priceCents": 10000,
+      "description": "Espaço com imagem, descrição e link."
+    },
+    "GOLD": {
+      "name": "Área Diamante",
+      "shortName": "Diamante",
+      "priceCents": 50000,
+      "description": "Área nobre próxima ao centro do mapa."
+    },
+    "GRAND_CENTER": {
+      "name": "Área Legendária",
+      "shortName": "Legendária",
+      "priceCents": 0,
+      "description": "Área central reservada para algo especial."
+    }
+  },
+  "mosaicColors": [
+    { "name": "Verde esperança", "value": "#22c55e" },
+    { "name": "Azul confiança", "value": "#2563eb" },
+    { "name": "Rosa carinho", "value": "#ec4899" },
+    { "name": "Roxo apoio", "value": "#8b5cf6" },
+    { "name": "Laranja energia", "value": "#f97316" },
+    { "name": "Amarelo destaque", "value": "#eab308" }
+  ],
+  "copy": {
+    "heroTagline": "Escolha seu espaço no mapa e participe dessa corrente.",
+    "legendaryMessage": "Área reservada para algo especial. Em breve.",
+    "checkoutTitle": "Finalizar participação",
+    "pixButton": "Gerar PIX Mercado Pago",
+    "reportButton": "Denunciar"
+  },
+  "testData": {
+    "supporterName": "Apoiador Exemplo",
+    "brandName": "Marca Exemplo",
+    "handle": "@exemplo",
+    "link": "https://exemplo.com",
+    "description": "Participação de teste para validar o mapa."
+  }
+}

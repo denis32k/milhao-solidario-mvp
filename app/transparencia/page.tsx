@@ -15,17 +15,17 @@ export default function TransparenciaPage() {
 
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           <div className="rounded-3xl bg-green-50 p-5">
-            <p className="text-xs font-black uppercase text-green-700">Mosaico Solidário</p>
+            <p className="text-xs font-black uppercase text-green-700">Mosaico Apoiador</p>
             <p className="mt-2 text-3xl font-black text-green-900">R$10</p>
             <p className="mt-2 text-xs font-semibold leading-relaxed text-green-700">Blocos da moldura externa do mapa, com nome, cor, descrição e link opcional.</p>
           </div>
           <div className="rounded-3xl bg-slate-50 p-5">
-            <p className="text-xs font-black uppercase text-slate-500">Área Premium</p>
+            <p className="text-xs font-black uppercase text-slate-500">Área Gold</p>
             <p className="mt-2 text-3xl font-black text-slate-950">R$100</p>
             <p className="mt-2 text-xs font-semibold leading-relaxed text-slate-500">Blocos do miolo do mapa, com imagem, nome, descrição e link.</p>
           </div>
           <div className="rounded-3xl bg-yellow-50 p-5">
-            <p className="text-xs font-black uppercase text-yellow-700">Área Ouro</p>
+            <p className="text-xs font-black uppercase text-yellow-700">Área Diamante</p>
             <p className="mt-2 text-3xl font-black text-yellow-900">R$500</p>
             <p className="mt-2 text-xs font-semibold leading-relaxed text-yellow-700">Blocos nobres próximos ao centro bloqueado, com mais destaque visual.</p>
           </div>

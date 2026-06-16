@@ -12,7 +12,7 @@ export default function PrivacidadePage() {
         <div className="mt-6 space-y-4">
           <section className="rounded-3xl bg-green-50 p-5">
             <h2 className="text-lg font-black text-green-900">O que aparece publicamente</h2>
-            <p className="mt-2 text-sm leading-relaxed text-green-900/80">Nome público, descrição curta, cor do bloco, imagem enviada no Premium/Área Ouro e link/Instagram informado pelo comprador.</p>
+            <p className="mt-2 text-sm leading-relaxed text-green-900/80">Nome público, descrição curta, cor do bloco, imagem enviada no Área Gold/Área Diamante e link/Instagram informado pelo comprador.</p>
           </section>
 
           <section className="rounded-3xl bg-slate-50 p-5">

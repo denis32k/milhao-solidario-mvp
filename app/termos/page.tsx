@@ -21,9 +21,9 @@ export default function TermosPage() {
           <section className="rounded-3xl bg-slate-50 p-5">
             <h2 className="text-lg font-black text-slate-950">2. Modalidades</h2>
             <div className="mt-3 space-y-3 text-sm leading-relaxed text-slate-600">
-              <p><strong>Mosaico Solidário:</strong> R$10 por bloco, com cor, nome público, descrição curta e Instagram/link opcional.</p>
-              <p><strong>Área Premium:</strong> R$100 por bloco, com imagem no grid, nome público, descrição e link.</p>
-              <p><strong>Área Ouro:</strong> R$500 por bloco, com destaque próximo ao centro bloqueado.</p>
+              <p><strong>Mosaico Apoiador:</strong> R$10 por bloco, com cor, nome público, descrição curta e Instagram/link opcional.</p>
+              <p><strong>Área Gold:</strong> R$100 por bloco, com imagem no grid, nome público, descrição e link.</p>
+              <p><strong>Área Diamante:</strong> R$500 por bloco, com destaque próximo ao centro bloqueado.</p>
               <p><strong>Centro bloqueado:</strong> área reservada para ação futura, sem venda direta no momento.</p>
             </div>
           </section>

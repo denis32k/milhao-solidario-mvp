@@ -1,7 +1,7 @@
 const reports = [
   {
     block: "x88 / y58",
-    title: "Apoiador Premium",
+    title: "Marca Exemplo",
     reason: "Imagem denunciada por conteúdo inadequado.",
     status: "Aberta",
   },

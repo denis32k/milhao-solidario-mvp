@@ -50,6 +50,7 @@ async function getRanking() {
           gt: 0,
         },
         isBanned: false,
+        isTest: false,
       },
       orderBy: {
         totalApprovedCents: "desc",

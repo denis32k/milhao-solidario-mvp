@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "crypto";
 import { NextResponse } from "next/server";
+import { siteConfig } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
 
@@ -11,14 +12,7 @@ type SelectedBlockInput = {
 };
 
 const RESERVATION_MINUTES = 30;
-const ALLOWED_COLORS = new Set([
-  "#22c55e",
-  "#2563eb",
-  "#ec4899",
-  "#8b5cf6",
-  "#f97316",
-  "#eab308",
-]);
+const ALLOWED_COLORS = new Set(siteConfig.mosaicColors.map((color) => color.value));
 
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) {
@@ -164,9 +158,7 @@ function mapCategoryToKind(category: BuyableCategory) {
 }
 
 function getCategoryDescription(category: BuyableCategory, fullName: string) {
-  if (category === "GOLD") return `Milhão Solidário Área Ouro - ${fullName}`;
-  if (category === "PREMIUM") return `Milhão Solidário Premium - ${fullName}`;
-  return `Milhão Solidário Mosaico - ${fullName}`;
+  return `${siteConfig.brand.name} ${siteConfig.areas[category].name} - ${fullName}`;
 }
 
 export async function GET() {

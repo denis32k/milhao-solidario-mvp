@@ -1,3 +1,4 @@
+import { getAreaPriceCents } from "@/lib/site-config";
 export const GRID_COLS = 200;
 export const GRID_ROWS = 145;
 export const BLOCK_SIZE = 10;
@@ -56,8 +57,9 @@ export function getBlockCategory(x: number, y: number): GridBlockCategory {
 }
 
 export function getBlockPriceCents(category: string) {
-  if (category === "SOLIDARITY") return 1000;
-  if (category === "PREMIUM") return 10000;
-  if (category === "GOLD") return 50000;
+  if (category === "SOLIDARITY" || category === "PREMIUM" || category === "GOLD" || category === "GRAND_CENTER") {
+    return getAreaPriceCents(category);
+  }
+
   return 0;
 }

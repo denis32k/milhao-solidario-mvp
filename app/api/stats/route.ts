@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
+import { siteConfig } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
 
-const GOAL_CENTS = 200000000;
+const GOAL_CENTS = siteConfig.goalCents;
 
 function moneyFromCents(cents: number) {
   return cents / 100;
@@ -67,6 +68,9 @@ export async function GET() {
       prisma.block.count({
         where: {
           status: "SOLD",
+          placement: {
+            isTest: false,
+          },
         },
       }),
 
@@ -79,12 +83,14 @@ export async function GET() {
       prisma.transaction.count({
         where: {
           status: "APPROVED",
+          isTest: false,
         },
       }),
 
       prisma.transaction.aggregate({
         where: {
           status: "APPROVED",
+          isTest: false,
         },
         _sum: {
           subtotalCents: true,

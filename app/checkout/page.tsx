@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { getAreaName, getAreaPriceCents, getOperationalFeeCents, siteConfig } from "@/lib/site-config";
 
 type BuyableCategory = "SOLIDARITY" | "PREMIUM" | "GOLD";
 type CheckoutStep = "data" | "pix";
@@ -37,14 +38,7 @@ type PixResult = {
   }>;
 };
 
-const SOLIDARITY_COLORS = [
-  { name: "Verde esperança", value: "#22c55e" },
-  { name: "Azul confiança", value: "#2563eb" },
-  { name: "Rosa carinho", value: "#ec4899" },
-  { name: "Roxo apoio", value: "#8b5cf6" },
-  { name: "Laranja energia", value: "#f97316" },
-  { name: "Amarelo destaque", value: "#eab308" },
-];
+const SOLIDARITY_COLORS = siteConfig.mosaicColors;
 
 function money(cents: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -122,15 +116,11 @@ function blocksFormRectangle(blocks: SelectedBlock[]) {
 }
 
 function getCategoryLabel(category: BuyableCategory) {
-  if (category === "GOLD") return "Área Ouro";
-  if (category === "PREMIUM") return "Premium";
-  return "Mosaico Solidário";
+  return getAreaName(category);
 }
 
 function getUnitPrice(category: BuyableCategory) {
-  if (category === "GOLD") return 50000;
-  if (category === "PREMIUM") return 10000;
-  return 1000;
+  return getAreaPriceCents(category);
 }
 
 
@@ -260,7 +250,7 @@ export default function CheckoutPage() {
 
   const unitPriceCents = getUnitPrice(category);
   const subtotalCents = useMemo(() => unitPriceCents * selectedBlocks.length, [unitPriceCents, selectedBlocks.length]);
-  const operationalFeeCents = useMemo(() => Math.ceil(subtotalCents * 0.1), [subtotalCents]);
+  const operationalFeeCents = useMemo(() => getOperationalFeeCents(subtotalCents), [subtotalCents]);
   const totalCents = subtotalCents + operationalFeeCents;
   const theme = getCategoryTheme(category);
   const requiresImageShape = category === "PREMIUM" || category === "GOLD";
@@ -301,7 +291,7 @@ export default function CheckoutPage() {
       }
 
       if (requiresImageShape && !isRectangle) {
-        alert("Para Premium e Área Ouro, selecione uma área retangular.");
+        alert("Para Área Gold e Área Diamante, selecione uma área retangular.");
         return;
       }
 
@@ -480,7 +470,7 @@ export default function CheckoutPage() {
           <p className={`text-xs font-black uppercase tracking-wide ${theme.text}`}>
             Checkout {getCategoryLabel(category)}
           </p>
-          <h1 className="mt-2 text-2xl font-black text-slate-950">Finalizar participação</h1>
+          <h1 className="mt-2 text-2xl font-black text-slate-950">{siteConfig.copy.checkoutTitle}</h1>
 
           <div className="mt-5 grid grid-cols-3 gap-2 text-center text-xs font-black">
             <div className="rounded-2xl bg-green-500 p-3 text-white">1. Blocos</div>
@@ -526,7 +516,7 @@ export default function CheckoutPage() {
                   type="text"
                   value={publicName}
                   onChange={(event) => setPublicName(event.target.value)}
-                  placeholder="Ex: Denis, Terê Personalizados, Minha empresa..."
+                  placeholder="Ex: Apoiador Exemplo, Marca Exemplo..."
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-bold outline-none focus:border-slate-950"
                 />
               </label>
@@ -650,7 +640,7 @@ export default function CheckoutPage() {
                 disabled={isLoading || (requiresImageShape && !isRectangle)}
                 className={`w-full rounded-2xl ${theme.button} py-4 text-sm font-extrabold ${theme.buttonText} shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-60`}
               >
-                {isLoading ? "Gerando PIX..." : "Gerar PIX Mercado Pago"}
+                {isLoading ? "Gerando PIX..." : siteConfig.copy.pixButton}
               </button>
             </div>
           )}

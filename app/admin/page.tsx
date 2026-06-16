@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
+import { mkdir, writeFile } from "fs/promises";
+import path from "path";
+import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
+import { siteConfig } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +21,224 @@ function isAuthorized(secretFromUrl: string | undefined) {
   const secret = process.env.ADMIN_API_SECRET;
   if (!secret) return true;
   return secretFromUrl === secret;
+}
+
+
+type TestCategory = "SOLIDARITY" | "PREMIUM" | "GOLD";
+
+function normalizeTestCategory(value: string): TestCategory {
+  if (value === "PREMIUM") return "PREMIUM";
+  if (value === "GOLD") return "GOLD";
+  return "SOLIDARITY";
+}
+
+async function saveTestImage(file: FormDataEntryValue | null) {
+  if (!(file instanceof File)) return null;
+  if (!file.size) return null;
+  if (!file.type.startsWith("image/")) return null;
+
+  const extension = file.type.includes("webp") ? "webp" : file.type.includes("png") ? "png" : "jpg";
+  const filename = `teste-${Date.now()}-${randomUUID()}.${extension}`;
+  const uploadDir = path.join(process.cwd(), "public", "uploads");
+  const filepath = path.join(uploadDir, filename);
+  const bytes = await file.arrayBuffer();
+
+  await mkdir(uploadDir, { recursive: true });
+  await writeFile(filepath, Buffer.from(bytes));
+
+  return `/uploads/${filename}`;
+}
+
+async function findAvailableRectangle(category: TestCategory, width: number, height: number) {
+  const blocks = await prisma.block.findMany({
+    where: {
+      category,
+      status: "AVAILABLE",
+      available: true,
+    },
+    select: {
+      id: true,
+      gridX: true,
+      gridY: true,
+      category: true,
+      priceCents: true,
+    },
+    orderBy: [{ gridY: "asc" }, { gridX: "asc" }],
+    take: 29000,
+  });
+
+  const byCoord = new Map(blocks.map((block) => [`${block.gridX}:${block.gridY}`, block]));
+
+  for (const block of blocks) {
+    const selected = [];
+
+    for (let y = block.gridY; y < block.gridY + height; y++) {
+      for (let x = block.gridX; x < block.gridX + width; x++) {
+        const found = byCoord.get(`${x}:${y}`);
+        if (found) selected.push(found);
+      }
+    }
+
+    if (selected.length === width * height) {
+      return selected;
+    }
+  }
+
+  return [];
+}
+
+async function createTestArea(formData: FormData) {
+  "use server";
+
+  const secret = String(formData.get("secret") || "");
+  if (!isAuthorized(secret)) return;
+
+  const category = normalizeTestCategory(String(formData.get("category") || "SOLIDARITY"));
+  const width = category === "SOLIDARITY" ? 1 : Math.max(1, Math.min(8, Number(formData.get("width") || 2)));
+  const height = category === "SOLIDARITY" ? 1 : Math.max(1, Math.min(8, Number(formData.get("height") || 2)));
+  const imageUrl = category === "SOLIDARITY" ? null : await saveTestImage(formData.get("image"));
+  const blocks = await findAvailableRectangle(category, width, height);
+
+  if (blocks.length !== width * height) {
+    return;
+  }
+
+  const now = new Date();
+  const uniqueId = Date.now();
+  const testName = category === "SOLIDARITY" ? siteConfig.testData.supporterName : siteConfig.testData.brandName;
+  const fillColor = category === "SOLIDARITY" ? siteConfig.mosaicColors[0].value : category === "GOLD" ? "#f59e0b" : "#0f172a";
+  const kind = category;
+
+  await prisma.$transaction(async (tx) => {
+    const user = await tx.user.create({
+      data: {
+        name: testName,
+        publicName: testName,
+        email: `teste-${uniqueId}@example.com`,
+        whatsapp: "11999999999",
+        cpfLast4: "0000",
+        totalApprovedCents: 0,
+        isTest: true,
+      },
+    });
+
+    const transaction = await tx.transaction.create({
+      data: {
+        kind,
+        status: "APPROVED",
+        userId: user.id,
+        subtotalCents: 0,
+        operatorFeeCents: 0,
+        totalPaidCents: 0,
+        creatorShareCents: 0,
+        hospitalShareCents: 0,
+        placementTitle: testName,
+        placementDescription: siteConfig.testData.description,
+        placementRedirectUrl: siteConfig.testData.link,
+        placementImageUrl: imageUrl,
+        placementFillColor: fillColor,
+        mpExternalReference: `teste-${uniqueId}`,
+        mpStatus: "test",
+        mpStatusDetail: "admin_test_area",
+        approvedAt: now,
+        paidAt: now,
+        isTest: true,
+      },
+    });
+
+    const minX = Math.min(...blocks.map((block) => block.gridX));
+    const maxX = Math.max(...blocks.map((block) => block.gridX));
+    const minY = Math.min(...blocks.map((block) => block.gridY));
+    const maxY = Math.max(...blocks.map((block) => block.gridY));
+
+    const placement = await tx.placement.create({
+      data: {
+        kind,
+        status: "ACTIVE",
+        userId: user.id,
+        transactionId: transaction.id,
+        title: testName,
+        description: siteConfig.testData.description,
+        imageUrl,
+        redirectUrl: siteConfig.testData.link,
+        displayName: testName,
+        textLabel: testName,
+        fillColor,
+        originX: minX,
+        originY: minY,
+        widthBlocks: maxX - minX + 1,
+        heightBlocks: maxY - minY + 1,
+        isTest: true,
+      },
+    });
+
+    await tx.block.updateMany({
+      where: { id: { in: blocks.map((block) => block.id) } },
+      data: {
+        status: "SOLD",
+        available: false,
+        ownerId: user.id,
+        placementId: placement.id,
+        currentTransactionId: transaction.id,
+      },
+    });
+
+    await tx.transactionBlock.createMany({
+      data: blocks.map((block) => ({
+        transactionId: transaction.id,
+        blockId: block.id,
+        gridX: block.gridX,
+        gridY: block.gridY,
+        category: block.category,
+        priceCents: block.priceCents,
+      })),
+    });
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/");
+}
+
+async function deleteTestAreas(formData: FormData) {
+  "use server";
+
+  const secret = String(formData.get("secret") || "");
+  if (!isAuthorized(secret)) return;
+
+  const placementId = String(formData.get("placementId") || "");
+  const where = placementId ? { id: placementId, isTest: true } : { isTest: true };
+  const placements = await prisma.placement.findMany({
+    where,
+    select: { id: true, transactionId: true, userId: true },
+  });
+
+  if (!placements.length) return;
+
+  const placementIds = placements.map((placement) => placement.id);
+  const transactionIds = placements.map((placement) => placement.transactionId);
+  const userIds = placements.map((placement) => placement.userId);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.report.deleteMany({ where: { placementId: { in: placementIds } } });
+    await tx.block.updateMany({
+      where: { placementId: { in: placementIds } },
+      data: {
+        status: "AVAILABLE",
+        available: true,
+        ownerId: null,
+        placementId: null,
+        currentTransactionId: null,
+        reservationToken: null,
+        reservedUntil: null,
+      },
+    });
+    await tx.placement.deleteMany({ where: { id: { in: placementIds }, isTest: true } });
+    await tx.transaction.deleteMany({ where: { id: { in: transactionIds }, isTest: true } });
+    await tx.user.deleteMany({ where: { id: { in: userIds }, isTest: true } });
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/");
 }
 
 async function adminAction(formData: FormData) {
@@ -176,6 +398,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
     premiumPlacements,
     reports,
     bannedUsers,
+    testPlacements,
   ] = await Promise.all([
     prisma.transaction.findMany({
       orderBy: { createdAt: "desc" },
@@ -204,6 +427,12 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
       },
     }),
     prisma.user.count({ where: { isBanned: true } }),
+    prisma.placement.findMany({
+      where: { isTest: true },
+      orderBy: { createdAt: "desc" },
+      take: 30,
+      include: { blocks: { take: 1 } },
+    }),
   ]);
 
   const openReports = reports.filter((report) => report.status === "OPEN" || report.status === "REVIEWING").length;
@@ -217,7 +446,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
           <p className="text-xs font-black uppercase tracking-wide text-yellow-300">Painel do dono</p>
           <h1 className="mt-2 text-3xl font-black">Admin Milhão Solidário</h1>
           <p className="mt-2 text-sm leading-relaxed text-slate-300">
-            Compras, reservas, Premiums, Área Ouro e denúncias em um lugar só.
+            Compras, reservas, Área Gold, Área Diamante e denúncias em um lugar só.
           </p>
         </section>
 
@@ -226,6 +455,71 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
           <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Reservas pendentes</p><p className="mt-1 text-2xl font-black">{pendingReservations.length}</p></div>
           <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Denúncias abertas</p><p className="mt-1 text-2xl font-black">{openReports}</p></div>
           <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Usuários banidos</p><p className="mt-1 text-2xl font-black">{bannedUsers}</p></div>
+        </section>
+
+        <section className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-black text-slate-950">Testes do grid</h2>
+              <p className="mt-1 text-sm font-bold text-slate-500">Crie áreas fictícias direto no mapa sem checkout e sem PIX.</p>
+            </div>
+            <form action={deleteTestAreas}>
+              <input type="hidden" name="secret" value={secret} />
+              <button type="submit" className="rounded-2xl bg-red-50 px-4 py-3 text-xs font-black text-red-700">Excluir todos os testes</button>
+            </form>
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-3">
+            <form action={createTestArea} className="rounded-3xl border border-green-200 bg-green-50 p-4">
+              <input type="hidden" name="secret" value={secret} />
+              <input type="hidden" name="category" value="SOLIDARITY" />
+              <h3 className="font-black text-green-950">Teste Mosaico Apoiador</h3>
+              <p className="mt-1 text-xs font-bold text-green-700">Cria 1 bloco fictício.</p>
+              <button type="submit" className="mt-4 w-full rounded-2xl bg-green-600 py-3 text-xs font-black text-white">Criar teste</button>
+            </form>
+
+            <form action={createTestArea} encType="multipart/form-data" className="rounded-3xl border border-yellow-200 bg-yellow-50 p-4">
+              <input type="hidden" name="secret" value={secret} />
+              <input type="hidden" name="category" value="PREMIUM" />
+              <h3 className="font-black text-yellow-950">Teste Área Gold</h3>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <input name="width" defaultValue="2" className="rounded-xl border border-yellow-200 px-3 py-2 text-sm font-bold" />
+                <input name="height" defaultValue="2" className="rounded-xl border border-yellow-200 px-3 py-2 text-sm font-bold" />
+              </div>
+              <input name="image" type="file" accept="image/png,image/jpeg,image/webp" className="mt-3 w-full rounded-xl bg-white px-3 py-2 text-xs font-bold" />
+              <button type="submit" className="mt-4 w-full rounded-2xl bg-yellow-500 py-3 text-xs font-black text-yellow-950">Criar teste</button>
+            </form>
+
+            <form action={createTestArea} encType="multipart/form-data" className="rounded-3xl border border-blue-200 bg-blue-50 p-4">
+              <input type="hidden" name="secret" value={secret} />
+              <input type="hidden" name="category" value="GOLD" />
+              <h3 className="font-black text-blue-950">Teste Área Diamante</h3>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <input name="width" defaultValue="2" className="rounded-xl border border-blue-200 px-3 py-2 text-sm font-bold" />
+                <input name="height" defaultValue="2" className="rounded-xl border border-blue-200 px-3 py-2 text-sm font-bold" />
+              </div>
+              <input name="image" type="file" accept="image/png,image/jpeg,image/webp" className="mt-3 w-full rounded-xl bg-white px-3 py-2 text-xs font-bold" />
+              <button type="submit" className="mt-4 w-full rounded-2xl bg-blue-600 py-3 text-xs font-black text-white">Criar teste</button>
+            </form>
+          </div>
+
+          {testPlacements.length > 0 && (
+            <div className="mt-5 space-y-2">
+              {testPlacements.map((placement) => (
+                <article key={placement.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50 p-3">
+                  <div>
+                    <p className="text-sm font-black text-slate-950">{placement.title || placement.displayName}</p>
+                    <p className="text-xs font-bold text-slate-500">{placement.kind} • teste</p>
+                  </div>
+                  <form action={deleteTestAreas}>
+                    <input type="hidden" name="secret" value={secret} />
+                    <input type="hidden" name="placementId" value={placement.id} />
+                    <button type="submit" className="rounded-full bg-red-50 px-3 py-2 text-[10px] font-black text-red-700">Excluir teste</button>
+                  </form>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
@@ -259,9 +553,9 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
         </section>
 
         <section className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
-          <h2 className="text-xl font-black text-slate-950">Premiums e Área Ouro com imagem/link</h2>
+          <h2 className="text-xl font-black text-slate-950">Área Gold e Área Diamante com imagem/link</h2>
           <div className="mt-4 space-y-3">
-            {premiumPlacements.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhum Premium/Área Ouro vendido ainda.</p>}
+            {premiumPlacements.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma Área Gold/Área Diamante vendida ainda.</p>}
             {premiumPlacements.map((placement) => (
               <article key={placement.id} className="rounded-2xl border border-slate-200 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">

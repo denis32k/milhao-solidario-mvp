@@ -1,6 +1,7 @@
 const { PrismaClient } = require("@prisma/client");
 
 const prisma = new PrismaClient();
+const siteConfig = require("../config/site.config.json");
 
 const GRID_COLS = 200;
 const GRID_ROWS = 145;
@@ -25,10 +26,7 @@ function getCategory(x, y) {
 }
 
 function getPriceCents(category) {
-  if (category === "SOLIDARITY") return 1000;
-  if (category === "PREMIUM") return 10000;
-  if (category === "GOLD") return 50000;
-  return 0;
+  return siteConfig.areas[category]?.priceCents || 0;
 }
 
 function getStatus(category) {

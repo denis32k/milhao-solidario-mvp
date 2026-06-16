@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { MouseEvent, PointerEvent, WheelEvent } from "react";
+import { getAreaName, getAreaPriceCents, siteConfig } from "@/lib/site-config";
 
 const GRID_COLS = 200;
 const GRID_ROWS = 145;
@@ -99,9 +100,10 @@ function getBlockType(x: number, y: number): BlockCategory {
 }
 
 function getBlockPrice(category: BlockCategory) {
-  if (category === "SOLIDARITY") return 1000;
-  if (category === "PREMIUM") return 10000;
-  if (category === "GOLD") return 50000;
+  if (category === "SOLIDARITY" || category === "PREMIUM" || category === "GOLD" || category === "GRAND_CENTER") {
+    return getAreaPriceCents(category);
+  }
+
   return 0;
 }
 
@@ -178,9 +180,7 @@ function getAvailableBlockColor(category: BlockCategory) {
 }
 
 function getCategoryLabel(category: BuyableCategory) {
-  if (category === "GOLD") return "Área Ouro";
-  if (category === "PREMIUM") return "Premium";
-  return "Mosaico";
+  return getAreaName(category);
 }
 
 function buildCheckoutHref(selectedBlocks: SelectedBlock[]) {
@@ -816,9 +816,9 @@ export default function PixelMap() {
             <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-yellow-400 text-4xl shadow-lg">
               🔒
             </div>
-            <h2 className="text-2xl font-black text-slate-950">Área bloqueada</h2>
+            <h2 className="text-2xl font-black text-slate-950">Área Legendária</h2>
             <p className="mt-3 text-sm leading-relaxed text-slate-600">
-              Reservado para algo grandioso. Em breve.
+              {siteConfig.copy.legendaryMessage}
             </p>
             <button
               type="button"
@@ -846,12 +846,12 @@ export default function PixelMap() {
             ×
           </button>
 
-          <p className="pr-8 text-xs font-black uppercase tracking-wide text-slate-500">
+          <p className="pr-8 text-[9px] font-black uppercase tracking-[0.18em] text-slate-400">
             {selectedSheet.block.category === "GOLD"
-              ? "Área Ouro"
+              ? getAreaName("GOLD")
               : selectedSheet.block.category === "PREMIUM"
-                ? "Premium"
-                : "Mosaico Solidário"}
+                ? getAreaName("PREMIUM")
+                : getAreaName("SOLIDARITY")}
           </p>
 
           <h2 className="mt-1 pr-8 text-lg font-black leading-tight text-slate-950">
@@ -879,9 +879,9 @@ export default function PixelMap() {
             <button
               type="button"
               onClick={() => reportBlock(selectedSheet.block)}
-              className="rounded-2xl bg-red-50 py-3 text-xs font-black text-red-700"
+              className="mx-auto rounded-full bg-red-50 px-3 py-1.5 text-[10px] font-black text-red-600"
             >
-              Denunciar
+              {siteConfig.copy.reportButton}
             </button>
           </div>
         </div>

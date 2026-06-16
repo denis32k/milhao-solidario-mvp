@@ -1,6 +1,10 @@
 const { PrismaClient } = require("@prisma/client");
 
 const prisma = new PrismaClient();
+const siteConfig = require("../config/site.config.json");
+const priceSolidarity = siteConfig.areas.SOLIDARITY.priceCents;
+const pricePremium = siteConfig.areas.PREMIUM.priceCents;
+const priceGold = siteConfig.areas.GOLD.priceCents;
 
 async function main() {
   console.log("Atualizando categorias do grid sem apagar vendas aprovadas...");
@@ -11,7 +15,7 @@ async function main() {
       "category" = 'PREMIUM'::"BlockCategory",
       "status" = 'AVAILABLE'::"BlockStatus",
       "available" = true,
-      "priceCents" = 10000,
+      "priceCents" = ${pricePremium},
       "ownerId" = NULL,
       "currentTransactionId" = NULL,
       "reservationToken" = NULL,
@@ -23,7 +27,7 @@ async function main() {
     UPDATE "Block"
     SET
       "category" = 'SOLIDARITY'::"BlockCategory",
-      "priceCents" = 1000
+      "priceCents" = ${priceSolidarity}
     WHERE
       "status" != 'SOLD'::"BlockStatus"
       AND (
@@ -38,7 +42,7 @@ async function main() {
     UPDATE "Block"
     SET
       "category" = 'GOLD'::"BlockCategory",
-      "priceCents" = 50000
+      "priceCents" = ${priceGold}
     WHERE
       "status" != 'SOLD'::"BlockStatus"
       AND "gridX" BETWEEN 90 AND 109
