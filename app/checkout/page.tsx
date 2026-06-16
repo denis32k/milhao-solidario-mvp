@@ -48,9 +48,14 @@ export default function CheckoutPage() {
   const [mode, setMode] = useState<CheckoutMode>("solidarity");
   const [quantity, setQuantity] = useState(1);
   const [fullName, setFullName] = useState("");
+
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingPayment, setIsCheckingPayment] = useState(false);
+
   const [pixResult, setPixResult] = useState<PixResult | null>(null);
   const [copyMessage, setCopyMessage] = useState("");
+  const [verifyMessage, setVerifyMessage] = useState("");
+  const [paymentApproved, setPaymentApproved] = useState(false);
 
   const unitPriceCents = mode === "solidarity" ? 1000 : 10000;
 
@@ -68,6 +73,8 @@ export default function CheckoutPage() {
     try {
       setPixResult(null);
       setCopyMessage("");
+      setVerifyMessage("");
+      setPaymentApproved(false);
 
       if (!fullName.trim()) {
         alert("Digite o nome completo.");
@@ -76,7 +83,7 @@ export default function CheckoutPage() {
 
       if (mode === "premium") {
         alert(
-          "O PIX real agora será conectado primeiro no Mosaico Solidário. Depois vamos ligar o Premium com seleção de blocos, upload e link."
+          "O PIX real agora está conectado primeiro no Mosaico Solidário. Depois vamos ligar o Premium com seleção de blocos, upload e link."
         );
         return;
       }
@@ -137,7 +144,79 @@ export default function CheckoutPage() {
       await navigator.clipboard.writeText(pixResult.pix.qrCode);
       setCopyMessage("Código PIX copiado!");
     } catch {
-      setCopyMessage("Não consegui copiar automaticamente. Selecione e copie manualmente.");
+      setCopyMessage(
+        "Não consegui copiar automaticamente. Selecione e copie manualmente."
+      );
+    }
+  }
+
+  async function handleCheckPayment() {
+    try {
+      if (!pixResult?.payment.id) {
+        alert("Gere o PIX primeiro.");
+        return;
+      }
+
+      setIsCheckingPayment(true);
+      setVerifyMessage("");
+
+      const paymentId = String(pixResult.payment.id);
+
+      const response = await fetch(
+        `/api/mercado-pago-pix/webhook?type=payment&data.id=${encodeURIComponent(
+          paymentId
+        )}`,
+        {
+          method: "GET",
+          cache: "no-store",
+        }
+      );
+
+      const responseText = await response.text();
+
+      let data: any = null;
+
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        throw new Error(responseText || "Resposta inválida do servidor.");
+      }
+
+      const result = data.result;
+
+      const mercadoPagoStatus =
+        result?.mercadoPagoStatus ||
+        result?.paymentStatus ||
+        result?.status ||
+        "";
+
+      const message =
+        result?.message ||
+        result?.result?.message ||
+        data.message ||
+        "Consulta realizada.";
+
+      if (mercadoPagoStatus === "approved" || message.includes("aprovado")) {
+        setPaymentApproved(true);
+        setVerifyMessage(
+          "Pagamento aprovado! Seu bloco já foi marcado como vendido."
+        );
+
+        return;
+      }
+
+      setVerifyMessage(
+        message ||
+          "Pagamento ainda não aprovado. Aguarde alguns segundos e tente novamente."
+      );
+    } catch (error) {
+      if (error instanceof Error) {
+        setVerifyMessage(error.message);
+      } else {
+        setVerifyMessage("Erro inesperado ao verificar pagamento.");
+      }
+    } finally {
+      setIsCheckingPayment(false);
     }
   }
 
@@ -161,9 +240,9 @@ export default function CheckoutPage() {
           </h1>
 
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            O Mosaico Solidário já pode gerar QR Code PIX pelo Mercado Pago.
-            Depois vamos conectar o webhook para confirmar o pagamento
-            automaticamente.
+            O Mosaico Solidário já gera QR Code PIX pelo Mercado Pago. Depois
+            do pagamento, o sistema tenta confirmar automaticamente. Se demorar,
+            use o botão “Já paguei, verificar pagamento”.
           </p>
 
           {pixResult && (
@@ -182,12 +261,42 @@ export default function CheckoutPage() {
               </p>
 
               <p className="mt-1 text-xs font-semibold leading-relaxed text-green-700">
-                Status Mercado Pago: {pixResult.payment.status}
+                Pagamento: #{pixResult.payment.id}
               </p>
 
               <p className="mt-1 text-xs font-semibold leading-relaxed text-green-700">
-                Pagamento: #{pixResult.payment.id}
+                Status inicial: {pixResult.payment.status}
               </p>
+            </div>
+          )}
+
+          {paymentApproved && (
+            <div className="mt-5 rounded-3xl border border-emerald-200 bg-emerald-50 p-4">
+              <div className="text-3xl">✅</div>
+
+              <h2 className="mt-2 text-xl font-black text-emerald-950">
+                Pagamento confirmado
+              </h2>
+
+              <p className="mt-2 text-sm font-bold leading-relaxed text-emerald-800">
+                Seu bloco já entrou no Milhão Solidário.
+              </p>
+
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <Link
+                  href="/"
+                  className="rounded-2xl bg-emerald-600 py-3 text-center text-xs font-black text-white"
+                >
+                  Ver no mapa
+                </Link>
+
+                <Link
+                  href="/ranking"
+                  className="rounded-2xl bg-slate-950 py-3 text-center text-xs font-black text-white"
+                >
+                  Ver ranking
+                </Link>
+              </div>
             </div>
           )}
 
@@ -198,6 +307,8 @@ export default function CheckoutPage() {
                 setMode("solidarity");
                 setQuantity(1);
                 setPixResult(null);
+                setVerifyMessage("");
+                setPaymentApproved(false);
               }}
               className={`rounded-3xl border-2 p-4 text-left transition active:scale-95 ${
                 mode === "solidarity"
@@ -222,6 +333,8 @@ export default function CheckoutPage() {
                 setMode("premium");
                 setQuantity(1);
                 setPixResult(null);
+                setVerifyMessage("");
+                setPaymentApproved(false);
               }}
               className={`rounded-3xl border-2 p-4 text-left transition active:scale-95 ${
                 mode === "premium"
@@ -450,6 +563,29 @@ export default function CheckoutPage() {
                     {copyMessage}
                   </p>
                 )}
+
+                <button
+                  type="button"
+                  onClick={handleCheckPayment}
+                  disabled={isCheckingPayment}
+                  className="mt-3 w-full rounded-2xl bg-slate-950 py-4 text-sm font-extrabold text-white shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isCheckingPayment
+                    ? "Verificando pagamento..."
+                    : "Já paguei, verificar pagamento"}
+                </button>
+
+                {verifyMessage && (
+                  <p
+                    className={`mt-3 rounded-2xl p-3 text-xs font-black ${
+                      paymentApproved
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-yellow-100 text-yellow-800"
+                    }`}
+                  >
+                    {verifyMessage}
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -464,8 +600,8 @@ export default function CheckoutPage() {
           </button>
 
           <p className="mt-4 text-center text-[11px] font-semibold leading-relaxed text-slate-500">
-            Nesta etapa, o sistema apenas gera o PIX real. A confirmação
-            automática do pagamento será conectada no próximo passo com webhook.
+            Caso o pagamento não confirme automaticamente em alguns segundos,
+            toque em “Já paguei, verificar pagamento”.
           </p>
         </section>
       </div>
