@@ -84,6 +84,9 @@ model User {
   name               String
   publicName         String?
   email              String?  @unique
+  whatsapp           String?
+  cpfHash            String?
+  cpfLast4           String?
   passwordHash       String?
   role               UserRole @default(USER)
 

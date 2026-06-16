@@ -1,42 +1,732 @@
 "use client";
+
 import { useEffect, useRef, useState } from "react";
 import type { MouseEvent, PointerEvent, WheelEvent } from "react";
-const GRID_COLS=200, GRID_ROWS=145, BLOCK_SIZE=10, MAP_WIDTH=2000, MAP_HEIGHT=1450;
-type Cat="SOLIDARITY"|"PREMIUM"|"GRAND_CENTER";
-type ApiMapBlock={id:string;gridX:number;gridY:number;category:Cat;status:string;available:boolean;priceCents:number;owner:{name:string;publicName:string|null;totalApprovedCents:number}|null;placement:{id:string;kind:string;status:string;title:string|null;description:string|null;imageUrl:string|null;redirectUrl:string|null;linkDisabled:boolean;displayName:string|null;textLabel:string|null;fillColor:string|null;placeholderReason:string|null}|null};
-type Selected=null|{type:"grand-center"}|{type:"sold";block:ApiMapBlock}|{type:"solidarity"}|{type:"premium"};
-function getBlockType(x:number,y:number):Cat{if(x>=99&&x<=100&&y>=70&&y<=74)return"GRAND_CENTER";if(y<25||y>=120)return"SOLIDARITY";return"PREMIUM"}
-function money(cents:number){return new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(cents/100)}
-function key(x:number,y:number){return `${x}:${y}`}
-function displayName(b:ApiMapBlock){return b.placement?.displayName||b.placement?.textLabel||b.owner?.publicName||b.owner?.name||"Apoiador"}
-export default function PixelMap(){
- const canvasRef=useRef<HTMLCanvasElement|null>(null), wrapperRef=useRef<HTMLDivElement|null>(null), dragging=useRef(false), last=useRef({x:0,y:0});
- const [camera,setCamera]=useState({x:0,y:0,scale:1}),[blocks,setBlocks]=useState<ApiMapBlock[]>([]),[loading,setLoading]=useState(true),[selected,setSelected]=useState<Selected>(null);
- useEffect(()=>{const w=wrapperRef.current;if(!w)return;const r=w.getBoundingClientRect();setCamera({x:r.width/2-Math.random()*MAP_WIDTH,y:r.height/2-Math.random()*MAP_HEIGHT,scale:1})},[]);
- useEffect(()=>{let alive=true;(async()=>{try{setLoading(true);const res=await fetch("/api/map/blocks",{cache:"no-store"});const data=await res.json();if(alive&&data.ok)setBlocks(data.blocks)}catch(e){console.error(e)}finally{if(alive)setLoading(false)}})();return()=>{alive=false}},[]);
- useEffect(()=>{draw()},[camera,blocks]);
- function getAt(x:number,y:number){return blocks.find(b=>b.gridX===x&&b.gridY===y)}
- function draw(){
-  const c=canvasRef.current,w=wrapperRef.current;if(!c||!w)return;const r=w.getBoundingClientRect(),dpr=window.devicePixelRatio||1;c.width=r.width*dpr;c.height=r.height*dpr;c.style.width=`${r.width}px`;c.style.height=`${r.height}px`;const ctx=c.getContext("2d");if(!ctx)return;
-  const sold=new Map(blocks.map(b=>[key(b.gridX,b.gridY),b]));ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,r.width,r.height);ctx.fillStyle="#f8fafc";ctx.fillRect(0,0,r.width,r.height);ctx.save();ctx.translate(camera.x,camera.y);ctx.scale(camera.scale,camera.scale);
-  for(let y=0;y<GRID_ROWS;y++)for(let x=0;x<GRID_COLS;x++){const type=getBlockType(x,y),b=sold.get(key(x,y)),px=x*BLOCK_SIZE,py=y*BLOCK_SIZE;ctx.fillStyle=b?(b.category==="PREMIUM"?"#0f172a":b.placement?.fillColor||"#16a34a"):type==="GRAND_CENTER"?"#facc15":type==="SOLIDARITY"?"#bbf7d0":"#e2e8f0";ctx.fillRect(px,py,BLOCK_SIZE,BLOCK_SIZE);ctx.strokeStyle="rgba(15,23,42,.12)";ctx.lineWidth=.3;ctx.strokeRect(px,py,BLOCK_SIZE,BLOCK_SIZE);if(b&&camera.scale>=2){ctx.fillStyle="#fff";ctx.font="7px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("✓",px+5,py+5)}}
-  ctx.fillStyle="#78350f";ctx.font="18px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("🔒",1000,725);ctx.restore()
- }
- function grid(clientX:number,clientY:number){const w=wrapperRef.current;if(!w)return null;const r=w.getBoundingClientRect();const wx=(clientX-r.left-camera.x)/camera.scale,wy=(clientY-r.top-camera.y)/camera.scale;const x=Math.floor(wx/BLOCK_SIZE),y=Math.floor(wy/BLOCK_SIZE);if(x<0||x>=GRID_COLS||y<0||y>=GRID_ROWS)return null;return{x,y,type:getBlockType(x,y)}}
- function goSold(){const w=wrapperRef.current;if(!w||!blocks.length){alert("Ainda não há blocos vendidos.");return}const r=w.getBoundingClientRect(),b=blocks[0],s=4;setCamera({x:r.width/2-(b.gridX*10+5)*s,y:r.height/2-(b.gridY*10+5)*s,scale:s})}
- function goCenter(){const w=wrapperRef.current;if(!w)return;const r=w.getBoundingClientRect(),s=3;setCamera({x:r.width/2-1000*s,y:r.height/2-725*s,scale:s})}
- function down(e:PointerEvent<HTMLDivElement>){e.currentTarget.setPointerCapture(e.pointerId);dragging.current=true;last.current={x:e.clientX,y:e.clientY}}
- function move(e:PointerEvent<HTMLDivElement>){if(!dragging.current)return;const dx=e.clientX-last.current.x,dy=e.clientY-last.current.y;last.current={x:e.clientX,y:e.clientY};setCamera(c=>({...c,x:c.x+dx,y:c.y+dy}))}
- function up(){dragging.current=false}
- function click(e:MouseEvent<HTMLDivElement>){const p=grid(e.clientX,e.clientY);if(!p)return;const b=getAt(p.x,p.y);if(b){setSelected({type:"sold",block:b});return}if(p.x>=98&&p.x<=101&&p.y>=69&&p.y<=75){setSelected({type:"grand-center"});return}setSelected({type:p.type==="SOLIDARITY"?"solidarity":"premium"})}
- function wheel(e:WheelEvent<HTMLDivElement>){e.preventDefault();setCamera(c=>({...c,scale:Math.min(5,Math.max(.4,e.deltaY>0?c.scale*.9:c.scale*1.1))}))}
- return <div ref={wrapperRef} className="relative h-full w-full cursor-grab touch-none select-none overflow-hidden bg-slate-100 active:cursor-grabbing" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onClick={click} onWheel={wheel}>
-  <canvas ref={canvasRef} className="block h-full w-full"/>
-  <div className="absolute left-4 right-4 top-4 z-40 flex gap-2"><button onClick={e=>{e.stopPropagation();goSold()}} className="flex-1 rounded-full bg-green-600 px-4 py-3 text-xs font-black text-white shadow-lg">{loading?"Carregando...":`Vendidos ${blocks.length}`}</button><button onClick={e=>{e.stopPropagation();goCenter()}} className="flex-1 rounded-full bg-yellow-400 px-4 py-3 text-xs font-black text-yellow-950 shadow-lg">Centro 🔒</button></div>
-  {selected?.type==="grand-center"&&<div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-950/50 p-6" onClick={()=>setSelected(null)}><div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl" onClick={e=>e.stopPropagation()}><div className="text-5xl">🔒</div><h2 className="mt-3 text-2xl font-black">Área bloqueada</h2><p className="mt-2 text-sm text-slate-600">Reservado para algo grandioso. Em breve.</p><button onClick={()=>setSelected(null)} className="mt-6 w-full rounded-2xl bg-slate-950 py-4 text-sm font-extrabold text-white">Entendi</button></div></div>}
-  {selected?.type==="sold"&&<div className="fixed inset-x-0 bottom-0 z-[999] rounded-t-3xl bg-white p-5 shadow-2xl"><div className="flex h-32 items-center justify-center rounded-3xl bg-green-600 text-white"><div className="text-center"><div className="text-4xl">{selected.block.category==="PREMIUM"?"🔥":"💚"}</div><p className="mt-2 text-sm font-black">Bloco vendido</p></div></div><p className="mt-4 text-xs font-black uppercase text-slate-500">{selected.block.category==="PREMIUM"?"Área Premium":"Mosaico Solidário"}</p><h2 className="mt-1 text-xl font-black">{displayName(selected.block)}</h2><p className="mt-2 text-sm text-slate-600">{selected.block.placement?.description||"Esse apoiador já faz parte do Milhão Solidário."}</p><div className="mt-4 grid grid-cols-2 gap-2"><div className="rounded-2xl bg-slate-50 p-3 text-center"><p className="text-[10px] font-black uppercase text-slate-500">Posição</p><p className="text-sm font-black">x{selected.block.gridX} / y{selected.block.gridY}</p></div><div className="rounded-2xl bg-green-50 p-3 text-center"><p className="text-[10px] font-black uppercase text-green-700">Valor</p><p className="text-sm font-black text-green-800">{money(selected.block.priceCents)}</p></div></div><button onClick={()=>setSelected(null)} className="mt-3 w-full rounded-2xl bg-slate-950 py-4 text-sm font-extrabold text-white">Fechar</button></div>}
-  {selected?.type==="solidarity"&&<Sheet title="Mosaico Solidário" icon="💚" text="Bloco rápido de R$ 10,00. O apoiador informa apenas o nome completo." href="/checkout" button="Comprar por R$ 10,00" close={()=>setSelected(null)} color="bg-green-500"/>}
-  {selected?.type==="premium"&&<Sheet title="Área Premium" icon="🔥" text="Bloco premium de R$ 100,00. Permite imagem, título, descrição e link." href="/checkout" button="Comprar bloco Premium" close={()=>setSelected(null)} color="bg-orange-500"/>}
- </div>
+
+const GRID_COLS = 200;
+const GRID_ROWS = 145;
+const BLOCK_SIZE = 10;
+const MAP_WIDTH = GRID_COLS * BLOCK_SIZE;
+const MAP_HEIGHT = GRID_ROWS * BLOCK_SIZE;
+
+type BlockCategory = "SOLIDARITY" | "PREMIUM" | "GRAND_CENTER";
+type AreaCode =
+  | "TOP_LEFT"
+  | "TOP_CENTER"
+  | "TOP_RIGHT"
+  | "BOTTOM_LEFT"
+  | "BOTTOM_CENTER"
+  | "BOTTOM_RIGHT"
+  | "SURPRISE";
+
+type Camera = {
+  x: number;
+  y: number;
+  scale: number;
+};
+
+type ApiMapBlock = {
+  id: string;
+  gridX: number;
+  gridY: number;
+  category: BlockCategory;
+  status: string;
+  available: boolean;
+  priceCents: number;
+  owner: {
+    name: string;
+    publicName: string | null;
+    totalApprovedCents: number;
+  } | null;
+  placement: {
+    id: string;
+    kind: string;
+    status: string;
+    title: string | null;
+    description: string | null;
+    imageUrl: string | null;
+    redirectUrl: string | null;
+    linkDisabled: boolean;
+    displayName: string | null;
+    textLabel: string | null;
+    fillColor: string | null;
+    placeholderReason: string | null;
+  } | null;
+};
+
+type SelectedSheet =
+  | null
+  | { type: "grand-center" }
+  | { type: "sold"; block: ApiMapBlock }
+  | { type: "premium" }
+  | { type: "area"; area: AreaCode; gridX: number; gridY: number };
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
-function Sheet({title,icon,text,href,button,close,color}:{title:string;icon:string;text:string;href:string;button:string;close:()=>void;color:string}){return <div className="fixed inset-x-0 bottom-0 z-[999] rounded-t-3xl bg-white p-5 shadow-2xl"><div className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full ${color} text-3xl text-white shadow-lg`}>{icon}</div><h2 className="text-center text-xl font-black">{title}</h2><p className="mt-2 text-center text-sm text-slate-600">{text}</p><a href={href} className={`mt-5 block w-full rounded-2xl ${color} py-4 text-center text-sm font-extrabold text-white shadow-lg`}>{button}</a><button onClick={close} className="mt-3 w-full rounded-2xl bg-slate-950 py-4 text-sm font-extrabold text-white">Fechar</button></div>}
+
+function money(cents: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(cents / 100);
+}
+
+function getBlockType(x: number, y: number): BlockCategory {
+  const isGrandCenter = x >= 99 && x <= 100 && y >= 70 && y <= 74;
+
+  if (isGrandCenter) {
+    return "GRAND_CENTER";
+  }
+
+  if (y < 25 || y >= 120) {
+    return "SOLIDARITY";
+  }
+
+  return "PREMIUM";
+}
+
+function getAreaFromGrid(x: number, y: number): AreaCode | null {
+  const third = GRID_COLS / 3;
+
+  if (y < 25) {
+    if (x < third) return "TOP_LEFT";
+    if (x < third * 2) return "TOP_CENTER";
+    return "TOP_RIGHT";
+  }
+
+  if (y >= 120) {
+    if (x < third) return "BOTTOM_LEFT";
+    if (x < third * 2) return "BOTTOM_CENTER";
+    return "BOTTOM_RIGHT";
+  }
+
+  return null;
+}
+
+function getAreaLabel(area: AreaCode) {
+  const labels: Record<AreaCode, string> = {
+    TOP_LEFT: "Topo esquerdo",
+    TOP_CENTER: "Topo centro",
+    TOP_RIGHT: "Topo direito",
+    BOTTOM_LEFT: "Baixo esquerdo",
+    BOTTOM_CENTER: "Baixo centro",
+    BOTTOM_RIGHT: "Baixo direito",
+    SURPRISE: "Surpreenda-me",
+  };
+
+  return labels[area];
+}
+
+function getBlockKey(x: number, y: number) {
+  return `${x}:${y}`;
+}
+
+function getSoldBlockColor(block: ApiMapBlock) {
+  if (block.status === "BLOCKED") {
+    return "#64748b";
+  }
+
+  if (block.category === "SOLIDARITY") {
+    return block.placement?.fillColor || "#16a34a";
+  }
+
+  if (block.category === "PREMIUM") {
+    return "#0f172a";
+  }
+
+  return "#facc15";
+}
+
+function getDisplayName(block: ApiMapBlock) {
+  return (
+    block.placement?.displayName ||
+    block.placement?.textLabel ||
+    block.owner?.publicName ||
+    block.owner?.name ||
+    "Apoiador"
+  );
+}
+
+function getCheckoutHref(area: AreaCode, gridX?: number, gridY?: number) {
+  const params = new URLSearchParams();
+  params.set("area", area);
+
+  if (typeof gridX === "number" && typeof gridY === "number") {
+    params.set("gridX", String(gridX));
+    params.set("gridY", String(gridY));
+  }
+
+  return `/checkout?${params.toString()}`;
+}
+
+export default function PixelMap() {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+
+  const isDraggingRef = useRef(false);
+  const lastPointerRef = useRef({ x: 0, y: 0 });
+  const movedRef = useRef(false);
+
+  const [selectedSheet, setSelectedSheet] = useState<SelectedSheet>(null);
+  const [mapBlocks, setMapBlocks] = useState<ApiMapBlock[]>([]);
+  const [isLoadingBlocks, setIsLoadingBlocks] = useState(true);
+
+  const [camera, setCamera] = useState<Camera>({
+    x: 0,
+    y: 0,
+    scale: 1,
+  });
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+
+    if (!wrapper) return;
+
+    const rect = wrapper.getBoundingClientRect();
+    const nextScale = Math.max(rect.width / MAP_WIDTH, rect.height / MAP_HEIGHT);
+
+    setCamera({
+      x: (rect.width - MAP_WIDTH * nextScale) / 2,
+      y: (rect.height - MAP_HEIGHT * nextScale) / 2,
+      scale: nextScale,
+    });
+  }, []);
+
+  useEffect(() => {
+    let isAlive = true;
+
+    async function loadMapBlocks() {
+      try {
+        setIsLoadingBlocks(true);
+
+        const response = await fetch("/api/map/blocks", {
+          cache: "no-store",
+        });
+
+        const data = await response.json();
+
+        if (!isAlive) return;
+
+        if (data.ok) {
+          setMapBlocks(data.blocks);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar blocos do mapa:", error);
+      } finally {
+        if (isAlive) {
+          setIsLoadingBlocks(false);
+        }
+      }
+    }
+
+    loadMapBlocks();
+
+    return () => {
+      isAlive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    drawMap();
+  }, [camera, mapBlocks]);
+
+  function getMapBlockAt(x: number, y: number) {
+    return mapBlocks.find((block) => block.gridX === x && block.gridY === y);
+  }
+
+  function drawAreaLabel(ctx: CanvasRenderingContext2D, label: string, x: number, y: number) {
+    ctx.save();
+    ctx.fillStyle = "rgba(15, 23, 42, 0.72)";
+    ctx.font = "700 42px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label, x, y);
+    ctx.restore();
+  }
+
+  function drawMap() {
+    const canvas = canvasRef.current;
+    const wrapper = wrapperRef.current;
+
+    if (!canvas || !wrapper) return;
+
+    const rect = wrapper.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
+
+    const ctx = canvas.getContext("2d");
+
+    if (!ctx) return;
+
+    const soldBlockByCoord = new Map(
+      mapBlocks.map((block) => [getBlockKey(block.gridX, block.gridY), block])
+    );
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, rect.width, rect.height);
+
+    ctx.fillStyle = "#bbf7d0";
+    ctx.fillRect(0, 0, rect.width, rect.height);
+
+    ctx.save();
+    ctx.translate(camera.x, camera.y);
+    ctx.scale(camera.scale, camera.scale);
+
+    ctx.fillStyle = "#dcfce7";
+    ctx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
+
+    for (let y = 0; y < GRID_ROWS; y++) {
+      for (let x = 0; x < GRID_COLS; x++) {
+        const type = getBlockType(x, y);
+        const soldBlock = soldBlockByCoord.get(getBlockKey(x, y));
+
+        const px = x * BLOCK_SIZE;
+        const py = y * BLOCK_SIZE;
+
+        if (soldBlock) {
+          ctx.fillStyle = getSoldBlockColor(soldBlock);
+        } else if (type === "GRAND_CENTER") {
+          ctx.fillStyle = "#facc15";
+        } else if (type === "SOLIDARITY") {
+          ctx.fillStyle = "#bbf7d0";
+        } else {
+          ctx.fillStyle = "#dcfce7";
+        }
+
+        ctx.fillRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
+
+        ctx.strokeStyle = "rgba(22, 101, 52, 0.18)";
+        ctx.lineWidth = 0.35;
+        ctx.strokeRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
+
+        if (soldBlock && camera.scale >= 1.8) {
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "7px Arial";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("✓", px + BLOCK_SIZE / 2, py + BLOCK_SIZE / 2);
+        }
+      }
+    }
+
+    drawAreaLabel(ctx, "TOPO", MAP_WIDTH / 2, 122);
+    drawAreaLabel(ctx, "BAIXO", MAP_WIDTH / 2, MAP_HEIGHT - 122);
+
+    ctx.fillStyle = "#78350f";
+    ctx.font = "26px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("🔒", 1000, 725);
+
+    ctx.restore();
+  }
+
+  function getGridPosition(clientX: number, clientY: number) {
+    const wrapper = wrapperRef.current;
+
+    if (!wrapper) return null;
+
+    const rect = wrapper.getBoundingClientRect();
+
+    const screenX = clientX - rect.left;
+    const screenY = clientY - rect.top;
+
+    const worldX = (screenX - camera.x) / camera.scale;
+    const worldY = (screenY - camera.y) / camera.scale;
+
+    const gridX = Math.floor(worldX / BLOCK_SIZE);
+    const gridY = Math.floor(worldY / BLOCK_SIZE);
+
+    if (
+      gridX < 0 ||
+      gridX >= GRID_COLS ||
+      gridY < 0 ||
+      gridY >= GRID_ROWS
+    ) {
+      return null;
+    }
+
+    return {
+      x: gridX,
+      y: gridY,
+      type: getBlockType(gridX, gridY),
+    };
+  }
+
+  function goToFullGrid() {
+    const wrapper = wrapperRef.current;
+
+    if (!wrapper) return;
+
+    const rect = wrapper.getBoundingClientRect();
+    const nextScale = Math.max(rect.width / MAP_WIDTH, rect.height / MAP_HEIGHT);
+
+    setCamera({
+      x: (rect.width - MAP_WIDTH * nextScale) / 2,
+      y: (rect.height - MAP_HEIGHT * nextScale) / 2,
+      scale: nextScale,
+    });
+  }
+
+  function goToFirstSoldBlock() {
+    const wrapper = wrapperRef.current;
+
+    if (!wrapper) return;
+
+    if (mapBlocks.length === 0) {
+      alert("Ainda não há blocos vendidos carregados no mapa.");
+      return;
+    }
+
+    const firstBlock = mapBlocks[0];
+    const rect = wrapper.getBoundingClientRect();
+    const nextScale = 4;
+
+    const blockCenterX = firstBlock.gridX * BLOCK_SIZE + BLOCK_SIZE / 2;
+    const blockCenterY = firstBlock.gridY * BLOCK_SIZE + BLOCK_SIZE / 2;
+
+    setCamera({
+      x: rect.width / 2 - blockCenterX * nextScale,
+      y: rect.height / 2 - blockCenterY * nextScale,
+      scale: nextScale,
+    });
+  }
+
+  function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+
+    isDraggingRef.current = true;
+    movedRef.current = false;
+
+    lastPointerRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+    };
+  }
+
+  function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
+    if (!isDraggingRef.current) return;
+
+    const dx = event.clientX - lastPointerRef.current.x;
+    const dy = event.clientY - lastPointerRef.current.y;
+
+    if (Math.abs(dx) + Math.abs(dy) > 3) {
+      movedRef.current = true;
+    }
+
+    lastPointerRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+    };
+
+    setCamera((current) => ({
+      ...current,
+      x: current.x + dx,
+      y: current.y + dy,
+    }));
+  }
+
+  function handlePointerUp() {
+    isDraggingRef.current = false;
+  }
+
+  function handleClick(event: MouseEvent<HTMLDivElement>) {
+    if (movedRef.current) return;
+
+    const gridPosition = getGridPosition(event.clientX, event.clientY);
+
+    if (!gridPosition) return;
+
+    const soldBlock = getMapBlockAt(gridPosition.x, gridPosition.y);
+
+    if (soldBlock) {
+      setSelectedSheet({
+        type: "sold",
+        block: soldBlock,
+      });
+
+      return;
+    }
+
+    if (gridPosition.type === "GRAND_CENTER") {
+      setSelectedSheet({ type: "grand-center" });
+      return;
+    }
+
+    if (gridPosition.type === "PREMIUM") {
+      setSelectedSheet({ type: "premium" });
+      return;
+    }
+
+    const area = getAreaFromGrid(gridPosition.x, gridPosition.y);
+
+    if (area) {
+      setSelectedSheet({
+        type: "area",
+        area,
+        gridX: gridPosition.x,
+        gridY: gridPosition.y,
+      });
+    }
+  }
+
+  function handleWheel(event: WheelEvent<HTMLDivElement>) {
+    event.preventDefault();
+
+    const nextScale =
+      event.deltaY > 0 ? camera.scale * 0.9 : camera.scale * 1.1;
+
+    setCamera((current) => ({
+      ...current,
+      scale: clamp(nextScale, 0.55, 7),
+    }));
+  }
+
+  return (
+    <div
+      ref={wrapperRef}
+      className="relative h-screen w-screen cursor-grab touch-none select-none overflow-hidden bg-green-200 active:cursor-grabbing"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onClick={handleClick}
+      onWheel={handleWheel}
+    >
+      <canvas ref={canvasRef} className="block h-full w-full" />
+
+      <div className="pointer-events-none absolute left-0 right-0 top-0 z-40 p-3">
+        <div className="pointer-events-auto mx-auto flex max-w-5xl items-center justify-between gap-2 rounded-full bg-white/90 p-2 shadow-xl backdrop-blur">
+          <div className="flex items-center gap-2 pl-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500 text-lg shadow">
+              💚
+            </div>
+            <div>
+              <p className="text-sm font-black leading-none text-slate-950">
+                Milhão Solidário
+              </p>
+              <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
+                Toque no grid e escolha sua área
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                goToFirstSoldBlock();
+              }}
+              className="rounded-full bg-green-600 px-4 py-3 text-xs font-black text-white shadow-lg"
+            >
+              {isLoadingBlocks ? "..." : `Vendidos ${mapBlocks.length}`}
+            </button>
+
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                goToFullGrid();
+              }}
+              className="rounded-full bg-yellow-400 px-4 py-3 text-xs font-black text-yellow-950 shadow-lg"
+            >
+              Ver tudo
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-40 mx-auto max-w-xl">
+        <div className="pointer-events-auto rounded-3xl bg-slate-950/90 p-4 text-center text-white shadow-2xl backdrop-blur">
+          <p className="text-xs font-black uppercase tracking-wide text-green-300">
+            Selecione uma área antes de comprar
+          </p>
+          <p className="mt-1 text-sm font-semibold text-slate-200">
+            Toque em qualquer bloco verde do topo ou de baixo.
+          </p>
+        </div>
+      </div>
+
+      {selectedSheet?.type === "grand-center" && (
+        <div
+          className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-950/50 p-6"
+          onClick={() => setSelectedSheet(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl border border-yellow-300 bg-white p-6 text-center shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-yellow-400 text-4xl shadow-lg">
+              🔒
+            </div>
+
+            <h2 className="text-2xl font-black text-slate-950">
+              Área bloqueada
+            </h2>
+
+            <p className="mt-3 text-sm leading-relaxed text-slate-600">
+              Reservado para algo grandioso. Em breve.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setSelectedSheet(null)}
+              className="mt-6 w-full rounded-2xl bg-slate-950 py-4 text-sm font-extrabold text-white"
+            >
+              Entendi
+            </button>
+          </div>
+        </div>
+      )}
+
+      {selectedSheet?.type === "sold" && (
+        <div className="fixed inset-x-0 bottom-0 z-[999] rounded-t-3xl border border-slate-200 bg-white p-5 shadow-2xl">
+          <div className="flex h-32 w-full items-center justify-center rounded-3xl bg-green-600 text-center text-white shadow-lg">
+            <div>
+              <div className="text-4xl">
+                {selectedSheet.block.category === "PREMIUM" ? "🔥" : "💚"}
+              </div>
+
+              <p className="mt-2 text-sm font-black">Bloco vendido</p>
+            </div>
+          </div>
+
+          <p className="mt-4 text-xs font-black uppercase tracking-wide text-slate-500">
+            {selectedSheet.block.category === "PREMIUM"
+              ? "Área Premium"
+              : "Mosaico Solidário"}
+          </p>
+
+          <h2 className="mt-1 text-xl font-black text-slate-950">
+            {getDisplayName(selectedSheet.block)}
+          </h2>
+
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">
+            {selectedSheet.block.placement?.description ||
+              "Esse apoiador já faz parte do Milhão Solidário."}
+          </p>
+
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="rounded-2xl bg-slate-50 p-3 text-center">
+              <p className="text-[10px] font-black uppercase text-slate-500">
+                Posição
+              </p>
+              <p className="text-sm font-black text-slate-950">
+                x{selectedSheet.block.gridX} / y{selectedSheet.block.gridY}
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-green-50 p-3 text-center">
+              <p className="text-[10px] font-black uppercase text-green-700">
+                Valor
+              </p>
+              <p className="text-sm font-black text-green-800">
+                {money(selectedSheet.block.priceCents)}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setSelectedSheet(null)}
+            className="mt-3 w-full rounded-2xl bg-slate-950 py-4 text-sm font-extrabold text-white"
+          >
+            Fechar
+          </button>
+        </div>
+      )}
+
+      {selectedSheet?.type === "area" && (
+        <div className="fixed inset-x-0 bottom-0 z-[999] rounded-t-3xl border border-green-200 bg-white p-5 shadow-2xl">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500 text-3xl text-white shadow-lg">
+            💚
+          </div>
+
+          <p className="text-center text-xs font-black uppercase tracking-wide text-green-600">
+            Área selecionada
+          </p>
+
+          <h2 className="mt-1 text-center text-2xl font-black text-slate-950">
+            {getAreaLabel(selectedSheet.area)}
+          </h2>
+
+          <p className="mt-2 text-center text-sm leading-relaxed text-slate-600">
+            Vamos reservar um bloco disponível nessa região. Depois você
+            preenche nome, WhatsApp e CPF para gerar o PIX.
+          </p>
+
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="rounded-2xl bg-green-50 p-3 text-center">
+              <p className="text-[10px] font-black uppercase text-green-700">
+                Bloco tocado
+              </p>
+              <p className="text-sm font-black text-green-900">
+                x{selectedSheet.gridX} / y{selectedSheet.gridY}
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-orange-50 p-3 text-center">
+              <p className="text-[10px] font-black uppercase text-orange-700">
+                Total
+              </p>
+              <p className="text-sm font-black text-orange-900">
+                R$ 11,00
+              </p>
+            </div>
+          </div>
+
+          <a
+            href={getCheckoutHref(
+              selectedSheet.area,
+              selectedSheet.gridX,
+              selectedSheet.gridY
+            )}
+            className="mt-5 block w-full rounded-2xl bg-green-600 py-4 text-center text-sm font-extrabold text-white shadow-lg active:scale-95"
+          >
+            Continuar para dados
+          </a>
+
+          <button
+            type="button"
+            onClick={() => setSelectedSheet(null)}
+            className="mt-3 w-full rounded-2xl bg-slate-950 py-4 text-sm font-extrabold text-white"
+          >
+            Escolher outra área
+          </button>
+        </div>
+      )}
+
+      {selectedSheet?.type === "premium" && (
+        <div className="fixed inset-x-0 bottom-0 z-[999] rounded-t-3xl border border-orange-200 bg-white p-5 shadow-2xl">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-orange-500 text-3xl text-white shadow-lg">
+            🔥
+          </div>
+
+          <h2 className="text-center text-xl font-black text-slate-950">
+            Área Premium
+          </h2>
+
+          <p className="mt-2 text-center text-sm leading-relaxed text-slate-600">
+            A compra premium com imagem, descrição e link será liberada na
+            próxima etapa.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => setSelectedSheet(null)}
+            className="mt-5 w-full rounded-2xl bg-slate-950 py-4 text-sm font-extrabold text-white"
+          >
+            Entendi
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

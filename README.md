@@ -1,77 +1,36 @@
-# Milhão Solidário — pacote consolidado
+# Milhão Solidário — versão seleção de área primeiro
 
-Projeto Next.js mobile-first com PostgreSQL/Prisma, Mercado Pago PIX e grid de 29.000 blocos.
-
-## O que este pacote já inclui
-
-- Grid 200 x 145 = 29.000 blocos.
-- Mosaico Solidário: 10.000 blocos de R$ 10,00.
-- Área Premium: 18.990 blocos de R$ 100,00, ainda com tela visual/placeholder.
-- Centro Grandioso: 10 blocos bloqueados.
-- Taxa operacional e tributária de 10%.
-- Home lendo arrecadação real do banco.
-- Ranking real.
-- Mapa lendo blocos vendidos reais.
-- Checkout PIX Mercado Pago para Mosaico Solidário.
-- Webhook Mercado Pago em `/api/mercado-pago-pix/webhook`.
-- Botão “Já paguei, verificar pagamento”.
-- Limpeza de reservas expiradas.
-- Consulta admin das últimas transações.
-- Dockerfile para EasyPanel.
-
-## Variáveis no EasyPanel
-
-No serviço do site, configure:
+Esta versão deixa a home como um grid em tela cheia e muda o fluxo do Mosaico Solidário para:
 
 ```txt
-DATABASE_URL=postgresql://milhao_user:SUA_SENHA@postgres:5432/milhao_solidario?schema=public
-NODE_ENV=production
-MERCADO_PAGO_ACCESS_TOKEN=APP_USR-...
-APP_URL=https://seu-dominio.com.br
+1. Escolher área no grid
+2. Preencher nome, WhatsApp e CPF
+3. Gerar PIX Mercado Pago
+4. Webhook ou botão “Já paguei” confirma o pagamento
 ```
 
-Opcional, mas recomendado antes de lançar:
+## Importante
+
+Esta versão altera o `prisma/schema.prisma` e adiciona ao model `User`:
 
 ```txt
-ADMIN_API_SECRET=uma_senha_grande_aqui
+whatsapp
+cpfHash
+cpfLast4
 ```
 
-Se preencher `ADMIN_API_SECRET`, as rotas admin precisam ser chamadas com:
-
-```txt
-/api/admin/latest-transactions?secret=uma_senha_grande_aqui
-/api/admin/release-expired-reservations?secret=uma_senha_grande_aqui
-```
-
-## Deploy no EasyPanel
-
-Use a fonte GitHub e build com Dockerfile.
-
-Depois do primeiro deploy, rode no terminal Sh do serviço:
+Depois de subir esta versão, rode no terminal Sh do EasyPanel:
 
 ```bash
 npx prisma generate
 npx prisma db push
-node prisma/seed.js
 ```
 
-## Webhook Mercado Pago
-
-No painel Mercado Pago Developers, configure o webhook:
+## Rotas principais
 
 ```txt
-https://seu-dominio.com.br/api/mercado-pago-pix/webhook
-```
-
-Evento:
-
-```txt
-payment
-```
-
-## URLs úteis
-
-```txt
+/
+/checkout
 /api/stats
 /api/map/blocks
 /api/mercado-pago-pix
@@ -80,24 +39,34 @@ payment
 /api/admin/release-expired-reservations
 ```
 
-## Limpar reservas expiradas
-
-Reserva normal expirada:
+## Variáveis no EasyPanel
 
 ```txt
-/api/admin/release-expired-reservations
+DATABASE_URL=postgresql://milhao_user:SUA_SENHA@postgres:5432/milhao_solidario?schema=public
+NODE_ENV=production
+MERCADO_PAGO_ACCESS_TOKEN=APP_USR-...
+APP_URL=https://seu-link-ou-dominio
+ADMIN_API_SECRET=uma_senha_admin_opcional
 ```
 
-Liberar todas as reservas pendentes, só para teste/admin:
+## Webhook Mercado Pago
+
+Configure no Mercado Pago:
 
 ```txt
-/api/admin/release-expired-reservations?force=true
+https://seu-link-ou-dominio/api/mercado-pago-pix/webhook
 ```
 
-## Atenção antes de lançar
+Evento:
 
-- Não subir `.env` com senha/token para GitHub.
-- Configurar domínio real e SSL.
-- Atualizar `APP_URL` quando trocar domínio.
-- Revisar termos com contador/advogado.
-- Proteger rotas admin com `ADMIN_API_SECRET`.
+```txt
+payment
+```
+
+## O que mudou visualmente
+
+- Removida a área branca em volta dos blocos.
+- Home agora é praticamente só o grid.
+- A pessoa toca no grid antes de ir para o checkout.
+- Ao tocar em um bloco verde, aparece a área escolhida.
+- O checkout recebe a área escolhida e pede nome, WhatsApp e CPF.
