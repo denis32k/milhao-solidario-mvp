@@ -377,12 +377,81 @@ async function updatePendingOrReleaseTransaction(paymentData: any) {
   };
 }
 
-export async function GET() {
-  return NextResponse.json({
+async function processPayment(paymentId: string, accessToken: string) {
+  const paymentData = await getMercadoPagoPayment(paymentId, accessToken);
+
+  if (paymentData.status === "approved") {
+    const result = await approveTransaction(paymentData);
+
+    return {
+      ok: true,
+      processed: true,
+      paymentId,
+      paymentStatus: paymentData.status,
+      paymentStatusDetail: paymentData.status_detail,
+      result,
+    };
+  }
+
+  const result = await updatePendingOrReleaseTransaction(paymentData);
+
+  return {
     ok: true,
-    message: "Webhook Mercado Pago carregado.",
-    path: "/api/mercado-pago-pix/webhook",
-  });
+    processed: true,
+    paymentId,
+    paymentStatus: paymentData.status,
+    paymentStatusDetail: paymentData.status_detail,
+    result,
+  };
+}
+
+export async function GET(request: Request) {
+  try {
+    const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
+
+    const paymentId = getPaymentIdFromNotification(request, null);
+
+    if (!paymentId) {
+      return NextResponse.json({
+        ok: true,
+        message: "Webhook Mercado Pago carregado.",
+        path: "/api/mercado-pago-pix/webhook",
+        manualSyncExample:
+          "/api/mercado-pago-pix/webhook?type=payment&data.id=ID_DO_PAGAMENTO",
+      });
+    }
+
+    if (!accessToken) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: "MERCADO_PAGO_ACCESS_TOKEN não configurado.",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    const result = await processPayment(paymentId, accessToken);
+
+    return NextResponse.json({
+      ok: true,
+      mode: "manual-sync",
+      result,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: "Erro ao sincronizar pagamento manualmente.",
+        error: getErrorMessage(error),
+      },
+      {
+        status: 500,
+      }
+    );
+  }
 }
 
 export async function POST(request: Request) {
@@ -433,25 +502,11 @@ export async function POST(request: Request) {
       });
     }
 
-    const paymentData = await getMercadoPagoPayment(paymentId, accessToken);
-
-    if (paymentData.status === "approved") {
-      const result = await approveTransaction(paymentData);
-
-      return NextResponse.json({
-        ok: true,
-        webhook: "processed",
-        paymentStatus: paymentData.status,
-        result,
-      });
-    }
-
-    const result = await updatePendingOrReleaseTransaction(paymentData);
+    const result = await processPayment(paymentId, accessToken);
 
     return NextResponse.json({
       ok: true,
-      webhook: "processed",
-      paymentStatus: paymentData.status,
+      mode: "webhook",
       result,
     });
   } catch (error) {
