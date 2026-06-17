@@ -1,10 +1,10 @@
 import { getAreaPriceCents } from "@/lib/site-config";
 
 // 232 x 125 = exatamente 29.000 tijolinhos vendáveis no mural.
-// A proporção fica próxima da arte 16:9 enviada e evita distorção forte no site.
+// A imagem de fundo foi convertida para 2320 x 1250, então cada tijolinho ocupa 10 x 10 px.
 export const GRID_COLS = 232;
 export const GRID_ROWS = 125;
-export const BLOCK_SIZE = 8;
+export const BLOCK_SIZE = 10;
 
 export const MAP_WIDTH = GRID_COLS * BLOCK_SIZE;
 export const MAP_HEIGHT = GRID_ROWS * BLOCK_SIZE;

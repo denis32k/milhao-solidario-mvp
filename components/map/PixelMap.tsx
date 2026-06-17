@@ -358,6 +358,8 @@ export default function PixelMap() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    ctx.imageSmoothingEnabled = false;
+
     const muralImage = getImage(MURAL_IMAGE_URL);
     const blockByCoord = new Map(mapBlocks.map((block) => [getBlockKey(block.gridX, block.gridY), block]));
 
