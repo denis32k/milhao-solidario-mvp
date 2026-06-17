@@ -915,13 +915,19 @@ export default function PixelMap() {
               </a>
             )}
 
-            <button
-              type="button"
-              onClick={() => reportBlock(selectedSheet.block)}
+            <a
+              href={`/bloco/${selectedSheet.block.id}`}
+              className="rounded-2xl bg-yellow-400 py-3 text-center text-xs font-black text-yellow-950"
+            >
+              Ver detalhes
+            </a>
+
+            <a
+              href={`/bloco/${selectedSheet.block.id}#denunciar`}
               className="mx-auto rounded-full bg-red-50 px-3 py-1.5 text-[10px] font-black text-red-600"
             >
               {siteConfig.copy.reportButton}
-            </button>
+            </a>
           </div>
         </div>
       )}

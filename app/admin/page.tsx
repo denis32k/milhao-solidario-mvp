@@ -1161,7 +1161,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
                   <div>
                     <p className="text-xs font-black uppercase text-slate-500">{report.status} • tijolinho {report.block ? `x${report.block.gridX}/y${report.block.gridY}` : "sem coordenada"}</p>
                     <h3 className="mt-1 text-lg font-black text-slate-950">{report.placement?.title || report.placement?.displayName || "Tijolinho denunciado"}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-slate-600">{report.reason}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-600">{report.reasonCode ? `${report.reasonCode} — ` : ""}{report.reason}</p>{report.message && <p className="mt-2 rounded-2xl bg-slate-50 p-3 text-xs font-bold text-slate-600">Mensagem: {report.message}</p>}
                   </div>
                   <div className="grid min-w-44 gap-2">
                     <ActionButton label="Bloquear imagem" action="BLOCK_IMAGE" secret={secret} reportId={report.id} placementId={report.placementId} className="w-full rounded-2xl bg-slate-800 px-3 py-2 text-xs font-black text-white" />

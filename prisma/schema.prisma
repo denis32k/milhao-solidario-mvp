@@ -360,7 +360,10 @@ model Report {
   reporterEmail   String?
   reporterIpHash  String?
 
+  reasonCode      String?
   reason          String       @db.Text
+  message         String?      @db.Text
+  actionTaken     String?      @db.Text
   status          ReportStatus @default(OPEN)
 
   actions         AdminAction[]
