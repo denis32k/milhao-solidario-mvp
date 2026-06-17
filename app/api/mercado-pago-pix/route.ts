@@ -158,7 +158,7 @@ function mapCategoryToKind(category: BuyableCategory) {
 }
 
 function getCategoryDescription(category: BuyableCategory, fullName: string) {
-  return `${siteConfig.brand.name} ${siteConfig.areas[category].name} - ${fullName}`;
+  return `Tijolinho digital em ${siteConfig.areas[category].name} - ${fullName}`;
 }
 
 export async function GET() {
@@ -237,18 +237,18 @@ export async function POST(request: Request) {
     }
 
     if (selectedBlocksInput.length === 0) {
-      return NextResponse.json({ ok: false, message: "Selecione pelo menos um bloco no grid." }, { status: 400 });
+      return NextResponse.json({ ok: false, message: "Selecione pelo menos um tijolinho no mural." }, { status: 400 });
     }
 
     if (!areBlocksContiguous(selectedBlocksInput)) {
-      return NextResponse.json({ ok: false, message: "Os blocos selecionados precisam estar encostados." }, { status: 400 });
+      return NextResponse.json({ ok: false, message: "Os tijolinhos selecionados precisam estar encostados." }, { status: 400 });
     }
 
     const uniqueId = Date.now();
     const externalReference = `mp-pix-${uniqueId}`;
     const reservedUntil = new Date(Date.now() + RESERVATION_MINUTES * 60 * 1000);
 
-    const pendingData = await prisma.$transaction(async (tx) => {
+    const pendingData = await prisma.$transaction(async (tx: any) => {
       const foundBlocks = await tx.block.findMany({
         where: {
           OR: selectedBlocksInput.map((block) => ({
@@ -265,13 +265,13 @@ export async function POST(request: Request) {
       });
 
       if (foundBlocks.length !== selectedBlocksInput.length) {
-        throw new Error("Um ou mais blocos selecionados não estão disponíveis.");
+        throw new Error("Um ou mais tijolinhos selecionados não estão disponíveis.");
       }
 
       const categories = Array.from(new Set(foundBlocks.map((block) => block.category)));
 
       if (categories.length !== 1) {
-        throw new Error("Não misture blocos de tipos diferentes na mesma compra.");
+        throw new Error("Não misture áreas diferentes na mesma compra.");
       }
 
       const category = categories[0] as BuyableCategory;
@@ -285,7 +285,7 @@ export async function POST(request: Request) {
       }
 
       const subtotalCents = foundBlocks.reduce((total, block) => total + block.priceCents, 0);
-      const operatorFeeCents = Math.ceil(subtotalCents * 0.1);
+      const operatorFeeCents = Math.ceil(subtotalCents * (siteConfig.operationalFeePercent / 100));
       const totalPaidCents = subtotalCents + operatorFeeCents;
       const creatorShareCents = Math.floor(subtotalCents / 2);
       const hospitalShareCents = subtotalCents - creatorShareCents;
@@ -473,7 +473,7 @@ export async function POST(request: Request) {
       if (pendingTransactionId || reservedBlockIds.length > 0) {
         const { prisma } = await import("@/lib/prisma");
 
-        await prisma.$transaction(async (tx) => {
+        await prisma.$transaction(async (tx: any) => {
           if (pendingTransactionId) {
             await tx.transaction.updateMany({
               where: { id: pendingTransactionId, status: "PENDING" },

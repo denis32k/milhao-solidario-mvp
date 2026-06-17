@@ -1,58 +1,93 @@
 {
   "brand": {
-    "name": "Milhão Solidário",
-    "shortName": "Milhão Solidário",
-    "subtitle": "Doe, apareça e ajude",
-    "logoEmoji": "💚"
+    "name": "Tijolinho Digital",
+    "shortName": "Tijolinho Digital",
+    "subtitle": "Mural comercial em construção",
+    "logoEmoji": "🧱"
   },
   "goalCents": 200000000,
   "operationalFeePercent": 10,
+  "mainHeadline": "Compre seu tijolinho digital e ajude a construir um dos murais mais ambiciosos da internet.",
   "areas": {
     "SOLIDARITY": {
-      "name": "Mosaico Apoiador",
-      "shortName": "Mosaico",
+      "id": "copacabana",
+      "name": "Copacabana",
+      "shortName": "Copacabana",
+      "type": "entrada",
+      "visualTheme": "calcada-copacabana",
       "priceCents": 1000,
-      "description": "Apoie, escolha uma cor e deixe seu nome no mapa."
+      "description": "Entre no mural com seu primeiro tijolinho digital.",
+      "cardText": "Comece sua presença no mural.",
+      "included": "Nome público, cor do tijolinho, descrição curta e link opcional."
     },
     "PREMIUM": {
-      "name": "Área Gold",
-      "shortName": "Gold",
+      "id": "jardins",
+      "name": "Jardins",
+      "shortName": "Jardins",
+      "type": "premium",
+      "visualTheme": "verde-pedra-sofisticado",
       "priceCents": 10000,
-      "description": "Espaço com imagem, descrição e link."
+      "description": "Uma área premium para quem quer mais presença no mural.",
+      "cardText": "Mais destaque para nomes, marcas e ideias.",
+      "included": "Imagem no mural, nome público, descrição e link."
     },
     "GOLD": {
-      "name": "Área Diamante",
-      "shortName": "Diamante",
+      "id": "leblon",
+      "name": "Leblon",
+      "shortName": "Leblon",
+      "type": "mega-especial",
+      "visualTheme": "champagne-dourado-luxo",
       "priceCents": 50000,
-      "description": "Área nobre próxima ao centro do mapa."
+      "description": "A área mais exclusiva do mural. Poucos espaços, máximo destaque.",
+      "cardText": "Poucos espaços, máximo destaque.",
+      "included": "Imagem no mural, nome público, descrição, link e destaque visual."
     },
     "GRAND_CENTER": {
-      "name": "Área Legendária",
-      "shortName": "Legendária",
+      "id": "reserved-center",
+      "name": "Área reservada",
+      "shortName": "Reservada",
+      "type": "bloqueada",
+      "visualTheme": "centro-reservado",
       "priceCents": 0,
-      "description": "Área central reservada para algo especial."
+      "description": "Área central reservada para uma ação especial futura."
     }
   },
   "mosaicColors": [
-    { "name": "Verde esperança", "value": "#22c55e" },
-    { "name": "Azul confiança", "value": "#2563eb" },
-    { "name": "Rosa carinho", "value": "#ec4899" },
-    { "name": "Roxo apoio", "value": "#8b5cf6" },
+    { "name": "Verde obra", "value": "#22c55e" },
+    { "name": "Azul mural", "value": "#2563eb" },
+    { "name": "Rosa destaque", "value": "#ec4899" },
+    { "name": "Roxo criativo", "value": "#8b5cf6" },
     { "name": "Laranja energia", "value": "#f97316" },
-    { "name": "Amarelo destaque", "value": "#eab308" }
+    { "name": "Amarelo luz", "value": "#eab308" }
+  ],
+  "constructionPhases": [
+    "Terreno Aberto",
+    "Fundação",
+    "Primeira Parede",
+    "Fachada em Construção",
+    "Bairro Valorizado",
+    "Marco da Internet",
+    "Obra Histórica",
+    "Mural Completo"
   ],
   "copy": {
-    "heroTagline": "Escolha seu espaço no mapa e participe dessa corrente.",
-    "legendaryMessage": "Área reservada para algo especial. Em breve.",
-    "checkoutTitle": "Finalizar participação",
+    "heroTitle": "Compre seu tijolinho digital e ajude a construir um dos murais mais ambiciosos da internet.",
+    "heroSubtitle": "Escolha uma área, personalize seu espaço e faça parte de uma obra digital construída tijolinho por tijolinho.",
+    "primaryCta": "Comprar meu tijolinho",
+    "secondaryCta": "Explorar mural",
+    "heroTagline": "Um mural digital sendo construído tijolinho por tijolinho.",
+    "constructionText": "Cada tijolinho vendido ajuda essa obra digital a crescer. Acompanhe as fases da construção e escolha seu espaço antes que o mural seja completado.",
+    "legendaryMessage": "Área central reservada para uma ação especial futura.",
+    "checkoutTitle": "Comprar tijolinho digital",
     "pixButton": "Gerar PIX Mercado Pago",
-    "reportButton": "Denunciar"
+    "reportButton": "Denunciar",
+    "legalNotice": "Este é um projeto comercial de venda de espaços digitais em um mural público. A compra de tijolinhos digitais não constitui doação, investimento, sorteio, rifa ou promessa de retorno financeiro."
   },
   "testData": {
-    "supporterName": "Apoiador Exemplo",
+    "supporterName": "Comprador Exemplo",
     "brandName": "Marca Exemplo",
     "handle": "@exemplo",
     "link": "https://exemplo.com",
-    "description": "Participação de teste para validar o mapa."
+    "description": "Participação de teste para validar o mural."
   }
 }

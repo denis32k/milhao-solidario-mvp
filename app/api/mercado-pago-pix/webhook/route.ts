@@ -231,7 +231,7 @@ async function processPayment(paymentId: string) {
     const nextStatus = mapStatus(String(paymentData.status || ""));
     const shouldRelease = shouldReleaseBlock(String(paymentData.status || ""));
 
-    const updatedTransaction = await prisma.$transaction(async (tx) => {
+    const updatedTransaction = await prisma.$transaction(async (tx: any) => {
       const updated = await tx.transaction.update({
         where: {
           id: transaction.id,
@@ -268,7 +268,7 @@ async function processPayment(paymentId: string) {
     return {
       ok: true,
       message: shouldRelease
-        ? "Pagamento não aprovado. Bloco liberado."
+        ? "Pagamento não aprovado. Tijolinho liberado."
         : "Pagamento ainda não aprovado.",
       paymentId,
       transactionId: updatedTransaction.id,
@@ -288,7 +288,7 @@ async function processPayment(paymentId: string) {
 
   const blockIds = transaction.items.map((item) => item.blockId);
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: any) => {
     const updatedTransaction = await tx.transaction.update({
       where: {
         id: transaction.id,
@@ -397,7 +397,7 @@ async function processPayment(paymentId: string) {
 
   return {
     ok: true,
-    message: "Pagamento aprovado e bloco vendido.",
+    message: "Pagamento aprovado e tijolinho vendido.",
     paymentId,
     transactionId: result.transaction.id,
     placementId: result.placement.id,

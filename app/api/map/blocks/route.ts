@@ -16,7 +16,7 @@ export async function GET() {
     const blocks = await prisma.block.findMany({
       where: {
         status: {
-          in: ["SOLD", "BLOCKED"],
+          in: ["SOLD", "RESERVED", "BLOCKED"],
         },
       },
       select: {
@@ -77,7 +77,7 @@ export async function GET() {
     return NextResponse.json(
       {
         ok: false,
-        message: "Erro ao buscar blocos do mapa.",
+        message: "Erro ao buscar tijolinhos do mural.",
         error: getErrorMessage(error),
       },
       {

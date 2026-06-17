@@ -93,7 +93,7 @@ export async function GET(request: Request) {
       return NextResponse.json({
         ok: true,
         message: force
-          ? "Nenhum bloco reservado encontrado para liberar."
+          ? "Nenhum tijolinho reservado encontrado para liberar."
           : "Nenhuma reserva expirada encontrada.",
         mode: force ? "force" : "expired-only",
         releasedBlocks: 0,

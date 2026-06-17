@@ -1,104 +1,56 @@
-# Milhão Solidário — Nova versão com admin, testes e configuração central
+# Tijolinho Digital — V1 conceito comercial
 
-Esta versão implementa o resumo combinado e prepara o projeto para lapidação real.
+Projeto Next.js/Prisma/PostgreSQL com Mercado Pago PIX, admin, testes do mural e configuração central.
+
+## Conceito
+
+O projeto agora é um mural comercial gamificado feito de tijolinhos digitais.
+
+Frase principal:
+
+> Compre seu tijolinho digital e ajude a construir um dos murais mais ambiciosos da internet.
+
+Este é um projeto comercial de venda de espaços digitais em um mural público. A compra de tijolinhos digitais não constitui doação, investimento, sorteio, rifa ou promessa de retorno financeiro.
+
+## Áreas públicas
+
+- Copacabana — área de entrada/acessível, inspirada na calçada com ondas preto e branco.
+- Jardins — área premium, visual sofisticado com verde escuro e pedra clara.
+- Leblon — área mega especial/exclusiva, visual champagne e dourado sutil.
+- Área reservada — centro fechado temporariamente para uma ação futura.
+
+## Matemática do grid
+
+- Grid total: 200 x 145 = 29.000 tijolinhos.
+- Copacabana: 10.000 tijolinhos em volta de todo o mural.
+- Jardins: 18.600 tijolinhos no miolo principal.
+- Leblon: 300 tijolinhos em volta do centro reservado.
+- Área reservada: 100 tijolinhos bloqueados no centro, quadrado 10x10.
+
+## Fases da Obra
+
+- Terreno Aberto
+- Fundação
+- Primeira Parede
+- Fachada em Construção
+- Bairro Valorizado
+- Marco da Internet
+- Obra Histórica
+- Mural Completo
+
+A progressão é calculada por percentual de tijolinhos vendidos no mural.
 
 ## Configuração editável
 
-Edite o arquivo:
+Altere textos, valores, nomes, logo simples, cores e dados fictícios em:
 
 ```txt
 config/site.config.json
 ```
 
-Nele você consegue alterar:
+## Deploy / atualização do banco
 
-- nome do projeto
-- subtítulo
-- emoji/logotipo simples
-- nomes das áreas
-- valores dos blocos
-- taxa operacional
-- frases principais
-- cores do Mosaico Apoiador
-- dados fictícios dos testes
-
-## Nomes públicos das áreas
-
-- Mosaico Apoiador — R$10
-- Área Gold — R$100
-- Área Diamante — R$500
-- Área Legendária — bloqueada
-
-## Grid
-
-- Total: 29.000 blocos
-- Mosaico Apoiador: 10.000 blocos em volta de todo o grid
-- Área Gold: 18.600 blocos no miolo
-- Área Diamante: 300 blocos em volta do centro
-- Área Legendária: 100 blocos bloqueados no centro, quadrado 10x10
-
-## Frontend
-
-- Grid limpo, sem botões +, - e centralizar
-- Zoom no PC pelo scroll
-- Zoom no celular com 2 dedos
-- Página abre focada no centro
-- Balãozinho pequeno ao clicar em bloco vendido
-- Nome da área aparece bem menor no balão
-- Botão denunciar menor e discreto
-- Link abre em nova aba
-
-## Checkout
-
-- Mosaico Apoiador: nome público, cor, link/Instagram e descrição
-- Área Gold: imagem, nome público, descrição e link
-- Área Diamante: imagem, nome público, descrição e link
-- Nome completo, WhatsApp e CPF ficam privados
-- Imagem é compactada antes do upload
-
-## Admin
-
-O admin tem:
-
-- dashboard
-- últimas compras
-- reservas pendentes
-- Área Gold e Área Diamante com imagem/link
-- denúncias
-- ações de moderação
-- testes do grid
-
-Ações disponíveis:
-
-- bloquear imagem
-- bloquear link
-- liberar bloco
-- banir comprador
-- resolver denúncia
-- criar área teste
-- excluir teste individual
-- excluir todos os testes
-
-## Testes do grid
-
-No admin, os testes não passam pelo checkout e não geram PIX.
-
-- Criar teste Mosaico Apoiador
-- Criar teste Área Gold
-- Criar teste Área Diamante
-- Excluir teste
-- Excluir todos os testes
-
-Os testes são marcados como `isTest = true` e não entram em:
-
-- arrecadação
-- ranking
-- repasses
-- compras reais
-
-## Depois de subir no EasyPanel
-
-Rode no terminal **Sh**:
+Depois de subir no EasyPanel, rode:
 
 ```bash
 npx prisma generate
@@ -106,13 +58,9 @@ npx prisma db push
 npm run sync:grid
 ```
 
-## Admin protegido
+O `sync:grid` é obrigatório quando a distribuição de áreas/preços mudar.
 
-Configure:
-
-```txt
-ADMIN_API_SECRET=sua_senha_forte
-```
+## Testes no admin
 
 Acesse:
 
@@ -120,18 +68,23 @@ Acesse:
 /admin?secret=SUA_SENHA
 ```
 
-## Variáveis necessárias
+Funções de teste:
 
-```txt
-DATABASE_URL=postgresql://...
-NODE_ENV=production
-MERCADO_PAGO_ACCESS_TOKEN=...
-APP_URL=https://seu-link-atual
-NEXT_PUBLIC_APP_URL=https://seu-link-atual
-ADMIN_API_SECRET=sua_senha_admin_opcional
-```
+- Criar teste Copacabana
+- Criar teste Jardins
+- Criar teste Leblon
+- Excluir teste individual
+- Excluir todos os testes
 
-## Importante
+Testes não passam pelo checkout, não geram PIX e não entram na totais comerciais/ranking/relatórios.
 
-Domínio próprio e armazenamento definitivo das imagens ficam para depois.
-Nesta versão, o upload ainda usa armazenamento local do app.
+## Preservado
+
+- Checkout existente
+- Reservas e expiração
+- Status dos tijolinhos
+- Mercado Pago PIX
+- Webhook
+- Admin/moderação
+- Upload de imagens
+- Denúncias

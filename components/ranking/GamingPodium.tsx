@@ -1,18 +1,18 @@
 const ranking = [
   {
-    name: "Apoiador Misterioso",
+    name: "Pessoa Fictícia",
     amount: 12500,
     medal: "🥇",
     style: "border-yellow-300 bg-yellow-50 shadow-yellow-200",
   },
   {
-    name: "Empresa do Bem",
+    name: "Marca Exemplo",
     amount: 8400,
     medal: "🥈",
     style: "border-slate-300 bg-slate-50 shadow-slate-200",
   },
   {
-    name: "Família Solidária",
+    name: "Grupo Exemplo",
     amount: 6200,
     medal: "🥉",
     style: "border-orange-300 bg-orange-50 shadow-orange-200",
@@ -20,10 +20,10 @@ const ranking = [
 ];
 
 const others = [
-  { name: "Apoiador 04", amount: 3000 },
-  { name: "Apoiador 05", amount: 1800 },
-  { name: "Apoiador 06", amount: 950 },
-  { name: "Apoiador 07", amount: 500 },
+  { name: "Comprador 04", amount: 3000 },
+  { name: "Comprador 05", amount: 1800 },
+  { name: "Comprador 06", amount: 950 },
+  { name: "Comprador 07", amount: 500 },
 ];
 
 function formatMoney(value: number) {
@@ -74,7 +74,7 @@ export default function GamingPodium() {
                 {index + 4}º {item.name}
               </p>
               <p className="text-xs font-semibold text-slate-500">
-                Total doado
+                Total em tijolinhos
               </p>
             </div>
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { MouseEvent, PointerEvent, WheelEvent } from "react";
-import { getAreaName, getAreaPriceCents, siteConfig } from "@/lib/site-config";
+import { getAreaIncluded, getAreaName, getAreaPriceCents, siteConfig } from "@/lib/site-config";
 
 const GRID_COLS = 200;
 const GRID_ROWS = 145;
@@ -159,24 +159,66 @@ function getDisplayName(block: ApiMapBlock) {
     block.placement?.textLabel ||
     block.owner?.publicName ||
     block.owner?.name ||
-    "Apoiador"
+    "Comprador"
   );
 }
 
 function getSoldBlockColor(block: ApiMapBlock) {
   if (block.status === "BLOCKED") return "#64748b";
   if (block.placement?.status === "BANNED" || block.placement?.status === "REMOVED") return "#64748b";
+  if (block.status === "RESERVED") return "#94a3b8";
   if (block.category === "SOLIDARITY") return block.placement?.fillColor || "#22c55e";
-  if (block.category === "GOLD") return "#f59e0b";
-  if (block.category === "PREMIUM") return "#0f172a";
-  return "#facc15";
+  if (block.category === "GOLD") return "#f6c35f";
+  if (block.category === "PREMIUM") return "#14532d";
+  return "#eab308";
 }
 
-function getAvailableBlockColor(category: BlockCategory) {
-  if (category === "SOLIDARITY") return "#dcfce7";
-  if (category === "GOLD") return "#fde68a";
-  if (category === "PREMIUM") return "#eef2ff";
-  return "#facc15";
+function getAvailableBlockColor(category: BlockCategory, x = 0, y = 0) {
+  if (category === "SOLIDARITY") {
+    const wave = Math.sin((x + y * 0.72) / 4.2);
+    return wave > 0 ? "#f8fafc" : "#111827";
+  }
+
+  if (category === "GOLD") {
+    const shimmer = (x + y) % 4 === 0;
+    return shimmer ? "#fde68a" : "#f8e7bd";
+  }
+
+  if (category === "PREMIUM") {
+    const stone = (x * 7 + y * 3) % 5 === 0;
+    return stone ? "#d7e5d4" : "#0f3d2e";
+  }
+
+  return "#d97706";
+}
+
+function drawBrick(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  fill: string,
+  scale: number,
+  category: BlockCategory
+) {
+  const gap = scale > 2.4 ? 0.9 : scale > 1.2 ? 0.45 : 0.15;
+  const px = x * BLOCK_SIZE;
+  const py = y * BLOCK_SIZE;
+
+  ctx.fillStyle = fill;
+  ctx.fillRect(px + gap, py + gap, BLOCK_SIZE - gap * 2, BLOCK_SIZE - gap * 2);
+
+  if (scale > 0.55) {
+    ctx.strokeStyle = category === "SOLIDARITY" ? "rgba(15,23,42,0.28)" : "rgba(255,255,255,0.22)";
+    ctx.lineWidth = scale > 2 ? 0.55 : 0.32;
+    ctx.strokeRect(px + gap, py + gap, BLOCK_SIZE - gap * 2, BLOCK_SIZE - gap * 2);
+  }
+
+  if (scale > 1.6) {
+    ctx.fillStyle = "rgba(255,255,255,0.16)";
+    ctx.fillRect(px + gap + 0.7, py + gap + 0.7, BLOCK_SIZE - gap * 2 - 1.4, 1.2);
+    ctx.fillStyle = "rgba(0,0,0,0.14)";
+    ctx.fillRect(px + gap + 0.7, py + BLOCK_SIZE - gap - 1.6, BLOCK_SIZE - gap * 2 - 1.4, 1);
+  }
 }
 
 function getCategoryLabel(category: BuyableCategory) {
@@ -255,7 +297,7 @@ export default function PixelMap() {
     (total, block) => total + block.priceCents,
     0
   );
-  const selectedFeeCents = Math.ceil(selectedSubtotalCents * 0.1);
+  const selectedFeeCents = Math.ceil(selectedSubtotalCents * (siteConfig.operationalFeePercent / 100));
   const selectedTotalCents = selectedSubtotalCents + selectedFeeCents;
 
   function getMinScale() {
@@ -332,7 +374,7 @@ export default function PixelMap() {
         if (!isAlive) return;
         if (data.ok) setMapBlocks(data.blocks);
       } catch (error) {
-        console.error("Erro ao carregar blocos do mapa:", error);
+        console.error("Erro ao carregar tijolinhos do mural:", error);
       } finally {
         if (isAlive) setIsLoadingBlocks(false);
       }
@@ -391,7 +433,7 @@ export default function PixelMap() {
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, rect.width, rect.height);
-    ctx.fillStyle = "#e2e8f0";
+    ctx.fillStyle = "#0f172a";
     ctx.fillRect(0, 0, rect.width, rect.height);
 
     ctx.save();
@@ -405,12 +447,13 @@ export default function PixelMap() {
         const px = x * BLOCK_SIZE;
         const py = y * BLOCK_SIZE;
 
-        ctx.fillStyle = soldBlock ? getSoldBlockColor(soldBlock) : getAvailableBlockColor(type);
-        ctx.fillRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
+        const fill = soldBlock ? getSoldBlockColor(soldBlock) : getAvailableBlockColor(type, x, y);
+        drawBrick(ctx, x, y, fill, camera.scale, type);
 
-        ctx.strokeStyle = "rgba(15, 23, 42, 0.22)";
-        ctx.lineWidth = 0.35;
-        ctx.strokeRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
+        if (!soldBlock && camera.scale < 0.72 && type !== "SOLIDARITY") {
+          ctx.fillStyle = type === "PREMIUM" ? "rgba(15, 61, 46, 0.28)" : "rgba(250, 204, 21, 0.22)";
+          ctx.fillRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
+        }
       }
     }
 
@@ -445,7 +488,7 @@ export default function PixelMap() {
 
       drawImageCover(ctx, image, x, y, width, height);
 
-      ctx.strokeStyle = blocks[0].category === "GOLD" ? "#92400e" : "#020617";
+      ctx.strokeStyle = blocks[0].category === "GOLD" ? "#92400e" : "#052e16";
       ctx.lineWidth = 2.2;
       ctx.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
     }
@@ -454,7 +497,7 @@ export default function PixelMap() {
       const px = block.gridX * BLOCK_SIZE;
       const py = block.gridY * BLOCK_SIZE;
 
-      ctx.fillStyle = "rgba(37, 99, 235, 0.86)";
+      ctx.fillStyle = "rgba(59, 130, 246, 0.9)";
       ctx.fillRect(px + 1, py + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
 
       ctx.strokeStyle = "#1d4ed8";
@@ -462,7 +505,7 @@ export default function PixelMap() {
       ctx.strokeRect(px + 0.5, py + 0.5, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
     }
 
-    ctx.fillStyle = "#78350f";
+    ctx.fillStyle = "#facc15";
     ctx.font = "34px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -473,7 +516,7 @@ export default function PixelMap() {
       ctx.fillRect(850, 675, 300, 80);
       ctx.fillStyle = "#ffffff";
       ctx.font = "22px Arial";
-      ctx.fillText("Carregando mapa...", 1000, 715);
+      ctx.fillText("Carregando mural...", 1000, 715);
     }
 
     ctx.restore();
@@ -518,7 +561,7 @@ export default function PixelMap() {
     }
 
     if (isSelected(gridX, gridY)) {
-      setSelectionMessage("Esse bloco já está selecionado. Use limpar para começar de novo.");
+      setSelectionMessage("Esse tijolinho já está selecionado. Use limpar para começar de novo.");
       return;
     }
 
@@ -526,13 +569,13 @@ export default function PixelMap() {
       const firstCategory = selectedBlocks[0].category;
 
       if (firstCategory !== category) {
-        setSelectionMessage("Continue selecionando blocos do mesmo tipo ou limpe para começar outro tipo.");
+        setSelectionMessage("Continue selecionando tijolinhos da mesma área ou limpe para começar outra área.");
         return;
       }
     }
 
     if (!isAdjacentToSelection(selectedBlocks, gridX, gridY)) {
-      setSelectionMessage("Escolha um bloco encostado nos que já selecionou.");
+      setSelectionMessage("Escolha um tijolinho encostado nos que já selecionou.");
       return;
     }
 
@@ -718,7 +761,7 @@ export default function PixelMap() {
         throw new Error(data.message || "Erro ao enviar denúncia.");
       }
 
-      alert("Denúncia enviada. Obrigado por ajudar a manter o mapa seguro.");
+      alert("Denúncia enviada. Obrigado por ajudar a manter o mural seguro.");
       setSelectedSheet(null);
     } catch (error) {
       alert(error instanceof Error ? error.message : "Erro ao denunciar.");
@@ -746,7 +789,7 @@ export default function PixelMap() {
           <div className="mx-auto max-w-3xl">
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="rounded-2xl bg-slate-50 p-2">
-                <p className="text-[10px] font-black uppercase text-slate-500">Blocos</p>
+<p className="text-[10px] font-black uppercase text-slate-500">Tijolinhos</p>
                 <p className="text-base font-black text-slate-950">{selectedBlocks.length}</p>
               </div>
 
@@ -816,9 +859,9 @@ export default function PixelMap() {
             <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-yellow-400 text-4xl shadow-lg">
               🔒
             </div>
-            <h2 className="text-2xl font-black text-slate-950">Área Legendária</h2>
+            <h2 className="text-2xl font-black text-slate-950">Área reservada</h2>
             <p className="mt-3 text-sm leading-relaxed text-slate-600">
-              {siteConfig.copy.legendaryMessage}
+{siteConfig.copy.legendaryMessage}
             </p>
             <button
               type="button"
@@ -847,7 +890,7 @@ export default function PixelMap() {
           </button>
 
           <p className="pr-8 text-[9px] font-black uppercase tracking-[0.18em] text-slate-400">
-            {selectedSheet.block.category === "GOLD"
+            vendido • {selectedSheet.block.category === "GOLD"
               ? getAreaName("GOLD")
               : selectedSheet.block.category === "PREMIUM"
                 ? getAreaName("PREMIUM")
@@ -872,7 +915,7 @@ export default function PixelMap() {
                 rel="noopener noreferrer"
                 className="rounded-2xl bg-slate-950 py-3 text-center text-xs font-black text-white"
               >
-                Visitar link
+Abrir link
               </a>
             )}
 

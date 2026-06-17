@@ -10,11 +10,20 @@ function moneyFromCents(cents: number) {
 }
 
 function getErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
+  if (error instanceof Error) return error.message;
   return String(error);
+}
+
+async function getCategoryStats(prisma: any, category: "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTER") {
+  const [total, sold, available, reserved, locked] = await Promise.all([
+    prisma.block.count({ where: { category } }),
+    prisma.block.count({ where: { category, status: "SOLD", placement: { isTest: false } } }),
+    prisma.block.count({ where: { category, available: true } }),
+    prisma.block.count({ where: { category, status: "RESERVED" } }),
+    prisma.block.count({ where: { category, status: "LOCKED" } }),
+  ]);
+
+  return { total, sold, available, reserved, locked };
 }
 
 export async function GET() {
@@ -23,75 +32,25 @@ export async function GET() {
 
     const [
       totalBlocks,
-      solidarityBlocks,
-      premiumBlocks,
-      goldBlocks,
-      grandCenterBlocks,
       availableBlocks,
       soldBlocks,
       lockedBlocks,
+      reservedBlocks,
       approvedTransactions,
       approvedTotal,
+      solidarityStats,
+      premiumStats,
+      goldStats,
+      grandCenterStats,
     ] = await Promise.all([
       prisma.block.count(),
-
-      prisma.block.count({
-        where: {
-          category: "SOLIDARITY",
-        },
-      }),
-
-      prisma.block.count({
-        where: {
-          category: "PREMIUM",
-        },
-      }),
-
-      prisma.block.count({
-        where: {
-          category: "GOLD",
-        },
-      }),
-
-      prisma.block.count({
-        where: {
-          category: "GRAND_CENTER",
-        },
-      }),
-
-      prisma.block.count({
-        where: {
-          available: true,
-        },
-      }),
-
-      prisma.block.count({
-        where: {
-          status: "SOLD",
-          placement: {
-            isTest: false,
-          },
-        },
-      }),
-
-      prisma.block.count({
-        where: {
-          status: "LOCKED",
-        },
-      }),
-
-      prisma.transaction.count({
-        where: {
-          status: "APPROVED",
-          isTest: false,
-        },
-      }),
-
+      prisma.block.count({ where: { available: true } }),
+      prisma.block.count({ where: { status: "SOLD", placement: { isTest: false } } }),
+      prisma.block.count({ where: { status: "LOCKED" } }),
+      prisma.block.count({ where: { status: "RESERVED" } }),
+      prisma.transaction.count({ where: { status: "APPROVED", isTest: false } }),
       prisma.transaction.aggregate({
-        where: {
-          status: "APPROVED",
-          isTest: false,
-        },
+        where: { status: "APPROVED", isTest: false },
         _sum: {
           subtotalCents: true,
           operatorFeeCents: true,
@@ -100,6 +59,10 @@ export async function GET() {
           hospitalShareCents: true,
         },
       }),
+      getCategoryStats(prisma, "SOLIDARITY"),
+      getCategoryStats(prisma, "PREMIUM"),
+      getCategoryStats(prisma, "GOLD"),
+      getCategoryStats(prisma, "GRAND_CENTER"),
     ]);
 
     const raisedCents = approvedTotal._sum.subtotalCents ?? 0;
@@ -110,64 +73,41 @@ export async function GET() {
 
     return NextResponse.json({
       ok: true,
-
-      goal: {
-        cents: GOAL_CENTS,
-        reais: moneyFromCents(GOAL_CENTS),
-      },
-
+      goal: { cents: GOAL_CENTS, reais: moneyFromCents(GOAL_CENTS) },
       raised: {
         cents: raisedCents,
         reais: moneyFromCents(raisedCents),
         progressPercent: Number(((raisedCents / GOAL_CENTS) * 100).toFixed(4)),
       },
-
-      operationalFee: {
-        cents: operationalFeeCents,
-        reais: moneyFromCents(operationalFeeCents),
+      operationalFee: { cents: operationalFeeCents, reais: moneyFromCents(operationalFeeCents) },
+      totalPaid: { cents: totalPaidCents, reais: moneyFromCents(totalPaidCents) },
+      internalSplit: {
+        creator: { cents: creatorShareCents, reais: moneyFromCents(creatorShareCents) },
+        reservedOperationalDestination: { cents: hospitalShareCents, reais: moneyFromCents(hospitalShareCents) },
       },
-
-      totalPaid: {
-        cents: totalPaidCents,
-        reais: moneyFromCents(totalPaidCents),
-      },
-
-      split: {
-        creator: {
-          cents: creatorShareCents,
-          reais: moneyFromCents(creatorShareCents),
-        },
-        hospital: {
-          cents: hospitalShareCents,
-          reais: moneyFromCents(hospitalShareCents),
-        },
-      },
-
-      transactions: {
-        approved: approvedTransactions,
-      },
-
+      transactions: { approved: approvedTransactions },
       blocks: {
         total: totalBlocks,
         available: availableBlocks,
         sold: soldBlocks,
         locked: lockedBlocks,
-        solidarity: solidarityBlocks,
-        premium: premiumBlocks,
-        gold: goldBlocks,
-        grandCenter: grandCenterBlocks,
+        reserved: reservedBlocks,
+        solidarity: solidarityStats.total,
+        premium: premiumStats.total,
+        gold: goldStats.total,
+        grandCenter: grandCenterStats.total,
+        byCategory: {
+          SOLIDARITY: solidarityStats,
+          PREMIUM: premiumStats,
+          GOLD: goldStats,
+          GRAND_CENTER: grandCenterStats,
+        },
       },
     });
   } catch (error) {
     return NextResponse.json(
-      {
-        ok: false,
-        message: "Erro ao buscar estatísticas do banco.",
-        error: getErrorMessage(error),
-      },
-      {
-        status: 500,
-      }
+      { ok: false, message: "Erro ao buscar estatísticas do banco.", error: getErrorMessage(error) },
+      { status: 500 }
     );
   }
 }

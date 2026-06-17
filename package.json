@@ -1,6 +1,6 @@
 {
-  "name": "milhao-solidario-mvp",
-  "version": "0.3.0",
+  "name": "tijolinho-digital",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",

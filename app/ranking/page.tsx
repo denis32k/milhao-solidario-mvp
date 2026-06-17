@@ -78,7 +78,7 @@ export default async function RankingPage() {
           href="/"
           className="mb-5 inline-flex rounded-full bg-white px-4 py-2 text-sm font-black text-slate-950 shadow"
         >
-          ← Voltar ao mapa
+          ← Voltar ao mural
         </Link>
 
         <section className="rounded-3xl bg-slate-950 p-5 text-white shadow-xl">
@@ -87,11 +87,11 @@ export default async function RankingPage() {
           </p>
 
           <h1 className="mt-2 text-3xl font-black">
-            Maiores apoiadores
+            Destaques do mural
           </h1>
 
           <p className="mt-2 text-sm leading-relaxed text-slate-300">
-            Ranking em tempo real baseado nos pagamentos aprovados.
+            Ranking em tempo real baseado nas compras aprovadas.
           </p>
         </section>
 
@@ -100,12 +100,11 @@ export default async function RankingPage() {
             <div className="text-4xl">🏆</div>
 
             <h2 className="mt-3 text-xl font-black text-slate-950">
-              Ainda não temos apoiadores
+              Ainda não temos compradores em destaque
             </h2>
 
             <p className="mt-2 text-sm leading-relaxed text-slate-500">
-              Assim que o primeiro pagamento for aprovado, o apoiador aparecerá
-              aqui.
+              Assim que a primeira compra for aprovada, o nome público aparecerá aqui.
             </p>
           </section>
         )}
@@ -163,7 +162,7 @@ export default async function RankingPage() {
                     </p>
 
                     <p className="text-xs font-semibold text-slate-500">
-                      Total aprovado
+                      Total em tijolinhos
                     </p>
                   </div>
 

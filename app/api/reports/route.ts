@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     const reporterEmail = String(body.reporterEmail || "").trim().slice(0, 120) || null;
 
     if (!blockId) {
-      return NextResponse.json({ ok: false, message: "Bloco não informado." }, { status: 400 });
+      return NextResponse.json({ ok: false, message: "Tijolinho não informado." }, { status: 400 });
     }
 
     if (reason.length < 3) {
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     });
 
     if (!block) {
-      return NextResponse.json({ ok: false, message: "Bloco não encontrado." }, { status: 404 });
+      return NextResponse.json({ ok: false, message: "Tijolinho não encontrado." }, { status: 404 });
     }
 
     const report = await prisma.report.create({

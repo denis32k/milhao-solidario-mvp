@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     const uniqueId = Date.now();
     const now = new Date();
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       const availableBlock = await tx.block.findFirst({
         where: {
           category: "SOLIDARITY",
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
       });
 
       if (!availableBlock) {
-        throw new Error("Nenhum bloco solidário disponível encontrado.");
+        throw new Error("Nenhum tijolinho disponível encontrado.");
       }
 
       const user = await tx.user.create({

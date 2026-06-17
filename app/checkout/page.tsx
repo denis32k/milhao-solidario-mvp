@@ -207,7 +207,7 @@ function getCategoryTheme(category: BuyableCategory) {
   };
 }
 
-export default function CheckoutPage() {
+export default function CompraPage() {
   const [step, setStep] = useState<CheckoutStep>("data");
   const [selectedBlocks, setSelectedBlocks] = useState<SelectedBlock[]>([]);
   const [category, setCategory] = useState<BuyableCategory>("SOLIDARITY");
@@ -286,12 +286,12 @@ export default function CheckoutPage() {
       setPaymentApproved(false);
 
       if (selectedBlocks.length === 0) {
-        alert("Volte ao grid e selecione pelo menos um bloco.");
+        alert("Volte ao mural e selecione pelo menos um tijolinho.");
         return;
       }
 
       if (requiresImageShape && !isRectangle) {
-        alert("Para Área Gold e Área Diamante, selecione uma área retangular.");
+        alert("Para Jardins e Leblon, selecione uma área retangular.");
         return;
       }
 
@@ -303,7 +303,7 @@ export default function CheckoutPage() {
       const publicNameToSend = publicName.trim() || fullName.trim();
 
       if (publicNameToSend.length < 2) {
-        alert("Digite o nome que vai aparecer no mapa.");
+        alert("Digite o nome que vai aparecer no mural.");
         return;
       }
 
@@ -429,7 +429,7 @@ export default function CheckoutPage() {
 
       if (isApproved) {
         setPaymentApproved(true);
-        setVerifyMessage("Pagamento aprovado! Seus blocos já foram marcados como vendidos.");
+        setVerifyMessage("Pagamento aprovado! Seus tijolinhos já foram marcados como vendidos.");
         return;
       }
 
@@ -447,12 +447,12 @@ export default function CheckoutPage() {
       <main className="min-h-screen bg-slate-100 px-4 py-6">
         <div className="mx-auto max-w-md rounded-3xl bg-white p-6 text-center shadow-xl">
           <div className="text-5xl">🧩</div>
-          <h1 className="mt-4 text-2xl font-black text-slate-950">Selecione os blocos primeiro</h1>
+          <h1 className="mt-4 text-2xl font-black text-slate-950">Selecione os tijolinhos primeiro</h1>
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            Volte ao grid, toque nos blocos desejados e depois continue para o checkout.
+            Volte ao mural, toque nos tijolinhos desejados e depois continue para o checkout.
           </p>
           <Link href="/" className="mt-5 block rounded-2xl bg-green-600 py-4 text-sm font-black text-white shadow-lg">
-            Voltar ao grid
+            Voltar ao mural
           </Link>
         </div>
       </main>
@@ -463,17 +463,17 @@ export default function CheckoutPage() {
     <main className="min-h-screen bg-slate-100 px-4 py-6">
       <div className="mx-auto max-w-md">
         <Link href="/" className="mb-5 inline-flex rounded-full bg-white px-4 py-2 text-sm font-black text-slate-950 shadow">
-          ← Voltar ao grid
+          ← Voltar ao mural
         </Link>
 
         <section className="rounded-3xl bg-white p-5 shadow-xl">
           <p className={`text-xs font-black uppercase tracking-wide ${theme.text}`}>
-            Checkout {getCategoryLabel(category)}
+            Compra {getCategoryLabel(category)}
           </p>
           <h1 className="mt-2 text-2xl font-black text-slate-950">{siteConfig.copy.checkoutTitle}</h1>
 
           <div className="mt-5 grid grid-cols-3 gap-2 text-center text-xs font-black">
-            <div className="rounded-2xl bg-green-500 p-3 text-white">1. Blocos</div>
+            <div className="rounded-2xl bg-green-500 p-3 text-white">1. Tijolinhos</div>
             <div className={`rounded-2xl p-3 ${step === "data" ? "bg-green-500 text-white" : "bg-slate-100 text-slate-500"}`}>2. Dados</div>
             <div className={`rounded-2xl p-3 ${step === "pix" ? "bg-green-500 text-white" : "bg-slate-100 text-slate-500"}`}>3. PIX</div>
           </div>
@@ -481,16 +481,16 @@ export default function CheckoutPage() {
           {step === "data" && (
             <div className="mt-6 space-y-4">
               <div className={`rounded-3xl border ${theme.border} ${theme.bg} p-4`}>
-                <p className={`text-xs font-black uppercase ${theme.text}`}>Blocos selecionados</p>
+                <p className={`text-xs font-black uppercase ${theme.text}`}>Tijolinhos selecionados</p>
                 <h2 className="mt-1 text-xl font-black text-slate-950">
-                  {selectedBlocks.length} bloco(s) — {getCategoryLabel(category)}
+                  {selectedBlocks.length} tijolinho(s) — {getCategoryLabel(category)}
                 </h2>
                 <p className="mt-1 text-xs font-bold text-slate-600">
                   {selectedBlocks.map((block) => `x${block.gridX}/y${block.gridY}`).join(" • ")}
                 </p>
                 {requiresImageShape && !isRectangle && (
                   <p className="mt-3 rounded-2xl bg-yellow-100 p-3 text-xs font-black text-yellow-800">
-                    Para usar imagem, a área precisa formar um retângulo. Volte ao grid e complete os blocos.
+                    Para usar imagem, a área precisa formar um retângulo. Volte ao mural e complete os tijolinhos.
                   </p>
                 )}
               </div>
@@ -511,12 +511,12 @@ export default function CheckoutPage() {
               </label>
 
               <label className="block">
-                <span className="text-xs font-black uppercase tracking-wide text-slate-500">Nome que vai aparecer no mapa</span>
+                <span className="text-xs font-black uppercase tracking-wide text-slate-500">Nome que vai aparecer no mural</span>
                 <input
                   type="text"
                   value={publicName}
                   onChange={(event) => setPublicName(event.target.value)}
-                  placeholder="Ex: Apoiador Exemplo, Marca Exemplo..."
+                  placeholder="Ex: Pessoa Fictícia, Marca Exemplo..."
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-bold outline-none focus:border-slate-950"
                 />
               </label>
@@ -542,11 +542,11 @@ export default function CheckoutPage() {
                   placeholder="000.000.000-00"
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-bold outline-none focus:border-slate-950"
                 />
-                <p className="mt-2 text-xs font-semibold text-slate-500">O CPF não aparece publicamente no mapa.</p>
+                <p className="mt-2 text-xs font-semibold text-slate-500">O CPF não aparece publicamente no mural.</p>
               </label>
 
               <div className={`space-y-4 rounded-3xl border ${theme.border} ${theme.bg} p-4`}>
-                <p className={`text-xs font-black uppercase tracking-wide ${theme.text}`}>Informações públicas do bloco</p>
+                <p className={`text-xs font-black uppercase tracking-wide ${theme.text}`}>Informações públicas do tijolinho</p>
 
                 <label className="block">
                   <span className={`text-xs font-black uppercase tracking-wide ${theme.text}`}>Instagram, site ou link</span>
@@ -573,7 +573,7 @@ export default function CheckoutPage() {
 
                 {category === "SOLIDARITY" && (
                   <div>
-                    <p className="text-xs font-black uppercase tracking-wide text-green-700">Cor do bloco</p>
+                    <p className="text-xs font-black uppercase tracking-wide text-green-700">Cor do tijolinho</p>
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       {SOLIDARITY_COLORS.map((color) => (
                         <button
@@ -593,7 +593,7 @@ export default function CheckoutPage() {
                 {category !== "SOLIDARITY" && (
                   <div className="space-y-3">
                     <label className="block">
-                      <span className={`text-xs font-black uppercase tracking-wide ${theme.text}`}>Imagem que aparecerá no grid</span>
+                      <span className={`text-xs font-black uppercase tracking-wide ${theme.text}`}>Imagem que aparecerá no mural</span>
                       <input
                         type="file"
                         accept="image/png,image/jpeg,image/webp"
@@ -619,7 +619,7 @@ export default function CheckoutPage() {
 
               <div className="space-y-3 rounded-3xl bg-slate-50 p-4">
                 <div className="flex justify-between text-sm">
-                  <span className="font-bold text-slate-600">Valor principal dos blocos</span>
+                  <span className="font-bold text-slate-600">Valor principal dos tijolinhos</span>
                   <span className="font-black text-slate-950">{money(subtotalCents)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -649,8 +649,8 @@ export default function CheckoutPage() {
             <div className="mt-6">
               <div className="rounded-3xl border border-green-200 bg-green-50 p-4">
                 <p className="text-xs font-black uppercase tracking-wide text-green-700">PIX criado com sucesso</p>
-                <h2 className="mt-2 text-xl font-black text-green-950">Blocos reservados</h2>
-                <p className="mt-2 text-sm font-bold leading-relaxed text-green-800">{pixResult.blocks.length} bloco(s) reservado(s)</p>
+                <h2 className="mt-2 text-xl font-black text-green-950">Tijolinhos reservados</h2>
+                <p className="mt-2 text-sm font-bold leading-relaxed text-green-800">{pixResult.blocks.length} tijolinho(s) reservado(s)</p>
                 <p className="mt-1 text-xs font-semibold leading-relaxed text-green-700">Pagamento: #{pixResult.payment.id}</p>
                 <p className="mt-1 text-xs font-semibold leading-relaxed text-green-700">Status inicial: {pixResult.payment.status}</p>
               </div>
@@ -659,10 +659,10 @@ export default function CheckoutPage() {
                 <div className="mt-5 rounded-3xl border border-emerald-200 bg-emerald-50 p-4">
                   <div className="text-3xl">✅</div>
                   <h2 className="mt-2 text-xl font-black text-emerald-950">Pagamento confirmado</h2>
-                  <p className="mt-2 text-sm font-bold leading-relaxed text-emerald-800">Seus blocos já entraram no Milhão Solidário.</p>
+                  <p className="mt-2 text-sm font-bold leading-relaxed text-emerald-800">Seus tijolinhos já entraram no mural.</p>
                   <div className="mt-4 grid grid-cols-2 gap-2">
-                    <Link href="/" className="rounded-2xl bg-emerald-600 py-3 text-center text-xs font-black text-white">Ver no mapa</Link>
-                    <Link href="/ranking" className="rounded-2xl bg-slate-950 py-3 text-center text-xs font-black text-white">Ver ranking</Link>
+                    <Link href="/" className="rounded-2xl bg-emerald-600 py-3 text-center text-xs font-black text-white">Ver no mural</Link>
+                    <Link href="/destaques" className="rounded-2xl bg-slate-950 py-3 text-center text-xs font-black text-white">Ver destaques</Link>
                   </div>
                 </div>
               )}

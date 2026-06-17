@@ -4,7 +4,7 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
-import { siteConfig } from "@/lib/site-config";
+import { getAreaName, siteConfig, type AreaKey } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
 
@@ -23,8 +23,24 @@ function isAuthorized(secretFromUrl: string | undefined) {
   return secretFromUrl === secret;
 }
 
+function areaLabel(value: string | null | undefined) {
+  if (value === "SOLIDARITY" || value === "PREMIUM" || value === "GOLD" || value === "GRAND_CENTER") {
+    return getAreaName(value as AreaKey);
+  }
+
+  return value || "Área";
+}
+
 
 type TestCategory = "SOLIDARITY" | "PREMIUM" | "GOLD";
+
+type AvailableBlockForTest = {
+  id: string;
+  gridX: number;
+  gridY: number;
+  category: TestCategory;
+  priceCents: number;
+};
 
 function normalizeTestCategory(value: string): TestCategory {
   if (value === "PREMIUM") return "PREMIUM";
@@ -50,7 +66,7 @@ async function saveTestImage(file: FormDataEntryValue | null) {
 }
 
 async function findAvailableRectangle(category: TestCategory, width: number, height: number) {
-  const blocks = await prisma.block.findMany({
+  const blocks: AvailableBlockForTest[] = await prisma.block.findMany({
     where: {
       category,
       status: "AVAILABLE",
@@ -70,7 +86,7 @@ async function findAvailableRectangle(category: TestCategory, width: number, hei
   const byCoord = new Map(blocks.map((block) => [`${block.gridX}:${block.gridY}`, block]));
 
   for (const block of blocks) {
-    const selected = [];
+    const selected: AvailableBlockForTest[] = [];
 
     for (let y = block.gridY; y < block.gridY + height; y++) {
       for (let x = block.gridX; x < block.gridX + width; x++) {
@@ -109,7 +125,7 @@ async function createTestArea(formData: FormData) {
   const fillColor = category === "SOLIDARITY" ? siteConfig.mosaicColors[0].value : category === "GOLD" ? "#f59e0b" : "#0f172a";
   const kind = category;
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: any) => {
     const user = await tx.user.create({
       data: {
         name: testName,
@@ -218,7 +234,7 @@ async function deleteTestAreas(formData: FormData) {
   const transactionIds = placements.map((placement) => placement.transactionId);
   const userIds = placements.map((placement) => placement.userId);
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: any) => {
     await tx.report.deleteMany({ where: { placementId: { in: placementIds } } });
     await tx.block.updateMany({
       where: { placementId: { in: placementIds } },
@@ -282,7 +298,7 @@ async function adminAction(formData: FormData) {
   }
 
   if (action === "RELEASE_BLOCK" && placementId) {
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       await tx.block.updateMany({
         where: { placementId },
         data: {
@@ -303,7 +319,7 @@ async function adminAction(formData: FormData) {
           imageUrl: null,
           redirectUrl: null,
           linkDisabled: true,
-          placeholderReason: "Bloco liberado pela moderação.",
+          placeholderReason: "Tijolinho liberado pela moderação.",
         },
       });
 
@@ -314,7 +330,7 @@ async function adminAction(formData: FormData) {
   }
 
   if (action === "BAN_USER" && userId) {
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       await tx.user.update({ where: { id: userId }, data: { isBanned: true } });
       await tx.placement.updateMany({
         where: { userId },
@@ -385,7 +401,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
             Acesse usando <strong>/admin?secret=SUA_SENHA</strong>.
           </p>
-          <Link href="/" className="mt-5 block rounded-2xl bg-slate-950 py-4 text-sm font-black text-white">Voltar ao mapa</Link>
+          <Link href="/" className="mt-5 block rounded-2xl bg-slate-950 py-4 text-sm font-black text-white">Voltar ao mural</Link>
         </div>
       </main>
     );
@@ -440,18 +456,18 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-6">
       <div className="mx-auto max-w-5xl">
-        <Link href="/" className="mb-5 inline-flex rounded-full bg-white px-4 py-2 text-sm font-black text-slate-950 shadow">← Voltar ao mapa</Link>
+        <Link href="/" className="mb-5 inline-flex rounded-full bg-white px-4 py-2 text-sm font-black text-slate-950 shadow">← Voltar ao mural</Link>
 
         <section className="mb-6 rounded-3xl bg-slate-950 p-5 text-white shadow-xl">
-          <p className="text-xs font-black uppercase tracking-wide text-yellow-300">Painel do dono</p>
-          <h1 className="mt-2 text-3xl font-black">Admin Milhão Solidário</h1>
+          <p className="text-xs font-black uppercase tracking-wide text-yellow-300">Painel admin</p>
+          <h1 className="mt-2 text-3xl font-black">Admin Tijolinho Digital</h1>
           <p className="mt-2 text-sm leading-relaxed text-slate-300">
-            Compras, reservas, Área Gold, Área Diamante e denúncias em um lugar só.
+            Compras, reservas, áreas com imagem/link, testes e denúncias em um lugar só.
           </p>
         </section>
 
         <section className="mb-6 grid gap-3 sm:grid-cols-4">
-          <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Blocos vendidos</p><p className="mt-1 text-2xl font-black">{soldBlocks}</p></div>
+          <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Tijolinhos vendidos</p><p className="mt-1 text-2xl font-black">{soldBlocks}</p></div>
           <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Reservas pendentes</p><p className="mt-1 text-2xl font-black">{pendingReservations.length}</p></div>
           <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Denúncias abertas</p><p className="mt-1 text-2xl font-black">{openReports}</p></div>
           <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Usuários banidos</p><p className="mt-1 text-2xl font-black">{bannedUsers}</p></div>
@@ -460,8 +476,8 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
         <section className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-xl font-black text-slate-950">Testes do grid</h2>
-              <p className="mt-1 text-sm font-bold text-slate-500">Crie áreas fictícias direto no mapa sem checkout e sem PIX.</p>
+              <h2 className="text-xl font-black text-slate-950">Testes do mural</h2>
+              <p className="mt-1 text-sm font-bold text-slate-500">Crie áreas fictícias direto no mural sem checkout e sem PIX.</p>
             </div>
             <form action={deleteTestAreas}>
               <input type="hidden" name="secret" value={secret} />
@@ -473,15 +489,15 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
             <form action={createTestArea} className="rounded-3xl border border-green-200 bg-green-50 p-4">
               <input type="hidden" name="secret" value={secret} />
               <input type="hidden" name="category" value="SOLIDARITY" />
-              <h3 className="font-black text-green-950">Teste Mosaico Apoiador</h3>
-              <p className="mt-1 text-xs font-bold text-green-700">Cria 1 bloco fictício.</p>
+              <h3 className="font-black text-green-950">Teste Copacabana</h3>
+              <p className="mt-1 text-xs font-bold text-green-700">Cria 1 tijolinho fictício.</p>
               <button type="submit" className="mt-4 w-full rounded-2xl bg-green-600 py-3 text-xs font-black text-white">Criar teste</button>
             </form>
 
             <form action={createTestArea} encType="multipart/form-data" className="rounded-3xl border border-yellow-200 bg-yellow-50 p-4">
               <input type="hidden" name="secret" value={secret} />
               <input type="hidden" name="category" value="PREMIUM" />
-              <h3 className="font-black text-yellow-950">Teste Área Gold</h3>
+              <h3 className="font-black text-yellow-950">Teste Jardins</h3>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <input name="width" defaultValue="2" className="rounded-xl border border-yellow-200 px-3 py-2 text-sm font-bold" />
                 <input name="height" defaultValue="2" className="rounded-xl border border-yellow-200 px-3 py-2 text-sm font-bold" />
@@ -493,7 +509,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
             <form action={createTestArea} encType="multipart/form-data" className="rounded-3xl border border-blue-200 bg-blue-50 p-4">
               <input type="hidden" name="secret" value={secret} />
               <input type="hidden" name="category" value="GOLD" />
-              <h3 className="font-black text-blue-950">Teste Área Diamante</h3>
+              <h3 className="font-black text-blue-950">Teste Leblon</h3>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <input name="width" defaultValue="2" className="rounded-xl border border-blue-200 px-3 py-2 text-sm font-bold" />
                 <input name="height" defaultValue="2" className="rounded-xl border border-blue-200 px-3 py-2 text-sm font-bold" />
@@ -509,7 +525,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
                 <article key={placement.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50 p-3">
                   <div>
                     <p className="text-sm font-black text-slate-950">{placement.title || placement.displayName}</p>
-                    <p className="text-xs font-bold text-slate-500">{placement.kind} • teste</p>
+                    <p className="text-xs font-bold text-slate-500">{areaLabel(placement.kind)} • teste</p>
                   </div>
                   <form action={deleteTestAreas}>
                     <input type="hidden" name="secret" value={secret} />
@@ -530,7 +546,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <p className="text-sm font-black text-slate-950">{transaction.user.publicName || transaction.user.name}</p>
-                    <p className="text-xs font-bold text-slate-500">{transaction.kind} • {transaction.status} • {transaction.items.length} bloco(s)</p>
+                    <p className="text-xs font-bold text-slate-500">{areaLabel(transaction.kind)} • {transaction.status} • {transaction.items.length} tijolinho(s)</p>
                   </div>
                   <p className="text-sm font-black text-green-700">{money(transaction.totalPaidCents)}</p>
                 </div>
@@ -545,7 +561,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
             {pendingReservations.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma reserva pendente.</p>}
             {pendingReservations.map((block) => (
               <article key={block.id} className="rounded-2xl bg-yellow-50 p-4">
-                <p className="text-sm font-black text-yellow-950">x{block.gridX}/y{block.gridY} • {block.category}</p>
+                <p className="text-sm font-black text-yellow-950">x{block.gridX}/y{block.gridY} • {areaLabel(block.category)}</p>
                 <p className="text-xs font-bold text-yellow-700">{block.owner?.name || "Sem comprador"} • vence {block.reservedUntil?.toLocaleString("pt-BR")}</p>
               </article>
             ))}
@@ -553,14 +569,14 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
         </section>
 
         <section className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
-          <h2 className="text-xl font-black text-slate-950">Área Gold e Área Diamante com imagem/link</h2>
+          <h2 className="text-xl font-black text-slate-950">Jardins e Leblon com imagem/link</h2>
           <div className="mt-4 space-y-3">
-            {premiumPlacements.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma Área Gold/Área Diamante vendida ainda.</p>}
+            {premiumPlacements.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhum espaço de Jardins/Leblon vendido ainda.</p>}
             {premiumPlacements.map((placement) => (
               <article key={placement.id} className="rounded-2xl border border-slate-200 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-black uppercase text-slate-500">{placement.kind} • {placement.status}</p>
+                    <p className="text-xs font-black uppercase text-slate-500">{areaLabel(placement.kind)} • {placement.status}</p>
                     <h3 className="mt-1 text-lg font-black text-slate-950">{placement.title || placement.displayName}</h3>
                     <p className="mt-1 text-sm text-slate-600">{placement.description || "Sem descrição"}</p>
                     <p className="mt-1 text-xs font-bold text-slate-500">Imagem: {placement.imageUrl ? "sim" : "não"} • Link: {placement.redirectUrl && !placement.linkDisabled ? "ativo" : "não"}</p>
@@ -584,14 +600,14 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
               <article key={report.id} className="rounded-2xl border border-slate-200 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-black uppercase text-slate-500">{report.status} • bloco x{report.block.gridX}/y{report.block.gridY}</p>
-                    <h3 className="mt-1 text-lg font-black text-slate-950">{report.placement?.title || report.placement?.displayName || "Bloco denunciado"}</h3>
+                    <p className="text-xs font-black uppercase text-slate-500">{report.status} • tijolinho x{report.block.gridX}/y{report.block.gridY}</p>
+                    <h3 className="mt-1 text-lg font-black text-slate-950">{report.placement?.title || report.placement?.displayName || "Tijolinho denunciado"}</h3>
                     <p className="mt-2 text-sm leading-relaxed text-slate-600">{report.reason}</p>
                   </div>
                   <div className="grid min-w-44 gap-2">
                     <ActionButton label="Bloquear imagem" action="BLOCK_IMAGE" secret={secret} reportId={report.id} placementId={report.placementId} className="rounded-2xl bg-slate-800 px-3 py-2 text-xs font-black text-white" />
                     <ActionButton label="Bloquear link" action="BLOCK_LINK" secret={secret} reportId={report.id} placementId={report.placementId} className="rounded-2xl bg-orange-500 px-3 py-2 text-xs font-black text-white" />
-                    <ActionButton label="Liberar bloco" action="RELEASE_BLOCK" secret={secret} reportId={report.id} placementId={report.placementId} className="rounded-2xl bg-yellow-400 px-3 py-2 text-xs font-black text-yellow-950" />
+                    <ActionButton label="Liberar tijolinho" action="RELEASE_BLOCK" secret={secret} reportId={report.id} placementId={report.placementId} className="rounded-2xl bg-yellow-400 px-3 py-2 text-xs font-black text-yellow-950" />
                     <ActionButton label="Banir comprador" action="BAN_USER" secret={secret} reportId={report.id} placementId={report.placementId} userId={report.placement?.userId} className="rounded-2xl bg-red-600 px-3 py-2 text-xs font-black text-white" />
                     <ActionButton label="Resolver" action="RESOLVE_REPORT" secret={secret} reportId={report.id} className="rounded-2xl bg-green-600 px-3 py-2 text-xs font-black text-white" />
                   </div>
