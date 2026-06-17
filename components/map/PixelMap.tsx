@@ -16,8 +16,8 @@ import {
 
 const MAX_SCALE = 8;
 const MURAL_IMAGE_URL = "/mural-rio.png";
-// As linhas finas amarelas precisam ficar exatamente no vão entre as duas linhas douradas grossas da arte.
-const VISUAL_AREA_DIVIDERS_PX = [650, 1550] as const;
+// As linhas finas amarelas precisam ficar exatamente no centro do vão preto entre as duas linhas douradas grossas da arte.
+const VISUAL_AREA_DIVIDERS_PX = [656.5, 1556.5] as const;
 
 type BlockCategory = "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTER";
 type BuyableCategory = "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTER";
