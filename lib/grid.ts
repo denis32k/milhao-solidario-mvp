@@ -1,4 +1,5 @@
 import { getAreaPriceCents } from "@/lib/site-config";
+
 export const GRID_COLS = 200;
 export const GRID_ROWS = 145;
 export const BLOCK_SIZE = 10;
@@ -6,53 +7,38 @@ export const BLOCK_SIZE = 10;
 export const MAP_WIDTH = GRID_COLS * BLOCK_SIZE;
 export const MAP_HEIGHT = GRID_ROWS * BLOCK_SIZE;
 
-export const CENTER_LOCKED_MIN_X = 95;
-export const CENTER_LOCKED_MAX_X = 104;
-export const CENTER_LOCKED_MIN_Y = 68;
-export const CENTER_LOCKED_MAX_Y = 77;
-
-export const GOLD_RING_MIN_X = 90;
-export const GOLD_RING_MAX_X = 109;
-export const GOLD_RING_MIN_Y = 63;
-export const GOLD_RING_MAX_Y = 82;
-
-export const SOLIDARITY_TOP_ROWS = 10;
-export const SOLIDARITY_SIDE_COLS = 24;
-
 export type GridBlockCategory = "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTER";
 
-export function isGrandCenterBlock(x: number, y: number) {
-  return (
-    x >= CENTER_LOCKED_MIN_X &&
-    x <= CENTER_LOCKED_MAX_X &&
-    y >= CENTER_LOCKED_MIN_Y &&
-    y <= CENTER_LOCKED_MAX_Y
-  );
+export const COPACABANA_MAX_X = 65;
+export const LEBLON_MAX_X = 132;
+
+export const RESTRICTED_AREAS = [
+  { id: "copacabana-sign", minX: 10, maxX: 51, minY: 124, maxY: 138 },
+  { id: "leblon-sign", minX: 80, maxX: 122, minY: 66, maxY: 86 },
+  { id: "ipanema-sign", minX: 147, maxX: 189, minY: 124, maxY: 138 },
+] as const;
+
+function isInsideRect(
+  x: number,
+  y: number,
+  rect: { minX: number; maxX: number; minY: number; maxY: number }
+) {
+  return x >= rect.minX && x <= rect.maxX && y >= rect.minY && y <= rect.maxY;
 }
 
-export function isGoldRingBlock(x: number, y: number) {
-  return (
-    x >= GOLD_RING_MIN_X &&
-    x <= GOLD_RING_MAX_X &&
-    y >= GOLD_RING_MIN_Y &&
-    y <= GOLD_RING_MAX_Y &&
-    !isGrandCenterBlock(x, y)
-  );
+export function isRestrictedBlock(x: number, y: number) {
+  return RESTRICTED_AREAS.some((rect) => isInsideRect(x, y, rect));
 }
 
-export function isSolidarityFrameBlock(x: number, y: number) {
-  return (
-    y < SOLIDARITY_TOP_ROWS ||
-    y >= GRID_ROWS - SOLIDARITY_TOP_ROWS ||
-    x < SOLIDARITY_SIDE_COLS ||
-    x >= GRID_COLS - SOLIDARITY_SIDE_COLS
-  );
+export function getRestrictedAreaId(x: number, y: number) {
+  const rect = RESTRICTED_AREAS.find((area) => isInsideRect(x, y, area));
+  return rect?.id ?? null;
 }
 
 export function getBlockCategory(x: number, y: number): GridBlockCategory {
-  if (isGrandCenterBlock(x, y)) return "GRAND_CENTER";
-  if (isGoldRingBlock(x, y)) return "GOLD";
-  if (isSolidarityFrameBlock(x, y)) return "SOLIDARITY";
+  if (isRestrictedBlock(x, y)) return "GRAND_CENTER";
+  if (x <= COPACABANA_MAX_X) return "SOLIDARITY";
+  if (x <= LEBLON_MAX_X) return "GOLD";
   return "PREMIUM";
 }
 

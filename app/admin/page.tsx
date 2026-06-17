@@ -497,7 +497,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
             <form action={createTestArea} encType="multipart/form-data" className="rounded-3xl border border-yellow-200 bg-yellow-50 p-4">
               <input type="hidden" name="secret" value={secret} />
               <input type="hidden" name="category" value="PREMIUM" />
-              <h3 className="font-black text-yellow-950">Teste Jardins</h3>
+              <h3 className="font-black text-yellow-950">Teste Ipanema</h3>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <input name="width" defaultValue="2" className="rounded-xl border border-yellow-200 px-3 py-2 text-sm font-bold" />
                 <input name="height" defaultValue="2" className="rounded-xl border border-yellow-200 px-3 py-2 text-sm font-bold" />
@@ -569,9 +569,9 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
         </section>
 
         <section className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
-          <h2 className="text-xl font-black text-slate-950">Jardins e Leblon com imagem/link</h2>
+          <h2 className="text-xl font-black text-slate-950">Ipanema e Leblon com imagem/link</h2>
           <div className="mt-4 space-y-3">
-            {premiumPlacements.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhum espaço de Jardins/Leblon vendido ainda.</p>}
+            {premiumPlacements.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhum espaço de Ipanema/Leblon vendido ainda.</p>}
             {premiumPlacements.map((placement) => (
               <article key={placement.id} className="rounded-2xl border border-slate-200 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">

@@ -5,23 +5,22 @@ const siteConfig = require("../config/site.config.json");
 
 const GRID_COLS = 200;
 const GRID_ROWS = 145;
+const COPACABANA_MAX_X = 65;
+const LEBLON_MAX_X = 132;
+const RESTRICTED_AREAS = [
+  { minX: 10, maxX: 51, minY: 124, maxY: 138 },
+  { minX: 80, maxX: 122, minY: 66, maxY: 86 },
+  { minX: 147, maxX: 189, minY: 124, maxY: 138 },
+];
 
-function isGrandCenterBlock(x, y) {
-  return x >= 95 && x <= 104 && y >= 68 && y <= 77;
-}
-
-function isGoldRingBlock(x, y) {
-  return x >= 90 && x <= 109 && y >= 63 && y <= 82 && !isGrandCenterBlock(x, y);
-}
-
-function isSolidarityFrameBlock(x, y) {
-  return y < 10 || y >= 135 || x < 24 || x >= 176;
+function isRestrictedBlock(x, y) {
+  return RESTRICTED_AREAS.some((rect) => x >= rect.minX && x <= rect.maxX && y >= rect.minY && y <= rect.maxY);
 }
 
 function getCategory(x, y) {
-  if (isGrandCenterBlock(x, y)) return "GRAND_CENTER";
-  if (isGoldRingBlock(x, y)) return "GOLD";
-  if (isSolidarityFrameBlock(x, y)) return "SOLIDARITY";
+  if (isRestrictedBlock(x, y)) return "GRAND_CENTER";
+  if (x <= COPACABANA_MAX_X) return "SOLIDARITY";
+  if (x <= LEBLON_MAX_X) return "GOLD";
   return "PREMIUM";
 }
 
@@ -30,8 +29,7 @@ function getPriceCents(category) {
 }
 
 function getStatus(category) {
-  if (category === "GRAND_CENTER") return "LOCKED";
-  return "AVAILABLE";
+  return category === "GRAND_CENTER" ? "LOCKED" : "AVAILABLE";
 }
 
 async function main() {
@@ -52,7 +50,6 @@ async function main() {
 
       if (batch.length >= 1000) {
         await prisma.block.createMany({ data: batch, skipDuplicates: true });
-        console.log(`Processados ${y}/${GRID_ROWS}`);
         batch = [];
       }
     }
@@ -62,25 +59,16 @@ async function main() {
     await prisma.block.createMany({ data: batch, skipDuplicates: true });
   }
 
-  const total = await prisma.block.count();
-  const solidarity = await prisma.block.count({ where: { category: "SOLIDARITY" } });
-  const premium = await prisma.block.count({ where: { category: "PREMIUM" } });
-  const gold = await prisma.block.count({ where: { category: "GOLD" } });
-  const grandCenter = await prisma.block.count({ where: { category: "GRAND_CENTER" } });
+  const counts = {
+    total: await prisma.block.count(),
+    copacabana: await prisma.block.count({ where: { category: "SOLIDARITY" } }),
+    leblon: await prisma.block.count({ where: { category: "GOLD" } }),
+    ipanema: await prisma.block.count({ where: { category: "PREMIUM" } }),
+    restrita: await prisma.block.count({ where: { category: "GRAND_CENTER" } }),
+  };
 
-  console.log({ total, solidarity, premium, gold, grandCenter });
-
-  if (
-    total !== 29000 ||
-    solidarity !== 10000 ||
-    premium !== 18600 ||
-    gold !== 300 ||
-    grandCenter !== 100
-  ) {
-    throw new Error("Matemática do grid incorreta");
-  }
-
-  console.log("Matemática do grid conferida com sucesso!");
+  console.log(counts);
+  console.log("Grid do mural inicializado com sucesso.");
 }
 
 main()

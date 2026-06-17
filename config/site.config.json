@@ -1,32 +1,32 @@
 {
   "brand": {
     "name": "Tijolinho Digital",
-    "shortName": "Tijolinho Digital",
+    "shortName": "Tijolinho",
     "subtitle": "Mural comercial em construção",
     "logoEmoji": "🧱"
   },
   "goalCents": 200000000,
-  "operationalFeePercent": 10,
+  "operationalFeePercent": 0,
   "mainHeadline": "Compre seu tijolinho digital e ajude a construir um dos murais mais ambiciosos da internet.",
   "areas": {
     "SOLIDARITY": {
       "id": "copacabana",
       "name": "Copacabana",
-      "shortName": "Copacabana",
+      "shortName": "Copa",
       "type": "entrada",
-      "visualTheme": "calcada-copacabana",
-      "priceCents": 1000,
+      "visualTheme": "orla-calcada-copacabana",
+      "priceCents": 900,
       "description": "Entre no mural com seu primeiro tijolinho digital.",
       "cardText": "Comece sua presença no mural.",
       "included": "Nome público, cor do tijolinho, descrição curta e link opcional."
     },
     "PREMIUM": {
-      "id": "jardins",
-      "name": "Jardins",
-      "shortName": "Jardins",
+      "id": "ipanema",
+      "name": "Ipanema",
+      "shortName": "Ipanema",
       "type": "premium",
-      "visualTheme": "verde-pedra-sofisticado",
-      "priceCents": 10000,
+      "visualTheme": "orla-premium-ipanema",
+      "priceCents": 4900,
       "description": "Uma área premium para quem quer mais presença no mural.",
       "cardText": "Mais destaque para nomes, marcas e ideias.",
       "included": "Imagem no mural, nome público, descrição e link."
@@ -36,29 +36,29 @@
       "name": "Leblon",
       "shortName": "Leblon",
       "type": "mega-especial",
-      "visualTheme": "champagne-dourado-luxo",
-      "priceCents": 50000,
+      "visualTheme": "orla-luxo-leblon",
+      "priceCents": 14900,
       "description": "A área mais exclusiva do mural. Poucos espaços, máximo destaque.",
       "cardText": "Poucos espaços, máximo destaque.",
       "included": "Imagem no mural, nome público, descrição, link e destaque visual."
     },
     "GRAND_CENTER": {
-      "id": "reserved-center",
-      "name": "Área reservada",
-      "shortName": "Reservada",
-      "type": "bloqueada",
-      "visualTheme": "centro-reservado",
+      "id": "restricted-signs",
+      "name": "Área restrita",
+      "shortName": "Restrita",
+      "type": "restrita",
+      "visualTheme": "placa-restrita",
       "priceCents": 0,
-      "description": "Área central reservada para uma ação especial futura."
+      "description": "Este espaço será liberado em uma fase especial da obra."
     }
   },
   "mosaicColors": [
-    { "name": "Verde obra", "value": "#22c55e" },
-    { "name": "Azul mural", "value": "#2563eb" },
-    { "name": "Rosa destaque", "value": "#ec4899" },
-    { "name": "Roxo criativo", "value": "#8b5cf6" },
-    { "name": "Laranja energia", "value": "#f97316" },
-    { "name": "Amarelo luz", "value": "#eab308" }
+    { "name": "Azul Atlântico", "value": "#2563eb" },
+    { "name": "Verde Obra", "value": "#22c55e" },
+    { "name": "Amarelo Sol", "value": "#eab308" },
+    { "name": "Laranja Energia", "value": "#f97316" },
+    { "name": "Rosa Destaque", "value": "#ec4899" },
+    { "name": "Roxo Criativo", "value": "#8b5cf6" }
   ],
   "constructionPhases": [
     "Terreno Aberto",
@@ -77,7 +77,7 @@
     "secondaryCta": "Explorar mural",
     "heroTagline": "Um mural digital sendo construído tijolinho por tijolinho.",
     "constructionText": "Cada tijolinho vendido ajuda essa obra digital a crescer. Acompanhe as fases da construção e escolha seu espaço antes que o mural seja completado.",
-    "legendaryMessage": "Área central reservada para uma ação especial futura.",
+    "legendaryMessage": "Este espaço será liberado em uma fase especial da obra.",
     "checkoutTitle": "Comprar tijolinho digital",
     "pixButton": "Gerar PIX Mercado Pago",
     "reportButton": "Denunciar",

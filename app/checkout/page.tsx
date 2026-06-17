@@ -291,7 +291,7 @@ export default function CompraPage() {
       }
 
       if (requiresImageShape && !isRectangle) {
-        alert("Para Jardins e Leblon, selecione uma área retangular.");
+        alert("Para Ipanema e Leblon, selecione uma área retangular.");
         return;
       }
 
@@ -619,13 +619,15 @@ export default function CompraPage() {
 
               <div className="space-y-3 rounded-3xl bg-slate-50 p-4">
                 <div className="flex justify-between text-sm">
-                  <span className="font-bold text-slate-600">Valor principal dos tijolinhos</span>
+                  <span className="font-bold text-slate-600">Valor dos tijolinhos</span>
                   <span className="font-black text-slate-950">{money(subtotalCents)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="font-bold text-slate-600">Taxa operacional e tributária 10%</span>
-                  <span className="font-black text-slate-950">{money(operationalFeeCents)}</span>
-                </div>
+                {operationalFeeCents > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="font-bold text-slate-600">Taxa operacional</span>
+                    <span className="font-black text-slate-950">{money(operationalFeeCents)}</span>
+                  </div>
+                )}
                 <div className="border-t border-slate-200 pt-3">
                   <div className="flex justify-between">
                     <span className="font-black text-slate-950">Total PIX</span>
@@ -662,7 +664,7 @@ export default function CompraPage() {
                   <p className="mt-2 text-sm font-bold leading-relaxed text-emerald-800">Seus tijolinhos já entraram no mural.</p>
                   <div className="mt-4 grid grid-cols-2 gap-2">
                     <Link href="/" className="rounded-2xl bg-emerald-600 py-3 text-center text-xs font-black text-white">Ver no mural</Link>
-                    <Link href="/destaques" className="rounded-2xl bg-slate-950 py-3 text-center text-xs font-black text-white">Ver destaques</Link>
+                    <Link href="/ranking" className="rounded-2xl bg-slate-950 py-3 text-center text-xs font-black text-white">Ver destaques</Link>
                   </div>
                 </div>
               )}

@@ -7,50 +7,28 @@ const pricePremium = siteConfig.areas.PREMIUM.priceCents;
 const priceGold = siteConfig.areas.GOLD.priceCents;
 
 async function main() {
-  console.log("Atualizando categorias do grid sem apagar vendas aprovadas...");
+  console.log("Atualizando categorias do grid para o novo mural sem apagar vendas aprovadas...");
 
   await prisma.$executeRawUnsafe(`
     UPDATE "Block"
     SET
-      "category" = 'PREMIUM'::"BlockCategory",
-      "status" = 'AVAILABLE'::"BlockStatus",
-      "available" = true,
-      "priceCents" = ${pricePremium},
-      "ownerId" = NULL,
-      "currentTransactionId" = NULL,
-      "reservationToken" = NULL,
-      "reservedUntil" = NULL
-    WHERE "status" != 'SOLD'::"BlockStatus";
-  `);
-
-  await prisma.$executeRawUnsafe(`
-    UPDATE "Block"
-    SET
-      "category" = 'SOLIDARITY'::"BlockCategory",
-      "priceCents" = ${priceSolidarity}
-    WHERE
-      "status" != 'SOLD'::"BlockStatus"
-      AND (
-        "gridY" < 10
-        OR "gridY" >= 135
-        OR "gridX" < 24
-        OR "gridX" >= 176
-      );
-  `);
-
-  await prisma.$executeRawUnsafe(`
-    UPDATE "Block"
-    SET
-      "category" = 'GOLD'::"BlockCategory",
-      "priceCents" = ${priceGold}
-    WHERE
-      "status" != 'SOLD'::"BlockStatus"
-      AND "gridX" BETWEEN 90 AND 109
-      AND "gridY" BETWEEN 63 AND 82
-      AND NOT (
-        "gridX" BETWEEN 95 AND 104
-        AND "gridY" BETWEEN 68 AND 77
-      );
+      "category" = CASE
+        WHEN "gridX" <= 65 THEN 'SOLIDARITY'::"BlockCategory"
+        WHEN "gridX" <= 132 THEN 'GOLD'::"BlockCategory"
+        ELSE 'PREMIUM'::"BlockCategory"
+      END,
+      "status" = CASE WHEN "status" = 'SOLD'::"BlockStatus" THEN "status" ELSE 'AVAILABLE'::"BlockStatus" END,
+      "available" = CASE WHEN "status" = 'SOLD'::"BlockStatus" THEN false ELSE true END,
+      "priceCents" = CASE
+        WHEN "gridX" <= 65 THEN ${priceSolidarity}
+        WHEN "gridX" <= 132 THEN ${priceGold}
+        ELSE ${pricePremium}
+      END,
+      "ownerId" = CASE WHEN "status" = 'SOLD'::"BlockStatus" THEN "ownerId" ELSE NULL END,
+      "currentTransactionId" = CASE WHEN "status" = 'SOLD'::"BlockStatus" THEN "currentTransactionId" ELSE NULL END,
+      "reservationToken" = CASE WHEN "status" = 'SOLD'::"BlockStatus" THEN "reservationToken" ELSE NULL END,
+      "reservedUntil" = CASE WHEN "status" = 'SOLD'::"BlockStatus" THEN "reservedUntil" ELSE NULL END
+    WHERE "status" != 'BLOCKED'::"BlockStatus";
   `);
 
   await prisma.$executeRawUnsafe(`
@@ -66,16 +44,17 @@ async function main() {
       "reservationToken" = NULL,
       "reservedUntil" = NULL
     WHERE
-      "gridX" BETWEEN 95 AND 104
-      AND "gridY" BETWEEN 68 AND 77;
+      ("gridX" BETWEEN 10 AND 51 AND "gridY" BETWEEN 124 AND 138)
+      OR ("gridX" BETWEEN 80 AND 122 AND "gridY" BETWEEN 66 AND 86)
+      OR ("gridX" BETWEEN 147 AND 189 AND "gridY" BETWEEN 124 AND 138);
   `);
 
   const counts = {
     total: await prisma.block.count(),
-    solidarity: await prisma.block.count({ where: { category: "SOLIDARITY" } }),
-    premium: await prisma.block.count({ where: { category: "PREMIUM" } }),
-    gold: await prisma.block.count({ where: { category: "GOLD" } }),
-    grandCenter: await prisma.block.count({ where: { category: "GRAND_CENTER" } }),
+    copacabana: await prisma.block.count({ where: { category: "SOLIDARITY" } }),
+    leblon: await prisma.block.count({ where: { category: "GOLD" } }),
+    ipanema: await prisma.block.count({ where: { category: "PREMIUM" } }),
+    restrita: await prisma.block.count({ where: { category: "GRAND_CENTER" } }),
   };
 
   console.log(counts);

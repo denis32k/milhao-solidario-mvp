@@ -2,14 +2,20 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { MouseEvent, PointerEvent, WheelEvent } from "react";
-import { getAreaIncluded, getAreaName, getAreaPriceCents, siteConfig } from "@/lib/site-config";
+import { getAreaName, getAreaPriceCents, siteConfig } from "@/lib/site-config";
+import {
+  BLOCK_SIZE,
+  getBlockCategory,
+  getRestrictedAreaId,
+  GRID_COLS,
+  GRID_ROWS,
+  MAP_HEIGHT,
+  MAP_WIDTH,
+  RESTRICTED_AREAS,
+} from "@/lib/grid";
 
-const GRID_COLS = 200;
-const GRID_ROWS = 145;
-const BLOCK_SIZE = 10;
-const MAP_WIDTH = GRID_COLS * BLOCK_SIZE;
-const MAP_HEIGHT = GRID_ROWS * BLOCK_SIZE;
 const MAX_SCALE = 8;
+const MURAL_IMAGE_URL = "/mural-rio.png";
 
 type BlockCategory = "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTER";
 type BuyableCategory = "SOLIDARITY" | "PREMIUM" | "GOLD";
@@ -62,7 +68,7 @@ type ApiMapBlock = {
 
 type SelectedSheet =
   | null
-  | { type: "grand-center" }
+  | { type: "restricted-area" }
   | { type: "sold"; block: ApiMapBlock; anchorX: number; anchorY: number };
 
 type PointerPoint = {
@@ -88,17 +94,6 @@ function money(cents: number) {
   }).format(cents / 100);
 }
 
-function getBlockType(x: number, y: number): BlockCategory {
-  const isGrandCenter = x >= 95 && x <= 104 && y >= 68 && y <= 77;
-  const isGoldRing = x >= 90 && x <= 109 && y >= 63 && y <= 82 && !isGrandCenter;
-  const isSolidarityFrame = y < 10 || y >= 135 || x < 24 || x >= 176;
-
-  if (isGrandCenter) return "GRAND_CENTER";
-  if (isGoldRing) return "GOLD";
-  if (isSolidarityFrame) return "SOLIDARITY";
-  return "PREMIUM";
-}
-
 function getBlockPrice(category: BlockCategory) {
   if (category === "SOLIDARITY" || category === "PREMIUM" || category === "GOLD" || category === "GRAND_CENTER") {
     return getAreaPriceCents(category);
@@ -122,11 +117,7 @@ function getPointerCenter(a: PointerPoint, b: PointerPoint) {
   };
 }
 
-function isAdjacentToSelection(
-  selectedBlocks: SelectedBlock[],
-  gridX: number,
-  gridY: number
-) {
+function isAdjacentToSelection(selectedBlocks: SelectedBlock[], gridX: number, gridY: number) {
   if (selectedBlocks.length === 0) {
     return true;
   }
@@ -134,7 +125,6 @@ function isAdjacentToSelection(
   return selectedBlocks.some((block) => {
     const dx = Math.abs(block.gridX - gridX);
     const dy = Math.abs(block.gridY - gridY);
-
     return dx + dy === 1;
   });
 }
@@ -163,62 +153,14 @@ function getDisplayName(block: ApiMapBlock) {
   );
 }
 
-function getSoldBlockColor(block: ApiMapBlock) {
-  if (block.status === "BLOCKED") return "#64748b";
-  if (block.placement?.status === "BANNED" || block.placement?.status === "REMOVED") return "#64748b";
-  if (block.status === "RESERVED") return "#94a3b8";
-  if (block.category === "SOLIDARITY") return block.placement?.fillColor || "#22c55e";
-  if (block.category === "GOLD") return "#f6c35f";
-  if (block.category === "PREMIUM") return "#14532d";
-  return "#eab308";
-}
-
-function getAvailableBlockColor(category: BlockCategory, x = 0, y = 0) {
-  if (category === "SOLIDARITY") {
-    const wave = Math.sin((x + y * 0.72) / 4.2);
-    return wave > 0 ? "#f8fafc" : "#111827";
-  }
-
-  if (category === "GOLD") {
-    const shimmer = (x + y) % 4 === 0;
-    return shimmer ? "#fde68a" : "#f8e7bd";
-  }
-
-  if (category === "PREMIUM") {
-    const stone = (x * 7 + y * 3) % 5 === 0;
-    return stone ? "#d7e5d4" : "#0f3d2e";
-  }
-
-  return "#d97706";
-}
-
-function drawBrick(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  fill: string,
-  scale: number,
-  category: BlockCategory
-) {
-  const gap = scale > 2.4 ? 0.9 : scale > 1.2 ? 0.45 : 0.15;
-  const px = x * BLOCK_SIZE;
-  const py = y * BLOCK_SIZE;
-
-  ctx.fillStyle = fill;
-  ctx.fillRect(px + gap, py + gap, BLOCK_SIZE - gap * 2, BLOCK_SIZE - gap * 2);
-
-  if (scale > 0.55) {
-    ctx.strokeStyle = category === "SOLIDARITY" ? "rgba(15,23,42,0.28)" : "rgba(255,255,255,0.22)";
-    ctx.lineWidth = scale > 2 ? 0.55 : 0.32;
-    ctx.strokeRect(px + gap, py + gap, BLOCK_SIZE - gap * 2, BLOCK_SIZE - gap * 2);
-  }
-
-  if (scale > 1.6) {
-    ctx.fillStyle = "rgba(255,255,255,0.16)";
-    ctx.fillRect(px + gap + 0.7, py + gap + 0.7, BLOCK_SIZE - gap * 2 - 1.4, 1.2);
-    ctx.fillStyle = "rgba(0,0,0,0.14)";
-    ctx.fillRect(px + gap + 0.7, py + BLOCK_SIZE - gap - 1.6, BLOCK_SIZE - gap * 2 - 1.4, 1);
-  }
+function getSoldBlockOverlayColor(block: ApiMapBlock) {
+  if (block.status === "BLOCKED") return "rgba(100,116,139,0.85)";
+  if (block.placement?.status === "BANNED" || block.placement?.status === "REMOVED") return "rgba(100,116,139,0.85)";
+  if (block.status === "RESERVED") return "rgba(148,163,184,0.75)";
+  if (block.category === "SOLIDARITY") return `${block.placement?.fillColor || "#22c55e"}CC`;
+  if (block.category === "GOLD") return "rgba(245,158,11,0.32)";
+  if (block.category === "PREMIUM") return "rgba(14,116,144,0.28)";
+  return "rgba(148,163,184,0.7)";
 }
 
 function getCategoryLabel(category: BuyableCategory) {
@@ -227,16 +169,11 @@ function getCategoryLabel(category: BuyableCategory) {
 
 function buildCheckoutHref(selectedBlocks: SelectedBlock[]) {
   const params = new URLSearchParams();
-
   params.set(
     "blocks",
-    selectedBlocks
-      .map((block) => `${block.gridX}:${block.gridY}`)
-      .join(",")
+    selectedBlocks.map((block) => `${block.gridX}:${block.gridY}`).join(",")
   );
-
   params.set("category", selectedBlocks[0]?.category || "SOLIDARITY");
-
   return `/checkout?${params.toString()}`;
 }
 
@@ -293,10 +230,7 @@ export default function PixelMap() {
   const selectedIsRectangle = blocksFormRectangle(selectedBlocks);
   const canContinue = selectedBlocks.length > 0 && (!selectedNeedsRectangle || selectedIsRectangle);
 
-  const selectedSubtotalCents = selectedBlocks.reduce(
-    (total, block) => total + block.priceCents,
-    0
-  );
+  const selectedSubtotalCents = selectedBlocks.reduce((total, block) => total + block.priceCents, 0);
   const selectedFeeCents = Math.ceil(selectedSubtotalCents * (siteConfig.operationalFeePercent / 100));
   const selectedTotalCents = selectedSubtotalCents + selectedFeeCents;
 
@@ -341,7 +275,7 @@ export default function PixelMap() {
 
     const rect = wrapper.getBoundingClientRect();
     const minScale = getMinScale();
-    const nextScale = clamp(minScale * 2.15, minScale, MAX_SCALE);
+    const nextScale = clamp(minScale * 1.1, minScale, MAX_SCALE);
 
     setCamera(
       clampCamera({
@@ -354,11 +288,9 @@ export default function PixelMap() {
 
   useEffect(() => {
     focusCenter();
-
     function handleResize() {
       focusCenter();
     }
-
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
@@ -388,7 +320,7 @@ export default function PixelMap() {
 
   useEffect(() => {
     drawMap();
-  }, [camera, mapBlocks, selectedBlocks]);
+  }, [camera, mapBlocks, selectedBlocks, isLoadingBlocks]);
 
   function getMapBlockAt(x: number, y: number) {
     return mapBlocks.find((block) => block.gridX === x && block.gridY === y);
@@ -400,7 +332,6 @@ export default function PixelMap() {
 
   function getImage(url: string) {
     const cached = imageCacheRef.current.get(url);
-
     if (cached) return cached;
 
     const image = new Image();
@@ -418,7 +349,6 @@ export default function PixelMap() {
 
     const rect = wrapper.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
-
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
     canvas.style.width = `${rect.width}px`;
@@ -427,44 +357,80 @@ export default function PixelMap() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const soldBlockByCoord = new Map(
-      mapBlocks.map((block) => [getBlockKey(block.gridX, block.gridY), block])
-    );
+    const muralImage = getImage(MURAL_IMAGE_URL);
+    const blockByCoord = new Map(mapBlocks.map((block) => [getBlockKey(block.gridX, block.gridY), block]));
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, rect.width, rect.height);
-    ctx.fillStyle = "#0f172a";
+    ctx.fillStyle = "#020617";
     ctx.fillRect(0, 0, rect.width, rect.height);
 
     ctx.save();
     ctx.translate(camera.x, camera.y);
     ctx.scale(camera.scale, camera.scale);
 
+    if (muralImage.complete && muralImage.naturalWidth) {
+      ctx.drawImage(muralImage, 0, 0, MAP_WIDTH, MAP_HEIGHT);
+    } else {
+      const gradient = ctx.createLinearGradient(0, 0, MAP_WIDTH, MAP_HEIGHT);
+      gradient.addColorStop(0, "#0f172a");
+      gradient.addColorStop(0.5, "#164e63");
+      gradient.addColorStop(1, "#0f172a");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
+    }
+
+    // divisões visuais principais
+    ctx.strokeStyle = "rgba(234,179,8,0.75)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo((66 * BLOCK_SIZE), 0);
+    ctx.lineTo((66 * BLOCK_SIZE), MAP_HEIGHT);
+    ctx.moveTo((133 * BLOCK_SIZE), 0);
+    ctx.lineTo((133 * BLOCK_SIZE), MAP_HEIGHT);
+    ctx.stroke();
+
+    // desenha blocos especiais e overlays
     for (let y = 0; y < GRID_ROWS; y++) {
       for (let x = 0; x < GRID_COLS; x++) {
-        const type = getBlockType(x, y);
-        const soldBlock = soldBlockByCoord.get(getBlockKey(x, y));
+        const category = getBlockCategory(x, y);
+        const block = blockByCoord.get(getBlockKey(x, y));
         const px = x * BLOCK_SIZE;
         const py = y * BLOCK_SIZE;
 
-        const fill = soldBlock ? getSoldBlockColor(soldBlock) : getAvailableBlockColor(type, x, y);
-        drawBrick(ctx, x, y, fill, camera.scale, type);
-
-        if (!soldBlock && camera.scale < 0.72 && type !== "SOLIDARITY") {
-          ctx.fillStyle = type === "PREMIUM" ? "rgba(15, 61, 46, 0.28)" : "rgba(250, 204, 21, 0.22)";
+        if (category === "GRAND_CENTER") {
+          ctx.fillStyle = "rgba(2,6,23,0.35)";
           ctx.fillRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
+        }
+
+        if (block && (!block.placement?.imageUrl || block.category === "SOLIDARITY" || block.status === "RESERVED" || block.status === "BLOCKED")) {
+          ctx.fillStyle = getSoldBlockOverlayColor(block);
+          ctx.fillRect(px + 0.6, py + 0.6, BLOCK_SIZE - 1.2, BLOCK_SIZE - 1.2);
+        }
+
+        if (isSelected(x, y)) {
+          ctx.fillStyle = "rgba(59,130,246,0.85)";
+          ctx.fillRect(px + 0.8, py + 0.8, BLOCK_SIZE - 1.6, BLOCK_SIZE - 1.6);
+          ctx.strokeStyle = "rgba(29,78,216,0.95)";
+          ctx.lineWidth = 1.2;
+          ctx.strokeRect(px + 0.6, py + 0.6, BLOCK_SIZE - 1.2, BLOCK_SIZE - 1.2);
+        }
+
+        if (camera.scale > 0.75) {
+          ctx.strokeStyle = category === "GRAND_CENTER" ? "rgba(251,191,36,0.22)" : "rgba(15,23,42,0.16)";
+          ctx.lineWidth = camera.scale > 2 ? 0.42 : 0.25;
+          ctx.strokeRect(px + 0.1, py + 0.1, BLOCK_SIZE - 0.2, BLOCK_SIZE - 0.2);
         }
       }
     }
 
+    // imagens de áreas vendidas
     const imageGroups = new Map<string, ApiMapBlock[]>();
-
     for (const block of mapBlocks) {
       const placement = block.placement;
       if (!placement?.imageUrl) continue;
       if (placement.status !== "ACTIVE") continue;
       if (block.category === "SOLIDARITY") continue;
-
       const group = imageGroups.get(placement.id) || [];
       group.push(block);
       imageGroups.set(placement.id, group);
@@ -488,35 +454,41 @@ export default function PixelMap() {
 
       drawImageCover(ctx, image, x, y, width, height);
 
-      ctx.strokeStyle = blocks[0].category === "GOLD" ? "#92400e" : "#052e16";
-      ctx.lineWidth = 2.2;
+      ctx.strokeStyle = blocks[0].category === "GOLD" ? "#f59e0b" : "#0f766e";
+      ctx.lineWidth = 2.1;
       ctx.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
     }
 
-    for (const block of selectedBlocks) {
-      const px = block.gridX * BLOCK_SIZE;
-      const py = block.gridY * BLOCK_SIZE;
+    // bloqueios visuais das placas
+    for (const area of RESTRICTED_AREAS) {
+      const x = area.minX * BLOCK_SIZE;
+      const y = area.minY * BLOCK_SIZE;
+      const width = (area.maxX - area.minX + 1) * BLOCK_SIZE;
+      const height = (area.maxY - area.minY + 1) * BLOCK_SIZE;
 
-      ctx.fillStyle = "rgba(59, 130, 246, 0.9)";
-      ctx.fillRect(px + 1, py + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
+      ctx.fillStyle = "rgba(2,6,23,0.38)";
+      ctx.fillRect(x, y, width, height);
+      ctx.strokeStyle = "rgba(251,191,36,0.85)";
+      ctx.lineWidth = 2.6;
+      ctx.strokeRect(x + 1, y + 1, width - 2, height - 2);
 
-      ctx.strokeStyle = "#1d4ed8";
-      ctx.lineWidth = 1.8;
-      ctx.strokeRect(px + 0.5, py + 0.5, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
+      if (camera.scale > 0.85) {
+        ctx.fillStyle = "rgba(255,255,255,0.92)";
+        ctx.font = camera.scale > 2 ? "24px Arial" : "16px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("🔒", x + width / 2, y + height / 2);
+      }
     }
 
-    ctx.fillStyle = "#facc15";
-    ctx.font = "34px Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("🔒", 1000, 725);
-
     if (isLoadingBlocks) {
-      ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
-      ctx.fillRect(850, 675, 300, 80);
+      ctx.fillStyle = "rgba(15, 23, 42, 0.82)";
+      ctx.fillRect(760, 655, 480, 100);
       ctx.fillStyle = "#ffffff";
-      ctx.font = "22px Arial";
-      ctx.fillText("Carregando mural...", 1000, 715);
+      ctx.font = "bold 24px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("Carregando mural...", 1000, 705);
     }
 
     ctx.restore();
@@ -538,7 +510,7 @@ export default function PixelMap() {
       return null;
     }
 
-    return { x: gridX, y: gridY, type: getBlockType(gridX, gridY) };
+    return { x: gridX, y: gridY, type: getBlockCategory(gridX, gridY) };
   }
 
   function clearSelection(event?: MouseEvent<HTMLButtonElement>) {
@@ -548,13 +520,12 @@ export default function PixelMap() {
   }
 
   function selectBlock(gridX: number, gridY: number, category: BlockCategory, clientX: number, clientY: number) {
-    if (category === "GRAND_CENTER") {
-      setSelectedSheet({ type: "grand-center" });
+    if (category === "GRAND_CENTER" || getRestrictedAreaId(gridX, gridY)) {
+      setSelectedSheet({ type: "restricted-area" });
       return;
     }
 
     const soldBlock = getMapBlockAt(gridX, gridY);
-
     if (soldBlock) {
       setSelectedSheet({ type: "sold", block: soldBlock, anchorX: clientX, anchorY: clientY });
       return;
@@ -567,7 +538,6 @@ export default function PixelMap() {
 
     if (selectedBlocks.length > 0) {
       const firstCategory = selectedBlocks[0].category;
-
       if (firstCategory !== category) {
         setSelectionMessage("Continue selecionando tijolinhos da mesma área ou limpe para começar outra área.");
         return;
@@ -579,11 +549,7 @@ export default function PixelMap() {
       return;
     }
 
-    const nextBlocks = [
-      ...selectedBlocks,
-      { gridX, gridY, category, priceCents: getBlockPrice(category) },
-    ];
-
+    const nextBlocks = [...selectedBlocks, { gridX, gridY, category, priceCents: getBlockPrice(category) }];
     if ((category === "PREMIUM" || category === "GOLD") && !blocksFormRectangle(nextBlocks)) {
       setSelectionMessage("A imagem precisa de uma área retangular. Complete o retângulo para continuar.");
     } else {
@@ -643,7 +609,6 @@ export default function PixelMap() {
     updatePointer(event);
 
     const pointers = getPointerList();
-
     if (pointers.length >= 2) {
       const wrapper = wrapperRef.current;
       const pinchStart = pinchStartRef.current;
@@ -675,14 +640,10 @@ export default function PixelMap() {
 
     const dx = event.clientX - lastPointerRef.current.x;
     const dy = event.clientY - lastPointerRef.current.y;
-
     if (Math.abs(dx) + Math.abs(dy) > 3) movedRef.current = true;
-
     lastPointerRef.current = { x: event.clientX, y: event.clientY };
 
-    setCamera((current) =>
-      clampCamera({ ...current, x: current.x + dx, y: current.y + dy })
-    );
+    setCamera((current) => clampCamera({ ...current, x: current.x + dx, y: current.y + dy }));
   }
 
   function handlePointerUp(event: PointerEvent<HTMLDivElement>) {
@@ -700,10 +661,8 @@ export default function PixelMap() {
 
   function handleClick(event: MouseEvent<HTMLDivElement>) {
     if (movedRef.current) return;
-
     const gridPosition = getGridPosition(event.clientX, event.clientY);
     if (!gridPosition) return;
-
     selectBlock(gridPosition.x, gridPosition.y, gridPosition.type, event.clientX, event.clientY);
   }
 
@@ -717,11 +676,7 @@ export default function PixelMap() {
     const screenY = event.clientY - rect.top;
     const worldX = (screenX - camera.x) / camera.scale;
     const worldY = (screenY - camera.y) / camera.scale;
-    const nextScale = clamp(
-      event.deltaY > 0 ? camera.scale * 0.9 : camera.scale * 1.1,
-      getMinScale(),
-      MAX_SCALE
-    );
+    const nextScale = clamp(event.deltaY > 0 ? camera.scale * 0.9 : camera.scale * 1.1, getMinScale(), MAX_SCALE);
 
     setCamera(
       clampCamera({
@@ -738,7 +693,7 @@ export default function PixelMap() {
     }
 
     const width = 292;
-    const height = 230;
+    const height = 220;
     return {
       left: clamp(anchorX + 14, 12, window.innerWidth - width - 12),
       top: clamp(anchorY + 14, 74, window.innerHeight - height - 12),
@@ -771,7 +726,7 @@ export default function PixelMap() {
   return (
     <div
       ref={wrapperRef}
-      className="relative h-full w-full cursor-grab touch-none select-none overflow-hidden bg-slate-100 active:cursor-grabbing"
+      className="relative h-full w-full cursor-grab touch-none select-none overflow-hidden bg-slate-950 active:cursor-grabbing"
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -783,26 +738,22 @@ export default function PixelMap() {
 
       {selectedBlocks.length > 0 && (
         <div
-          className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white p-3 shadow-2xl"
+          className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/98 p-3 shadow-2xl backdrop-blur"
           onClick={(event) => event.stopPropagation()}
         >
           <div className="mx-auto max-w-3xl">
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="rounded-2xl bg-slate-50 p-2">
-<p className="text-[10px] font-black uppercase text-slate-500">Tijolinhos</p>
+                <p className="text-[10px] font-black uppercase text-slate-500">Tijolinhos</p>
                 <p className="text-base font-black text-slate-950">{selectedBlocks.length}</p>
               </div>
-
-              <div className="rounded-2xl bg-green-50 p-2">
-                <p className="text-[10px] font-black uppercase text-green-700">Tipo</p>
-                <p className="text-xs font-black text-green-900">
-                  {getCategoryLabel(selectedBlocks[0].category)}
-                </p>
+              <div className="rounded-2xl bg-amber-50 p-2">
+                <p className="text-[10px] font-black uppercase text-amber-700">Área</p>
+                <p className="text-xs font-black text-amber-900">{getCategoryLabel(selectedBlocks[0].category)}</p>
               </div>
-
-              <div className="rounded-2xl bg-orange-50 p-2">
-                <p className="text-[10px] font-black uppercase text-orange-700">Total</p>
-                <p className="text-xs font-black text-orange-900">{money(selectedTotalCents)}</p>
+              <div className="rounded-2xl bg-emerald-50 p-2">
+                <p className="text-[10px] font-black uppercase text-emerald-700">Total</p>
+                <p className="text-xs font-black text-emerald-900">{money(selectedTotalCents)}</p>
               </div>
             </div>
 
@@ -829,7 +780,7 @@ export default function PixelMap() {
                 <a
                   href={buildCheckoutHref(selectedBlocks)}
                   onClick={(event) => event.stopPropagation()}
-                  className="rounded-2xl bg-green-600 py-3 text-center text-sm font-black text-white shadow-lg"
+                  className="rounded-2xl bg-emerald-600 py-3 text-center text-sm font-black text-white shadow-lg"
                 >
                   Continuar
                 </a>
@@ -847,22 +798,12 @@ export default function PixelMap() {
         </div>
       )}
 
-      {selectedSheet?.type === "grand-center" && (
-        <div
-          className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-950/50 p-6"
-          onClick={() => setSelectedSheet(null)}
-        >
-          <div
-            className="w-full max-w-sm rounded-3xl border border-yellow-300 bg-white p-6 text-center shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-yellow-400 text-4xl shadow-lg">
-              🔒
-            </div>
-            <h2 className="text-2xl font-black text-slate-950">Área reservada</h2>
-            <p className="mt-3 text-sm leading-relaxed text-slate-600">
-{siteConfig.copy.legendaryMessage}
-            </p>
+      {selectedSheet?.type === "restricted-area" && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-950/55 p-6" onClick={() => setSelectedSheet(null)}>
+          <div className="w-full max-w-sm rounded-3xl border border-amber-300 bg-white p-6 text-center shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-amber-400 text-4xl shadow-lg">🔒</div>
+            <h2 className="text-2xl font-black text-slate-950">Área restrita</h2>
+            <p className="mt-3 text-sm leading-relaxed text-slate-600">{siteConfig.copy.legendaryMessage}</p>
             <button
               type="button"
               onClick={() => setSelectedSheet(null)}
@@ -890,21 +831,13 @@ export default function PixelMap() {
           </button>
 
           <p className="pr-8 text-[9px] font-black uppercase tracking-[0.18em] text-slate-400">
-            vendido • {selectedSheet.block.category === "GOLD"
-              ? getAreaName("GOLD")
-              : selectedSheet.block.category === "PREMIUM"
-                ? getAreaName("PREMIUM")
-                : getAreaName("SOLIDARITY")}
+            vendido • {getAreaName(selectedSheet.block.category)}
           </p>
 
-          <h2 className="mt-1 pr-8 text-lg font-black leading-tight text-slate-950">
-            {getDisplayName(selectedSheet.block)}
-          </h2>
+          <h2 className="mt-1 pr-8 text-lg font-black leading-tight text-slate-950">{getDisplayName(selectedSheet.block)}</h2>
 
           {selectedSheet.block.placement?.description && (
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              {selectedSheet.block.placement.description}
-            </p>
+            <p className="mt-2 text-xs leading-relaxed text-slate-600">{selectedSheet.block.placement.description}</p>
           )}
 
           <div className="mt-4 grid gap-2">
@@ -915,7 +848,7 @@ export default function PixelMap() {
                 rel="noopener noreferrer"
                 className="rounded-2xl bg-slate-950 py-3 text-center text-xs font-black text-white"
               >
-Abrir link
+                Abrir link
               </a>
             )}
 

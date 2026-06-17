@@ -1,90 +1,50 @@
-# Tijolinho Digital — V1 conceito comercial
+# Tijolinho Digital — versão mural Rio
 
-Projeto Next.js/Prisma/PostgreSQL com Mercado Pago PIX, admin, testes do mural e configuração central.
+Esta versão já está ajustada com:
 
-## Conceito
+- mural visual baseado na imagem com Copacabana, Leblon e Ipanema
+- preços atualizados:
+  - Copacabana: R$ 9 por bloco
+  - Ipanema: R$ 49 por bloco
+  - Leblon: R$ 149 por bloco
+- sem taxa extra no checkout
+- placas dos bairros como áreas restritas
+- imagem do mural incluída em `public/mural-rio.png`
 
-O projeto agora é um mural comercial gamificado feito de tijolinhos digitais.
+## Subir no servidor
 
-Frase principal:
-
-> Compre seu tijolinho digital e ajude a construir um dos murais mais ambiciosos da internet.
-
-Este é um projeto comercial de venda de espaços digitais em um mural público. A compra de tijolinhos digitais não constitui doação, investimento, sorteio, rifa ou promessa de retorno financeiro.
-
-## Áreas públicas
-
-- Copacabana — área de entrada/acessível, inspirada na calçada com ondas preto e branco.
-- Jardins — área premium, visual sofisticado com verde escuro e pedra clara.
-- Leblon — área mega especial/exclusiva, visual champagne e dourado sutil.
-- Área reservada — centro fechado temporariamente para uma ação futura.
-
-## Matemática do grid
-
-- Grid total: 200 x 145 = 29.000 tijolinhos.
-- Copacabana: 10.000 tijolinhos em volta de todo o mural.
-- Jardins: 18.600 tijolinhos no miolo principal.
-- Leblon: 300 tijolinhos em volta do centro reservado.
-- Área reservada: 100 tijolinhos bloqueados no centro, quadrado 10x10.
-
-## Fases da Obra
-
-- Terreno Aberto
-- Fundação
-- Primeira Parede
-- Fachada em Construção
-- Bairro Valorizado
-- Marco da Internet
-- Obra Histórica
-- Mural Completo
-
-A progressão é calculada por percentual de tijolinhos vendidos no mural.
-
-## Configuração editável
-
-Altere textos, valores, nomes, logo simples, cores e dados fictícios em:
-
-```txt
-config/site.config.json
-```
-
-## Deploy / atualização do banco
-
-Depois de subir no EasyPanel, rode:
+1. envie os arquivos para o servidor
+2. instale as dependências:
 
 ```bash
-npx prisma generate
-npx prisma db push
+npm install
+```
+
+3. gere o Prisma Client:
+
+```bash
+npm run prisma:generate
+```
+
+4. se o banco já existe e você quer adaptar o grid atual para o novo mural, rode:
+
+```bash
 npm run sync:grid
 ```
 
-O `sync:grid` é obrigatório quando a distribuição de áreas/preços mudar.
+5. depois faça o build e suba:
 
-## Testes no admin
-
-Acesse:
-
-```txt
-/admin?secret=SUA_SENHA
+```bash
+npm run build
+npm run start
 ```
 
-Funções de teste:
+## Observação importante
 
-- Criar teste Copacabana
-- Criar teste Jardins
-- Criar teste Leblon
-- Excluir teste individual
-- Excluir todos os testes
+Se for um banco novo, depois do `prisma db push` você pode usar o seed:
 
-Testes não passam pelo checkout, não geram PIX e não entram na totais comerciais/ranking/relatórios.
+```bash
+npm run seed
+```
 
-## Preservado
-
-- Checkout existente
-- Reservas e expiração
-- Status dos tijolinhos
-- Mercado Pago PIX
-- Webhook
-- Admin/moderação
-- Upload de imagens
-- Denúncias
+Se o banco já está em uso, prefira `npm run sync:grid` para reaproveitar a base existente.

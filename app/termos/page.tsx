@@ -27,14 +27,14 @@ export default function TermosPage() {
               <p><strong>{siteConfig.areas.SOLIDARITY.name}:</strong> {formatMoney(siteConfig.areas.SOLIDARITY.priceCents)} por tijolinho, com cor, nome público, descrição curta e link opcional.</p>
               <p><strong>{siteConfig.areas.PREMIUM.name}:</strong> {formatMoney(siteConfig.areas.PREMIUM.priceCents)} por tijolinho, com imagem no mural, nome público, descrição e link.</p>
               <p><strong>{siteConfig.areas.GOLD.name}:</strong> {formatMoney(siteConfig.areas.GOLD.priceCents)} por tijolinho, com imagem no mural, nome público, descrição, link e maior destaque visual.</p>
-              <p><strong>Área central reservada:</strong> espaço fechado no momento para uma ação especial futura do projeto.</p>
+              <p><strong>Áreas restritas:</strong> as placas com os nomes dos bairros estão bloqueadas no momento e serão liberadas em uma fase especial da obra.</p>
             </div>
           </section>
 
           <section className="rounded-3xl bg-orange-50 p-5">
-            <h2 className="text-lg font-black text-orange-900">3. Taxa operacional</h2>
+            <h2 className="text-lg font-black text-orange-900">3. Pagamento</h2>
             <p className="mt-2 text-sm leading-relaxed text-orange-900/80">
-              Além do valor principal dos tijolinhos, pode ser adicionada uma taxa operacional de {siteConfig.operationalFeePercent}% para custos de pagamento, tributos, infraestrutura, armazenamento, moderação, atendimento e operação.
+              O checkout atual trabalha com PIX. Nesta versão, o valor exibido para cada tijolinho é o valor final cobrado no pedido, sem acréscimo de taxa operacional.
             </p>
           </section>
 

@@ -54,7 +54,7 @@ export default function AreaCards() {
       <div className="mx-auto max-w-6xl">
         <div className="max-w-3xl">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-orange-600">Escolha sua área</p>
-          <h2 className="mt-2 text-3xl font-black text-slate-950">Escolha onde sua marca vai ficar: Copacabana, Jardins ou Leblon.</h2>
+          <h2 className="mt-2 text-3xl font-black text-slate-950">Escolha onde sua marca vai ficar: Copacabana, Ipanema ou Leblon.</h2>
           <p className="mt-3 text-sm font-semibold leading-relaxed text-slate-600">
             Cada espaço comprado deixa uma marca nessa obra. As áreas têm estilos, preços e níveis de destaque diferentes.
           </p>

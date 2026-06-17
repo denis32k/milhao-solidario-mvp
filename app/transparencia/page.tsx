@@ -10,7 +10,7 @@ export default function TransparenciaPage() {
         <p className="text-xs font-black uppercase tracking-wide text-orange-600">Transparência comercial</p>
         <h1 className="mt-2 text-3xl font-black text-slate-950">Transparência do mural</h1>
         <p className="mt-4 text-sm leading-relaxed text-slate-600">
-          O mural é construído a partir da venda de tijolinhos digitais. Esta página organiza informações de preço, disponibilidade, taxa operacional e evolução da obra digital.
+          O mural é construído a partir da venda de tijolinhos digitais. Esta página organiza informações de preço, disponibilidade e evolução da obra digital.
         </p>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
@@ -32,10 +32,10 @@ export default function TransparenciaPage() {
         </div>
 
         <div className="mt-6 rounded-3xl border border-orange-200 bg-orange-50 p-5">
-          <p className="text-xs font-black uppercase tracking-wide text-orange-700">Taxa operacional</p>
-          <h2 className="mt-2 text-2xl font-black text-orange-900">{siteConfig.operationalFeePercent}% adicionados ao pedido</h2>
+          <p className="text-xs font-black uppercase tracking-wide text-orange-700">Áreas restritas</p>
+          <h2 className="mt-2 text-2xl font-black text-orange-900">Placas bloqueadas nesta fase</h2>
           <p className="mt-3 text-sm leading-relaxed text-orange-900/80">
-            A taxa cobre custos de pagamento, tributos, servidor, domínio, armazenamento, manutenção, segurança, moderação e operação do projeto.
+            As placas com os nomes dos bairros não estão à venda neste momento. Esses espaços exibem cadeado e a mensagem de liberação futura no próprio mural.
           </p>
         </div>
 
