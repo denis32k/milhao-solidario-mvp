@@ -239,7 +239,11 @@ export default function PixelMap() {
     const wrapper = wrapperRef.current;
     if (!wrapper) return 1;
     const rect = wrapper.getBoundingClientRect();
-    return Math.max(rect.width / MAP_WIDTH, rect.height / MAP_HEIGHT);
+    const containScale = Math.min(rect.width / MAP_WIDTH, rect.height / MAP_HEIGHT);
+    const coverScale = Math.max(rect.width / MAP_WIDTH, rect.height / MAP_HEIGHT);
+
+    // No celular, abre mostrando a imagem inteira. No desktop, mantém o mural preenchendo melhor a tela.
+    return rect.width < 768 ? containScale : coverScale;
   }
 
   function clampCamera(nextCamera: Camera): Camera {
@@ -276,7 +280,7 @@ export default function PixelMap() {
 
     const rect = wrapper.getBoundingClientRect();
     const minScale = getMinScale();
-    const nextScale = clamp(minScale * 1.1, minScale, MAX_SCALE);
+    const nextScale = clamp(rect.width < 768 ? minScale : minScale * 1.1, minScale, MAX_SCALE);
 
     setCamera(
       clampCamera({
@@ -420,12 +424,10 @@ export default function PixelMap() {
           ctx.strokeRect(px + 0.6, py + 0.6, BLOCK_SIZE - 1.2, BLOCK_SIZE - 1.2);
         }
 
-        // A arte enviada já possui uma micrograde própria.
-        // Para não criar duas grades desencontradas na tela, a grade técnica fica invisível.
-        // O clique/seleção continua seguindo 232 x 125 = 29.000 blocos.
-        if (false) {
-          ctx.strokeStyle = category === "GRAND_CENTER" ? "rgba(251,191,36,0.18)" : "rgba(15,23,42,0.11)";
-          ctx.lineWidth = camera.scale > 2 ? 0.34 : 0.18;
+        // Grade branca do site. A nova imagem veio sem micrograde, então agora a grade técnica pode aparecer.
+        if (camera.scale > 0.45) {
+          ctx.strokeStyle = category === "GRAND_CENTER" ? "rgba(251,191,36,0.34)" : "rgba(255,255,255,0.24)";
+          ctx.lineWidth = camera.scale > 2 ? 0.38 : 0.22;
           ctx.strokeRect(px + 0.1, py + 0.1, BLOCK_SIZE - 0.2, BLOCK_SIZE - 0.2);
         }
       }

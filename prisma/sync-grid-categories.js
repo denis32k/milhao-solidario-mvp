@@ -8,15 +8,11 @@ const GRID_ROWS = 125;
 const COPACABANA_MAX_X = 71;
 const LEBLON_MAX_X = 154;
 const RESTRICTED_SQL = `
-  (("gridX" BETWEEN 7 AND 61 AND "gridY" BETWEEN 100 AND 111)
-  OR ("gridX" BETWEEN 82 AND 144 AND "gridY" BETWEEN 55 AND 70)
-  OR ("gridX" BETWEEN 165 AND 218 AND "gridY" BETWEEN 100 AND 111))
+  ("gridX" BETWEEN 82 AND 144 AND "gridY" BETWEEN 55 AND 70)
 `;
 
 const RESTRICTED_AREAS = [
-  { minX: 7, maxX: 61, minY: 100, maxY: 111 },
   { minX: 82, maxX: 144, minY: 55, maxY: 70 },
-  { minX: 165, maxX: 218, minY: 100, maxY: 111 },
 ];
 
 function isRestrictedBlock(x, y) {
@@ -39,7 +35,7 @@ function getStatus(category) {
 }
 
 async function main() {
-  console.log("Sincronizando Mural 29: 232 x 125 = 29.000 blocos...");
+  console.log("Sincronizando Mural 29: 232 x 125 = 29.000 blocos, restrição apenas na placa do Leblon...");
 
   let batch = [];
   for (let y = 0; y < GRID_ROWS; y++) {

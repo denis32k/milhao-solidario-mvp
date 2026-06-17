@@ -11,17 +11,16 @@ export const MAP_HEIGHT = GRID_ROWS * BLOCK_SIZE;
 
 export type GridBlockCategory = "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTER";
 
-// Divisões calculadas a partir da imagem com marcações verdes enviada pelo usuário.
+// Divisões calculadas para o mural 232 x 125.
 // Copacabana: 0..71 | Leblon: 72..154 | Ipanema: 155..231
+// Área restrita atual: apenas a placa do Leblon.
 export const COPACABANA_MAX_X = 71;
 export const LEBLON_MAX_X = 154;
 
 export const AREA_DIVIDERS = [COPACABANA_MAX_X + 1, LEBLON_MAX_X + 1] as const;
 
 export const RESTRICTED_AREAS = [
-  { id: "copacabana-sign", minX: 7, maxX: 61, minY: 100, maxY: 111 },
   { id: "leblon-sign", minX: 82, maxX: 144, minY: 55, maxY: 70 },
-  { id: "ipanema-sign", minX: 165, maxX: 218, minY: 100, maxY: 111 },
 ] as const;
 
 function isInsideRect(

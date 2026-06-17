@@ -13,7 +13,7 @@ Versão ajustada para o projeto comercial de venda de tijolinhos digitais.
   - Copacabana: R$ 9,00 por tijolinho
   - Leblon: R$ 149,00 por tijolinho
   - Ipanema: R$ 49,00 por tijolinho
-- Placas dos bairros como áreas restritas/bloqueadas.
+- Apenas a placa do Leblon como área restrita/bloqueada.
 - Sem taxa extra operacional.
 - Docker mantido no modo leve para EasyPanel com pouca memória.
 
