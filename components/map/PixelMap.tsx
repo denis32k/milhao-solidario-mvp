@@ -16,6 +16,8 @@ import {
 
 const MAX_SCALE = 8;
 const MURAL_IMAGE_URL = "/mural-rio.png";
+// As linhas finas amarelas precisam ficar exatamente no vão entre as duas linhas douradas grossas da arte.
+const VISUAL_AREA_DIVIDERS_PX = [650, 1550] as const;
 
 type BlockCategory = "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTER";
 type BuyableCategory = "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTER";
@@ -407,13 +409,14 @@ export default function PixelMap() {
       ctx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
     }
 
-    // divisões visuais principais das três áreas, seguindo a imagem marcada enviada.
+    // divisões visuais principais das três áreas.
+    // A linha fina amarela fica centralizada entre as duas linhas douradas grossas da própria arte.
     ctx.strokeStyle = "rgba(255,214,10,0.72)";
     ctx.lineWidth = 0.9;
     ctx.beginPath();
-    for (const dividerX of AREA_DIVIDERS) {
-      ctx.moveTo(dividerX * BLOCK_SIZE, 0);
-      ctx.lineTo(dividerX * BLOCK_SIZE, MAP_HEIGHT);
+    for (const dividerX of VISUAL_AREA_DIVIDERS_PX) {
+      ctx.moveTo(dividerX, 0);
+      ctx.lineTo(dividerX, MAP_HEIGHT);
     }
     ctx.stroke();
 

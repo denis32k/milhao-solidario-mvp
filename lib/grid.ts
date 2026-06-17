@@ -13,14 +13,15 @@ export type GridBlockCategory = "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTE
 
 // Divisões calculadas para o mural 232 x 125.
 // Copacabana: 0..68 | Leblon: 69..151 | Ipanema: 152..231
-export const COPACABANA_MAX_X = 68;
-export const LEBLON_MAX_X = 151;
+export const COPACABANA_MAX_X = 64;
+export const LEBLON_MAX_X = 154;
 
 export const AREA_DIVIDERS = [COPACABANA_MAX_X + 1, LEBLON_MAX_X + 1] as const;
 
 // Área nobre: edifício Tom Delfim Moreira, acima da placa do Leblon.
 export const NOBLE_AREAS = [
-  { id: "tom-delfim-moreira", minX: 91, maxX: 127, minY: 0, maxY: 49 },
+  // Apenas o edifício Tom Delfim Moreira: do topo do prédio até a calçada/entrada.
+  { id: "tom-delfim-moreira", minX: 97, maxX: 126, minY: 6, maxY: 55 },
 ] as const;
 
 function isInsideRect(
