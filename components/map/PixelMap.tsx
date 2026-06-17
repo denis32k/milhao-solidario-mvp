@@ -238,10 +238,17 @@ export default function PixelMap() {
   function getMinScale() {
     const wrapper = wrapperRef.current;
     if (!wrapper) return 1;
-    const rect = wrapper.getBoundingClientRect();
 
-    // O grid não pode ficar pequeno no celular.
-    // O zoom mínimo sempre faz o mural preencher a tela; a pessoa navega arrastando para os lados.
+    const rect = wrapper.getBoundingClientRect();
+    const isMobile = rect.width < 768;
+
+    // No celular o mural deve abrir inteiro na largura.
+    // Assim a pessoa vê a arte completa e o zoom mínimo não fica pequeno demais.
+    if (isMobile) {
+      return rect.width / MAP_WIDTH;
+    }
+
+    // Em telas maiores continua preenchendo bem a área útil.
     return Math.max(rect.width / MAP_WIDTH, rect.height / MAP_HEIGHT);
   }
 
@@ -282,7 +289,8 @@ export default function PixelMap() {
 
     const rect = wrapper.getBoundingClientRect();
     const minScale = getMinScale();
-    const nextScale = clamp(minScale * 1.02, minScale, MAX_SCALE);
+    const isMobile = rect.width < 768;
+    const nextScale = isMobile ? minScale : clamp(minScale * 1.02, minScale, MAX_SCALE);
 
     setCamera(
       clampCamera({
@@ -372,19 +380,22 @@ export default function PixelMap() {
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, rect.width, rect.height);
-    ctx.fillStyle = "#020617";
+    const bgGradient = ctx.createLinearGradient(0, 0, 0, rect.height);
+    bgGradient.addColorStop(0, "#04101f");
+    bgGradient.addColorStop(0.45, "#08243a");
+    bgGradient.addColorStop(1, "#04101f");
+    ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, rect.width, rect.height);
 
-    // Fundo de preenchimento: usa a própria arte ampliada/desfocada nas sobras.
-    // Assim o mural pode caber inteiro no celular sem aparecer faixa preta.
+    // Fundo de preenchimento leve nas sobras, usando a própria arte sem criar duplicação forte.
     if (muralImage.complete && muralImage.naturalWidth) {
       ctx.save();
-      ctx.filter = "blur(72px)";
-      ctx.globalAlpha = 0.36;
-      drawImageCover(ctx, muralImage, -32, -32, rect.width + 64, rect.height + 64);
+      ctx.filter = "blur(80px)";
+      ctx.globalAlpha = 0.16;
+      drawImageCover(ctx, muralImage, -24, -24, rect.width + 48, rect.height + 48);
       ctx.restore();
 
-      ctx.fillStyle = "rgba(2,6,23,0.62)";
+      ctx.fillStyle = "rgba(2,6,23,0.42)";
       ctx.fillRect(0, 0, rect.width, rect.height);
     }
 
@@ -754,7 +765,7 @@ export default function PixelMap() {
   return (
     <div
       ref={wrapperRef}
-      className="relative h-full w-full cursor-grab touch-none select-none overflow-hidden bg-slate-950 active:cursor-grabbing"
+      className="relative h-full w-full cursor-grab touch-none select-none overflow-hidden bg-slate-900 active:cursor-grabbing"
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
