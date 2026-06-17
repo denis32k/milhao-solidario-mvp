@@ -378,12 +378,12 @@ export default function PixelMap() {
     // Assim o mural pode caber inteiro no celular sem aparecer faixa preta.
     if (muralImage.complete && muralImage.naturalWidth) {
       ctx.save();
-      ctx.filter = "blur(22px)";
-      ctx.globalAlpha = 0.72;
+      ctx.filter = "blur(72px)";
+      ctx.globalAlpha = 0.36;
       drawImageCover(ctx, muralImage, -32, -32, rect.width + 64, rect.height + 64);
       ctx.restore();
 
-      ctx.fillStyle = "rgba(2,6,23,0.18)";
+      ctx.fillStyle = "rgba(2,6,23,0.62)";
       ctx.fillRect(0, 0, rect.width, rect.height);
     }
 
