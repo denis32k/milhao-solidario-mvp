@@ -64,3 +64,9 @@ Este é um projeto comercial de venda de espaços digitais em um mural público.
 - Grid/mural travado para preencher a tela no celular.
 - Zoom mínimo não deixa o grid diminuir demais.
 - Navegação mobile prioriza arrastar para os lados, com eixo vertical centralizado.
+
+
+Atualização V16:
+- fundo trocado para a nova imagem enviada pelo usuário
+- imagem convertida para 2320 x 1250 para casar exatamente com o grid 232 x 125 (10 px por bloco)
+- comportamento do grid mantido igual ao V15
