@@ -1,9 +1,10 @@
 {
   "brand": {
-    "name": "Tijolinho Digital",
-    "shortName": "Tijolinho",
-    "subtitle": "Mural comercial em construção",
-    "logoEmoji": "🧱"
+    "name": "Mural 29",
+    "shortName": "Mural 29",
+    "subtitle": "Tijolinho Digital",
+    "logoEmoji": "🧱",
+    "logoUrl": "/logo-mural-29.png"
   },
   "goalCents": 200000000,
   "operationalFeePercent": 0,
@@ -53,12 +54,30 @@
     }
   },
   "mosaicColors": [
-    { "name": "Azul Atlântico", "value": "#2563eb" },
-    { "name": "Verde Obra", "value": "#22c55e" },
-    { "name": "Amarelo Sol", "value": "#eab308" },
-    { "name": "Laranja Energia", "value": "#f97316" },
-    { "name": "Rosa Destaque", "value": "#ec4899" },
-    { "name": "Roxo Criativo", "value": "#8b5cf6" }
+    {
+      "name": "Azul Atlântico",
+      "value": "#2563eb"
+    },
+    {
+      "name": "Verde Obra",
+      "value": "#22c55e"
+    },
+    {
+      "name": "Amarelo Sol",
+      "value": "#eab308"
+    },
+    {
+      "name": "Laranja Energia",
+      "value": "#f97316"
+    },
+    {
+      "name": "Rosa Destaque",
+      "value": "#ec4899"
+    },
+    {
+      "name": "Roxo Criativo",
+      "value": "#8b5cf6"
+    }
   ],
   "constructionPhases": [
     "Terreno Aberto",

@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "crypto";
 import { NextResponse } from "next/server";
+import { GRID_COLS, GRID_ROWS } from "@/lib/grid";
 import { siteConfig } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
@@ -87,9 +88,9 @@ function normalizeSelectedBlocks(value: unknown): SelectedBlockInput[] {
       Number.isInteger(gridX) &&
       Number.isInteger(gridY) &&
       gridX >= 0 &&
-      gridX <= 199 &&
+      gridX < GRID_COLS &&
       gridY >= 0 &&
-      gridY <= 144
+      gridY < GRID_ROWS
     ) {
       unique.set(`${gridX}:${gridY}`, { gridX, gridY });
     }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { GRID_COLS, GRID_ROWS } from "@/lib/grid";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,8 @@ export async function GET() {
   try {
     const blocks = await prisma.block.findMany({
       where: {
+        gridX: { lt: GRID_COLS },
+        gridY: { lt: GRID_ROWS },
         status: {
           in: ["SOLD", "RESERVED", "BLOCKED"],
         },

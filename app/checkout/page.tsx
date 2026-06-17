@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { GRID_COLS, GRID_ROWS } from "@/lib/grid";
 import { getAreaName, getAreaPriceCents, getOperationalFeeCents, siteConfig } from "@/lib/site-config";
 
 type BuyableCategory = "SOLIDARITY" | "PREMIUM" | "GOLD";
@@ -93,9 +94,9 @@ function parseBlocksFromQuery(value: string | null) {
       Number.isInteger(gridX) &&
       Number.isInteger(gridY) &&
       gridX >= 0 &&
-      gridX <= 199 &&
+      gridX < GRID_COLS &&
       gridY >= 0 &&
-      gridY <= 144
+      gridY < GRID_ROWS
     ) {
       unique.set(`${gridX}:${gridY}`, { gridX, gridY });
     }

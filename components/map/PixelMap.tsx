@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { MouseEvent, PointerEvent, WheelEvent } from "react";
 import { getAreaName, getAreaPriceCents, siteConfig } from "@/lib/site-config";
 import {
+  AREA_DIVIDERS,
   BLOCK_SIZE,
   getBlockCategory,
   getRestrictedAreaId,
@@ -380,14 +381,14 @@ export default function PixelMap() {
       ctx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
     }
 
-    // divisões visuais principais
-    ctx.strokeStyle = "rgba(234,179,8,0.75)";
-    ctx.lineWidth = 3;
+    // divisões visuais principais das três áreas, seguindo a imagem marcada enviada.
+    ctx.strokeStyle = "rgba(234,179,8,0.78)";
+    ctx.lineWidth = 2.2;
     ctx.beginPath();
-    ctx.moveTo((66 * BLOCK_SIZE), 0);
-    ctx.lineTo((66 * BLOCK_SIZE), MAP_HEIGHT);
-    ctx.moveTo((133 * BLOCK_SIZE), 0);
-    ctx.lineTo((133 * BLOCK_SIZE), MAP_HEIGHT);
+    for (const dividerX of AREA_DIVIDERS) {
+      ctx.moveTo(dividerX * BLOCK_SIZE, 0);
+      ctx.lineTo(dividerX * BLOCK_SIZE, MAP_HEIGHT);
+    }
     ctx.stroke();
 
     // desenha blocos especiais e overlays
@@ -482,13 +483,17 @@ export default function PixelMap() {
     }
 
     if (isLoadingBlocks) {
+      const loaderWidth = 420;
+      const loaderHeight = 84;
+      const loaderX = (MAP_WIDTH - loaderWidth) / 2;
+      const loaderY = (MAP_HEIGHT - loaderHeight) / 2;
       ctx.fillStyle = "rgba(15, 23, 42, 0.82)";
-      ctx.fillRect(760, 655, 480, 100);
+      ctx.fillRect(loaderX, loaderY, loaderWidth, loaderHeight);
       ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 24px Arial";
+      ctx.font = "bold 22px Arial";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText("Carregando mural...", 1000, 705);
+      ctx.fillText("Carregando mural...", MAP_WIDTH / 2, MAP_HEIGHT / 2);
     }
 
     ctx.restore();

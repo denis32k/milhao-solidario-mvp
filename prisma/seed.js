@@ -3,14 +3,15 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const siteConfig = require("../config/site.config.json");
 
-const GRID_COLS = 200;
-const GRID_ROWS = 145;
-const COPACABANA_MAX_X = 65;
-const LEBLON_MAX_X = 132;
+// 232 x 125 = exatamente 29.000 tijolinhos.
+const GRID_COLS = 232;
+const GRID_ROWS = 125;
+const COPACABANA_MAX_X = 71;
+const LEBLON_MAX_X = 154;
 const RESTRICTED_AREAS = [
-  { minX: 10, maxX: 51, minY: 124, maxY: 138 },
-  { minX: 80, maxX: 122, minY: 66, maxY: 86 },
-  { minX: 147, maxX: 189, minY: 124, maxY: 138 },
+  { minX: 7, maxX: 61, minY: 100, maxY: 111 },
+  { minX: 82, maxX: 144, minY: 55, maxY: 70 },
+  { minX: 165, maxX: 218, minY: 100, maxY: 111 },
 ];
 
 function isRestrictedBlock(x, y) {
@@ -60,15 +61,15 @@ async function main() {
   }
 
   const counts = {
-    total: await prisma.block.count(),
-    copacabana: await prisma.block.count({ where: { category: "SOLIDARITY" } }),
-    leblon: await prisma.block.count({ where: { category: "GOLD" } }),
-    ipanema: await prisma.block.count({ where: { category: "PREMIUM" } }),
-    restrita: await prisma.block.count({ where: { category: "GRAND_CENTER" } }),
+    total: await prisma.block.count({ where: { gridX: { lt: GRID_COLS }, gridY: { lt: GRID_ROWS } } }),
+    copacabana: await prisma.block.count({ where: { category: "SOLIDARITY", gridX: { lt: GRID_COLS }, gridY: { lt: GRID_ROWS } } }),
+    leblon: await prisma.block.count({ where: { category: "GOLD", gridX: { lt: GRID_COLS }, gridY: { lt: GRID_ROWS } } }),
+    ipanema: await prisma.block.count({ where: { category: "PREMIUM", gridX: { lt: GRID_COLS }, gridY: { lt: GRID_ROWS } } }),
+    restrita: await prisma.block.count({ where: { category: "GRAND_CENTER", gridX: { lt: GRID_COLS }, gridY: { lt: GRID_ROWS } } }),
   };
 
   console.log(counts);
-  console.log("Grid do mural inicializado com sucesso.");
+  console.log("Grid Mural 29 inicializado com sucesso.");
 }
 
 main()

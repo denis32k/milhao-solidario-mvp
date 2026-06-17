@@ -6,14 +6,12 @@ export default function StickyHeader() {
   return (
     <header className="fixed left-0 top-0 z-50 h-16 w-full border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur">
       <div className="flex h-full w-full items-center justify-between gap-2 px-2 sm:px-4">
-        <Link href="/" className="flex min-w-0 items-center gap-2 rounded-full px-2 py-1 active:scale-95">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-100 text-lg shadow-sm">
-            {siteConfig.brand.logoEmoji}
-          </span>
-          <span className="hidden min-w-0 sm:block">
-            <span className="block truncate text-sm font-black leading-none text-slate-950">{siteConfig.brand.name}</span>
-            <span className="mt-0.5 block truncate text-[9px] font-black uppercase tracking-wide text-slate-500">{siteConfig.brand.subtitle}</span>
-          </span>
+        <Link href="/" className="flex min-w-0 items-center rounded-full px-1 py-1 active:scale-95 sm:px-2">
+          <img
+            src={siteConfig.brand.logoUrl || "/logo-mural-29.png"}
+            alt={siteConfig.brand.name}
+            className="h-10 w-auto max-w-[138px] object-contain sm:max-w-[190px]"
+          />
         </Link>
 
         <HeaderMiniStats />

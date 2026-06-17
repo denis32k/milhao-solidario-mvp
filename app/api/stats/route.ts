@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { GRID_COLS, GRID_ROWS } from "@/lib/grid";
 import { siteConfig } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
@@ -15,12 +16,13 @@ function getErrorMessage(error: unknown) {
 }
 
 async function getCategoryStats(prisma: any, category: "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTER") {
+  const currentGrid = { category, gridX: { lt: GRID_COLS }, gridY: { lt: GRID_ROWS } };
   const [total, sold, available, reserved, locked] = await Promise.all([
-    prisma.block.count({ where: { category } }),
-    prisma.block.count({ where: { category, status: "SOLD", placement: { isTest: false } } }),
-    prisma.block.count({ where: { category, available: true } }),
-    prisma.block.count({ where: { category, status: "RESERVED" } }),
-    prisma.block.count({ where: { category, status: "LOCKED" } }),
+    prisma.block.count({ where: currentGrid }),
+    prisma.block.count({ where: { ...currentGrid, status: "SOLD", placement: { isTest: false } } }),
+    prisma.block.count({ where: { ...currentGrid, available: true } }),
+    prisma.block.count({ where: { ...currentGrid, status: "RESERVED" } }),
+    prisma.block.count({ where: { ...currentGrid, status: "LOCKED" } }),
   ]);
 
   return { total, sold, available, reserved, locked };
@@ -43,11 +45,11 @@ export async function GET() {
       goldStats,
       grandCenterStats,
     ] = await Promise.all([
-      prisma.block.count(),
-      prisma.block.count({ where: { available: true } }),
-      prisma.block.count({ where: { status: "SOLD", placement: { isTest: false } } }),
-      prisma.block.count({ where: { status: "LOCKED" } }),
-      prisma.block.count({ where: { status: "RESERVED" } }),
+      prisma.block.count({ where: { gridX: { lt: GRID_COLS }, gridY: { lt: GRID_ROWS } } }),
+      prisma.block.count({ where: { gridX: { lt: GRID_COLS }, gridY: { lt: GRID_ROWS }, available: true } }),
+      prisma.block.count({ where: { gridX: { lt: GRID_COLS }, gridY: { lt: GRID_ROWS }, status: "SOLD", placement: { isTest: false } } }),
+      prisma.block.count({ where: { gridX: { lt: GRID_COLS }, gridY: { lt: GRID_ROWS }, status: "LOCKED" } }),
+      prisma.block.count({ where: { gridX: { lt: GRID_COLS }, gridY: { lt: GRID_ROWS }, status: "RESERVED" } }),
       prisma.transaction.count({ where: { status: "APPROVED", isTest: false } }),
       prisma.transaction.aggregate({
         where: { status: "APPROVED", isTest: false },

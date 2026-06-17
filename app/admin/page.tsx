@@ -4,6 +4,7 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
+import { GRID_COLS, GRID_ROWS } from "@/lib/grid";
 import { getAreaName, siteConfig, type AreaKey } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
@@ -69,6 +70,8 @@ async function findAvailableRectangle(category: TestCategory, width: number, hei
   const blocks: AvailableBlockForTest[] = await prisma.block.findMany({
     where: {
       category,
+      gridX: { lt: GRID_COLS },
+      gridY: { lt: GRID_ROWS },
       status: "AVAILABLE",
       available: true,
     },
