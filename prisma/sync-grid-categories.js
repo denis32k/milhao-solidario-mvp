@@ -5,14 +5,14 @@ const siteConfig = require("../config/site.config.json");
 
 const GRID_COLS = 232;
 const GRID_ROWS = 125;
-const COPACABANA_MAX_X = 71;
-const LEBLON_MAX_X = 154;
+const COPACABANA_MAX_X = 68;
+const LEBLON_MAX_X = 151;
 const RESTRICTED_SQL = `
-  ("gridX" BETWEEN 82 AND 144 AND "gridY" BETWEEN 55 AND 70)
+  ("gridX" BETWEEN 80 AND 141 AND "gridY" BETWEEN 50 AND 72)
 `;
 
 const RESTRICTED_AREAS = [
-  { minX: 82, maxX: 144, minY: 55, maxY: 70 },
+  { minX: 80, maxX: 141, minY: 50, maxY: 72 },
 ];
 
 function isRestrictedBlock(x, y) {

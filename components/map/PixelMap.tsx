@@ -389,8 +389,8 @@ export default function PixelMap() {
     }
 
     // divisões visuais principais das três áreas, seguindo a imagem marcada enviada.
-    ctx.strokeStyle = "rgba(234,179,8,0.78)";
-    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = "rgba(255,214,10,0.72)";
+    ctx.lineWidth = 0.9;
     ctx.beginPath();
     for (const dividerX of AREA_DIVIDERS) {
       ctx.moveTo(dividerX * BLOCK_SIZE, 0);
@@ -426,8 +426,8 @@ export default function PixelMap() {
 
         // Grade branca do site. A nova imagem veio sem micrograde, então agora a grade técnica pode aparecer.
         if (camera.scale > 0.45) {
-          ctx.strokeStyle = category === "GRAND_CENTER" ? "rgba(251,191,36,0.34)" : "rgba(255,255,255,0.24)";
-          ctx.lineWidth = camera.scale > 2 ? 0.38 : 0.22;
+          ctx.strokeStyle = category === "GRAND_CENTER" ? "rgba(251,191,36,0.30)" : "rgba(255,255,255,0.20)";
+          ctx.lineWidth = camera.scale > 2 ? 0.28 : 0.16;
           ctx.strokeRect(px + 0.1, py + 0.1, BLOCK_SIZE - 0.2, BLOCK_SIZE - 0.2);
         }
       }
@@ -475,10 +475,10 @@ export default function PixelMap() {
       const width = (area.maxX - area.minX + 1) * BLOCK_SIZE;
       const height = (area.maxY - area.minY + 1) * BLOCK_SIZE;
 
-      ctx.fillStyle = "rgba(2,6,23,0.38)";
+      ctx.fillStyle = "rgba(2,6,23,0.28)";
       ctx.fillRect(x, y, width, height);
-      ctx.strokeStyle = "rgba(251,191,36,0.85)";
-      ctx.lineWidth = 2.6;
+      ctx.strokeStyle = "rgba(251,191,36,0.78)";
+      ctx.lineWidth = 1.8;
       ctx.strokeRect(x + 1, y + 1, width - 2, height - 2);
 
       if (camera.scale > 0.85) {
