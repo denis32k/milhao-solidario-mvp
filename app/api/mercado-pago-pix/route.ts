@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { GRID_COLS, GRID_ROWS } from "@/lib/grid";
 import { siteConfig } from "@/lib/site-config";
+import { createManagementToken, getManagementPath, getManagementUrl, hashManagementToken } from "@/lib/customer-access";
 
 export const dynamic = "force-dynamic";
 
@@ -185,6 +186,7 @@ export async function GET() {
       imageUrl: "optional premium/gold image url",
       fillColor: "optional block color",
       acceptedTerms: "boolean required",
+      managementUrl: "returned after PIX creation for post-purchase management",
     },
   });
 }
@@ -296,6 +298,9 @@ export async function POST(request: Request) {
       const creatorShareCents = Math.floor(subtotalCents / 2);
       const hospitalShareCents = subtotalCents - creatorShareCents;
 
+      const managementToken = createManagementToken();
+      const managementTokenHash = hashManagementToken(managementToken);
+
       const user = await tx.user.create({
         data: {
           name: fullName,
@@ -332,6 +337,8 @@ export async function POST(request: Request) {
           placementFillColor: fillColor || null,
           termsAcceptedAt: new Date(),
           termsVersion: TERMS_VERSION,
+          managementTokenHash,
+          managementTokenCreatedAt: new Date(),
 
           mpExternalReference: externalReference,
           mpStatus: "pending",
@@ -373,6 +380,7 @@ export async function POST(request: Request) {
         transaction,
         blocks: foundBlocks,
         category,
+        managementToken,
       };
     });
 
@@ -451,6 +459,8 @@ export async function POST(request: Request) {
       message: "PIX criado com sucesso.",
       category: pendingData.category,
       webhookUrl: notificationUrl,
+      managementPath: getManagementPath(pendingData.managementToken),
+      managementUrl: getManagementUrl(pendingData.managementToken, cleanAppUrl),
       payment: {
         id: paymentData.id,
         status: paymentData.status,

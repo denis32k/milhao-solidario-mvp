@@ -246,6 +246,9 @@ model Transaction {
   termsAcceptedAt      DateTime?
   termsVersion         String?
 
+  managementTokenHash  String?           @unique
+  managementTokenCreatedAt DateTime?
+
   placementTitle       String?
   placementDescription String?           @db.Text
   placementRedirectUrl String?

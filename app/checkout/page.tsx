@@ -37,6 +37,8 @@ type PixResult = {
     category: string;
     priceCents: number;
   }>;
+  managementPath?: string;
+  managementUrl?: string;
 };
 
 const SOLIDARITY_COLORS = siteConfig.mosaicColors;
@@ -379,6 +381,8 @@ export default function CompraPage() {
         pix: data.pix,
         transaction: data.transaction,
         blocks: data.blocks,
+        managementPath: data.managementPath,
+        managementUrl: data.managementUrl,
       });
 
       setStep("pix");
@@ -694,10 +698,16 @@ export default function CompraPage() {
                   <div className="text-3xl">✅</div>
                   <h2 className="mt-2 text-xl font-black text-emerald-950">Pagamento confirmado</h2>
                   <p className="mt-2 text-sm font-bold leading-relaxed text-emerald-800">Seus tijolinhos já entraram no mural.</p>
-                  <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div className="mt-4 grid gap-2 sm:grid-cols-3">
                     <Link href="/" className="rounded-2xl bg-emerald-600 py-3 text-center text-xs font-black text-white">Ver no mural</Link>
                     <Link href="/ranking" className="rounded-2xl bg-slate-950 py-3 text-center text-xs font-black text-white">Ver destaques</Link>
+                    {(pixResult.managementUrl || pixResult.managementPath) && (
+                      <a href={pixResult.managementUrl || pixResult.managementPath} className="rounded-2xl bg-yellow-400 py-3 text-center text-xs font-black text-yellow-950">Gerenciar conteúdo</a>
+                    )}
                   </div>
+                  {(pixResult.managementUrl || pixResult.managementPath) && (
+                    <p className="mt-3 text-xs font-bold leading-relaxed text-emerald-800">Guarde este link para solicitar alterações futuras. Toda edição vai para análise antes de mudar o mural.</p>
+                  )}
                 </div>
               )}
 
