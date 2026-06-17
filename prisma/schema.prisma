@@ -189,6 +189,7 @@ model User {
   dataRequests       DataPrivacyRequest[]
   exportLogs         ExportLog[]
   systemSettings     SystemSetting[] @relation("SystemSettingAdmin")
+  blockedDomains     BlockedDomain[] @relation("BlockedDomainAdmin")
 
   @@index([role])
   @@index([totalApprovedCents])
@@ -261,6 +262,7 @@ model Placement {
   blocks            Block[]
   reports           Report[]
   editRequests      ContentEditRequest[]
+  linkModerationLogs LinkModerationLog[]
 
   isTest            Boolean         @default(false)
 
@@ -322,6 +324,7 @@ model Transaction {
   disputeCases         DisputeCase[]
   webhookEvents        PaymentWebhookEvent[]
   consentLogs          ConsentLog[]
+  linkModerationLogs   LinkModerationLog[]
 
   isTest               Boolean           @default(false)
 
@@ -521,6 +524,43 @@ model AdminLoginAttempt {
   @@index([email, createdAt])
   @@index([success, createdAt])
   @@index([userId, createdAt])
+}
+
+model BlockedDomain {
+  id               String   @id @default(cuid())
+  domain           String   @unique
+  reason           String?  @db.Text
+  active           Boolean  @default(true)
+
+  createdByAdminId String?
+  createdByAdmin   User?    @relation("BlockedDomainAdmin", fields: [createdByAdminId], references: [id], onDelete: SetNull)
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([active, domain])
+  @@index([createdByAdminId])
+}
+
+model LinkModerationLog {
+  id             String       @id @default(cuid())
+  url            String       @db.Text
+  domain         String?
+  action         String
+  reason         String?      @db.Text
+
+  transactionId  String?
+  transaction    Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  placementId    String?
+  placement      Placement?   @relation(fields: [placementId], references: [id], onDelete: SetNull)
+
+  createdAt      DateTime     @default(now())
+
+  @@index([action, createdAt])
+  @@index([domain])
+  @@index([transactionId])
+  @@index([placementId])
 }
 
 model ConsentLog {

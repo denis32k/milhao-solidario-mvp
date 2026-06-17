@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { GRID_COLS, GRID_ROWS } from "@/lib/grid";
 import { siteConfig } from "@/lib/site-config";
 import { createManagementToken, getManagementPath, getManagementUrl, hashManagementToken } from "@/lib/customer-access";
+import { findBlockedDomain, getHostnameFromUrl, normalizePublicUrl } from "@/lib/content-validation";
 
 export const dynamic = "force-dynamic";
 
@@ -228,13 +229,38 @@ export async function POST(request: Request) {
 
     const title = safeText(body.title || publicName, 80);
     const description = safeText(body.description, 180);
-    const redirectUrl = normalizePublicLink(body.redirectUrl || body.instagram || body.publicLink);
+    const rawRedirectUrl = body.redirectUrl || body.instagram || body.publicLink;
+    const redirectUrl = normalizePublicUrl(rawRedirectUrl);
     const imageUrl = safeText(body.imageUrl, 500);
     const requestedFillColor = safeText(body.fillColor, 20);
     const acceptedTerms = body.acceptedTerms === true;
     const fillColor = ALLOWED_COLORS.has(requestedFillColor)
       ? requestedFillColor
       : "#22c55e";
+
+    const rawRedirectText = String(rawRedirectUrl || "").trim();
+    if (rawRedirectText && !redirectUrl) {
+      return NextResponse.json({ ok: false, message: "Link inválido. Use um site válido, https:// ou @instagram." }, { status: 400 });
+    }
+
+    if (redirectUrl) {
+      const blockedDomain = await findBlockedDomain(prisma, redirectUrl);
+      if (blockedDomain) {
+        await (prisma as any).linkModerationLog.create({
+          data: {
+            url: redirectUrl,
+            domain: getHostnameFromUrl(redirectUrl),
+            action: "BLOCKED_CHECKOUT",
+            reason: blockedDomain.reason || "Domínio bloqueado no admin.",
+          },
+        }).catch(() => null);
+
+        return NextResponse.json(
+          { ok: false, message: "Esse link não pode ser usado no Mural29. Tente outro domínio." },
+          { status: 400 }
+        );
+      }
+    }
 
     if (!fullName || fullName.length < 3) {
       return NextResponse.json({ ok: false, message: "Informe um nome completo válido." }, { status: 400 });

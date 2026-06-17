@@ -10,6 +10,7 @@ import AdminNav from "@/components/admin/AdminNav";
 import AdminLocked from "@/components/admin/AdminLocked";
 import { getAdminAccess } from "@/lib/admin";
 import { getAdminSession } from "@/lib/admin-auth";
+import { validateImageFile } from "@/lib/content-validation";
 
 export const dynamic = "force-dynamic";
 
@@ -175,10 +176,11 @@ function normalizeTestCategory(value: string): TestCategory {
 async function saveTestImage(file: FormDataEntryValue | null) {
   if (!(file instanceof File)) return null;
   if (!file.size) return null;
-  if (!file.type.startsWith("image/")) return null;
 
-  const extension = file.type.includes("webp") ? "webp" : file.type.includes("png") ? "png" : "jpg";
-  const filename = `teste-${Date.now()}-${randomUUID()}.${extension}`;
+  const validation = validateImageFile(file);
+  if (!validation.ok || !validation.extension) return null;
+
+  const filename = `teste-${Date.now()}-${randomUUID()}.${validation.extension}`;
   const uploadDir = path.join(process.cwd(), "public", "uploads");
   const filepath = path.join(uploadDir, filename);
   const bytes = await file.arrayBuffer();

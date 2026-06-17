@@ -2,15 +2,9 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
+import { validateImageFile } from "@/lib/content-validation";
 
 export const dynamic = "force-dynamic";
-
-const MAX_SIZE_BYTES = 5 * 1024 * 1024;
-const ALLOWED_TYPES: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-};
 
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
@@ -22,29 +16,22 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const file = formData.get("file");
 
-    if (!(file instanceof File)) {
+    if (!(file instanceof File) || !file.size) {
       return NextResponse.json(
         { ok: false, message: "Envie uma imagem válida." },
         { status: 400 }
       );
     }
 
-    if (!ALLOWED_TYPES[file.type]) {
+    const validation = validateImageFile(file);
+    if (!validation.ok || !validation.extension) {
       return NextResponse.json(
-        { ok: false, message: "Formato inválido. Use JPG, PNG ou WEBP." },
+        { ok: false, message: validation.message },
         { status: 400 }
       );
     }
 
-    if (file.size > MAX_SIZE_BYTES) {
-      return NextResponse.json(
-        { ok: false, message: "Imagem muito grande. Envie até 5MB." },
-        { status: 400 }
-      );
-    }
-
-    const extension = ALLOWED_TYPES[file.type];
-    const filename = `${Date.now()}-${randomUUID()}.${extension}`;
+    const filename = `${Date.now()}-${randomUUID()}.${validation.extension}`;
     const uploadDir = path.join(process.cwd(), "public", "uploads");
     const filepath = path.join(uploadDir, filename);
     const bytes = await file.arrayBuffer();

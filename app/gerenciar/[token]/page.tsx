@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { hashManagementToken } from "@/lib/customer-access";
 import { dateTime, money, safeValueQuery } from "@/lib/admin";
+import { findBlockedDomain, getHostnameFromUrl, normalizePublicUrl, validateImageFile } from "@/lib/content-validation";
 
 export const dynamic = "force-dynamic";
 
@@ -34,10 +35,13 @@ function normalizeExternalUrl(value: FormDataEntryValue | null) {
 async function savePendingImage(file: FormDataEntryValue | null) {
   if (!(file instanceof File)) return null;
   if (!file.size) return null;
-  if (!file.type.startsWith("image/")) return null;
 
-  const extension = file.type.includes("webp") ? "webp" : file.type.includes("png") ? "png" : "jpg";
-  const filename = `edicao-${Date.now()}-${randomUUID()}.${extension}`;
+  const validation = validateImageFile(file);
+  if (!validation.ok || !validation.extension) {
+    throw new Error(validation.message);
+  }
+
+  const filename = `edicao-${Date.now()}-${randomUUID()}.${validation.extension}`;
   const uploadDir = path.join(process.cwd(), "public", "uploads");
   const filepath = path.join(uploadDir, filename);
   const bytes = await file.arrayBuffer();
@@ -71,12 +75,40 @@ async function requestEdit(formData: FormData) {
     redirect(`/gerenciar/${encodeURIComponent(token)}?error=pagamento`);
   }
 
-  const requestedImageUrl = await savePendingImage(formData.get("image"));
+  let requestedImageUrl: string | null = null;
+  try {
+    requestedImageUrl = await savePendingImage(formData.get("image"));
+  } catch {
+    redirect(`/gerenciar/${encodeURIComponent(token)}?error=imagem`);
+  }
   const requestedTitle = safeText(formData.get("title"), 80) || null;
   const requestedDisplayName = safeText(formData.get("displayName"), 80) || null;
   const requestedDescription = safeText(formData.get("description"), 240) || null;
-  const requestedRedirectUrl = normalizeExternalUrl(formData.get("redirectUrl")) || null;
+  const rawRequestedRedirectUrl = formData.get("redirectUrl");
+  const requestedRedirectUrl = normalizePublicUrl(rawRequestedRedirectUrl) || null;
   const requestedTextLabel = requestedTitle || requestedDisplayName || null;
+
+  const rawRequestedRedirectText = String(rawRequestedRedirectUrl || "").trim();
+  if (rawRequestedRedirectText && !requestedRedirectUrl) {
+    redirect(`/gerenciar/${encodeURIComponent(token)}?error=link_invalido`);
+  }
+
+  if (requestedRedirectUrl) {
+    const blockedDomain = await findBlockedDomain(prisma, requestedRedirectUrl);
+    if (blockedDomain) {
+      await (prisma as any).linkModerationLog.create({
+        data: {
+          url: requestedRedirectUrl,
+          domain: getHostnameFromUrl(requestedRedirectUrl),
+          action: "BLOCKED_EDIT_REQUEST",
+          reason: blockedDomain.reason || "Domínio bloqueado no admin.",
+          transactionId: transaction.id,
+          placementId: transaction.placement.id,
+        },
+      }).catch(() => null);
+      redirect(`/gerenciar/${encodeURIComponent(token)}?error=link_bloqueado`);
+    }
+  }
 
   if (!requestedTitle && !requestedDisplayName && !requestedDescription && !requestedRedirectUrl && !requestedImageUrl) {
     redirect(`/gerenciar/${encodeURIComponent(token)}?error=sem_alteracao`);
@@ -154,7 +186,7 @@ export default async function ManageOrderPage({ params, searchParams }: ManagePa
         </section>
 
         {sent && <div className="mt-5 rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-black text-emerald-800">Solicitação enviada. Vamos analisar sua alteração.</div>}
-        {error && <div className="mt-5 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm font-black text-red-800">Não foi possível enviar: {error === "motivo" ? "informe um motivo com pelo menos 5 caracteres." : error === "sem_alteracao" ? "preencha pelo menos uma alteração." : error === "pagamento" ? "o pagamento ainda não está aprovado." : "pedido não encontrado."}</div>}
+        {error && <div className="mt-5 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm font-black text-red-800">Não foi possível enviar: {error === "motivo" ? "informe um motivo com pelo menos 5 caracteres." : error === "sem_alteracao" ? "preencha pelo menos uma alteração." : error === "pagamento" ? "o pagamento ainda não está aprovado." : error === "imagem" ? "a imagem precisa ser JPG, PNG ou WEBP e ter até 5MB." : error === "link_invalido" ? "o link informado não é válido." : error === "link_bloqueado" ? "esse domínio está bloqueado para publicação." : "pedido não encontrado."}</div>}
 
         <section className="mt-5 grid gap-4 md:grid-cols-2">
           <div className="rounded-3xl bg-white p-5 shadow-xl">

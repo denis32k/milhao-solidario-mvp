@@ -58,6 +58,13 @@ export async function GET(request: Request) {
   } else if (type === "consents") {
     const data = await (prisma as any).consentLog.findMany({ orderBy: { createdAt: "desc" }, take: 5000, include: { user: true, transaction: true } });
     rows = data.map((c: any) => ({ id: c.id, usuario: c.user?.email || c.user?.name, pedido: c.transactionId, termos: c.termsVersion, privacidade: c.privacyVersion, regras: c.contentRulesVersion, canal: c.channel, aceite_em: c.acceptedAt, ip_hash_registrado: Boolean(c.ipHash) }));
+  } else if (type === "blocked-links") {
+    const domains = await (prisma as any).blockedDomain.findMany({ orderBy: [{ active: "desc" }, { updatedAt: "desc" }], take: 5000, include: { createdByAdmin: true } });
+    const logs = await (prisma as any).linkModerationLog.findMany({ orderBy: { createdAt: "desc" }, take: 5000 });
+    rows = [
+      ...domains.map((d: any) => ({ tipo: "dominio", id: d.id, dominio: d.domain, ativo: d.active, acao: "BLOCKED_DOMAIN", motivo: d.reason, admin: d.createdByAdmin?.email || d.createdByAdmin?.name, criado_em: d.createdAt, atualizado_em: d.updatedAt })),
+      ...logs.map((l: any) => ({ tipo: "log", id: l.id, dominio: l.domain, ativo: "", acao: l.action, motivo: l.reason, url: l.url, pedido: l.transactionId, conteudo: l.placementId, criado_em: l.createdAt })),
+    ];
   } else {
     rows = [{ erro: "tipo de exportação inválido" }];
   }
