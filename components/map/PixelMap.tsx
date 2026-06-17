@@ -240,15 +240,9 @@ export default function PixelMap() {
     if (!wrapper) return 1;
 
     const rect = wrapper.getBoundingClientRect();
-    const isMobile = rect.width < 768;
 
-    // No celular o mural deve abrir inteiro na largura.
-    // Assim a pessoa vê a arte completa e o zoom mínimo não fica pequeno demais.
-    if (isMobile) {
-      return rect.width / MAP_WIDTH;
-    }
-
-    // Em telas maiores continua preenchendo bem a área útil.
+    // O grid precisa ficar preso na tela e não pode diminuir até virar miniatura.
+    // Então o zoom mínimo sempre cobre toda a área visível.
     return Math.max(rect.width / MAP_WIDTH, rect.height / MAP_HEIGHT);
   }
 
