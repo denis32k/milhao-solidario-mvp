@@ -420,7 +420,10 @@ export default function PixelMap() {
           ctx.strokeRect(px + 0.6, py + 0.6, BLOCK_SIZE - 1.2, BLOCK_SIZE - 1.2);
         }
 
-        if (camera.scale > 1.05) {
+        // A arte enviada já possui uma micrograde própria.
+        // Para não criar duas grades desencontradas na tela, a grade técnica fica invisível.
+        // O clique/seleção continua seguindo 232 x 125 = 29.000 blocos.
+        if (false) {
           ctx.strokeStyle = category === "GRAND_CENTER" ? "rgba(251,191,36,0.18)" : "rgba(15,23,42,0.11)";
           ctx.lineWidth = camera.scale > 2 ? 0.34 : 0.18;
           ctx.strokeRect(px + 0.1, py + 0.1, BLOCK_SIZE - 0.2, BLOCK_SIZE - 0.2);

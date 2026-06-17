@@ -4,11 +4,11 @@ Versão ajustada para o projeto comercial de venda de tijolinhos digitais.
 
 ## O que esta versão traz
 
-- Fundo do grid substituído por versão em alta qualidade da imagem limpa, ajustada para 2320 x 1250 px.
+- Fundo do grid substituído por versão técnica da imagem limpa, convertida para encaixar bloco por bloco.
 - Logo novo `Mural 29` aplicado no cabeçalho.
 - Imagem de marcação usada como referência para as áreas restritas.
 - Grid configurado em **232 colunas x 125 linhas = exatamente 29.000 blocos**.
-- Imagem do mural em **2320 x 1250 px**, mantendo qualidade visual e com grid funcional de **232 x 125** blocos.
+- Imagem do mural em **2320 x 1250 px**, com cada bloco do site representando **10 x 10 px** da imagem.
 - Áreas principais:
   - Copacabana: R$ 9,00 por tijolinho
   - Leblon: R$ 149,00 por tijolinho
