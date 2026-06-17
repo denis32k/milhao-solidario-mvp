@@ -13,14 +13,14 @@ export type GridBlockCategory = "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTE
 
 // Divisões calculadas para o mural 232 x 125.
 // Copacabana: 0..68 | Leblon: 69..151 | Ipanema: 152..231
-// Área restrita atual: apenas a placa do Leblon.
 export const COPACABANA_MAX_X = 68;
 export const LEBLON_MAX_X = 151;
 
 export const AREA_DIVIDERS = [COPACABANA_MAX_X + 1, LEBLON_MAX_X + 1] as const;
 
-export const RESTRICTED_AREAS = [
-  { id: "leblon-sign", minX: 80, maxX: 141, minY: 50, maxY: 72 },
+// Área nobre: edifício Tom Delfim Moreira, acima da placa do Leblon.
+export const NOBLE_AREAS = [
+  { id: "tom-delfim-moreira", minX: 91, maxX: 127, minY: 0, maxY: 49 },
 ] as const;
 
 function isInsideRect(
@@ -31,17 +31,17 @@ function isInsideRect(
   return x >= rect.minX && x <= rect.maxX && y >= rect.minY && y <= rect.maxY;
 }
 
-export function isRestrictedBlock(x: number, y: number) {
-  return RESTRICTED_AREAS.some((rect) => isInsideRect(x, y, rect));
+export function isGrandCenterBlock(x: number, y: number) {
+  return NOBLE_AREAS.some((rect) => isInsideRect(x, y, rect));
 }
 
-export function getRestrictedAreaId(x: number, y: number) {
-  const rect = RESTRICTED_AREAS.find((area) => isInsideRect(x, y, area));
+export function getGrandCenterAreaId(x: number, y: number) {
+  const rect = NOBLE_AREAS.find((area) => isInsideRect(x, y, area));
   return rect?.id ?? null;
 }
 
 export function getBlockCategory(x: number, y: number): GridBlockCategory {
-  if (isRestrictedBlock(x, y)) return "GRAND_CENTER";
+  if (isGrandCenterBlock(x, y)) return "GRAND_CENTER";
   if (x <= COPACABANA_MAX_X) return "SOLIDARITY";
   if (x <= LEBLON_MAX_X) return "GOLD";
   return "PREMIUM";

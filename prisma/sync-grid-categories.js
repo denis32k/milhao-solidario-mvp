@@ -7,20 +7,20 @@ const GRID_COLS = 232;
 const GRID_ROWS = 125;
 const COPACABANA_MAX_X = 68;
 const LEBLON_MAX_X = 151;
-const RESTRICTED_SQL = `
-  ("gridX" BETWEEN 80 AND 141 AND "gridY" BETWEEN 50 AND 72)
+const NOBLE_SQL = `
+  ("gridX" BETWEEN 91 AND 127 AND "gridY" BETWEEN 0 AND 49)
 `;
 
-const RESTRICTED_AREAS = [
-  { minX: 80, maxX: 141, minY: 50, maxY: 72 },
+const NOBLE_AREAS = [
+  { minX: 91, maxX: 127, minY: 0, maxY: 49 },
 ];
 
-function isRestrictedBlock(x, y) {
-  return RESTRICTED_AREAS.some((rect) => x >= rect.minX && x <= rect.maxX && y >= rect.minY && y <= rect.maxY);
+function isGrandCenterBlock(x, y) {
+  return NOBLE_AREAS.some((rect) => x >= rect.minX && x <= rect.maxX && y >= rect.minY && y <= rect.maxY);
 }
 
 function getCategory(x, y) {
-  if (isRestrictedBlock(x, y)) return "GRAND_CENTER";
+  if (isGrandCenterBlock(x, y)) return "GRAND_CENTER";
   if (x <= COPACABANA_MAX_X) return "SOLIDARITY";
   if (x <= LEBLON_MAX_X) return "GOLD";
   return "PREMIUM";
@@ -30,12 +30,12 @@ function getPriceCents(category) {
   return siteConfig.areas[category]?.priceCents || 0;
 }
 
-function getStatus(category) {
-  return category === "GRAND_CENTER" ? "LOCKED" : "AVAILABLE";
+function getStatus() {
+  return "AVAILABLE";
 }
 
 async function main() {
-  console.log("Sincronizando Mural 29: 232 x 125 = 29.000 blocos, restrição apenas na placa do Leblon...");
+  console.log("Sincronizando Mural 29: 232 x 125 = 29.000 blocos, com área nobre Tom Delfim Moreira...");
 
   let batch = [];
   for (let y = 0; y < GRID_ROWS; y++) {
@@ -46,7 +46,7 @@ async function main() {
         gridY: y,
         category,
         status: getStatus(category),
-        available: category !== "GRAND_CENTER",
+        available: true,
         priceCents: getPriceCents(category),
       });
 
@@ -61,23 +61,21 @@ async function main() {
   const priceSolidarity = siteConfig.areas.SOLIDARITY.priceCents;
   const pricePremium = siteConfig.areas.PREMIUM.priceCents;
   const priceGold = siteConfig.areas.GOLD.priceCents;
+  const priceGrandCenter = siteConfig.areas.GRAND_CENTER.priceCents;
 
   await prisma.$executeRawUnsafe(`
     UPDATE "Block"
     SET
       "category" = CASE
-        WHEN ${RESTRICTED_SQL} THEN 'GRAND_CENTER'::"BlockCategory"
+        WHEN ${NOBLE_SQL} THEN 'GRAND_CENTER'::"BlockCategory"
         WHEN "gridX" <= ${COPACABANA_MAX_X} THEN 'SOLIDARITY'::"BlockCategory"
         WHEN "gridX" <= ${LEBLON_MAX_X} THEN 'GOLD'::"BlockCategory"
         ELSE 'PREMIUM'::"BlockCategory"
       END,
-      "status" = CASE
-        WHEN ${RESTRICTED_SQL} THEN 'LOCKED'::"BlockStatus"
-        ELSE 'AVAILABLE'::"BlockStatus"
-      END,
-      "available" = CASE WHEN ${RESTRICTED_SQL} THEN false ELSE true END,
+      "status" = 'AVAILABLE'::"BlockStatus",
+      "available" = true,
       "priceCents" = CASE
-        WHEN ${RESTRICTED_SQL} THEN 0
+        WHEN ${NOBLE_SQL} THEN ${priceGrandCenter}
         WHEN "gridX" <= ${COPACABANA_MAX_X} THEN ${priceSolidarity}
         WHEN "gridX" <= ${LEBLON_MAX_X} THEN ${priceGold}
         ELSE ${pricePremium}
@@ -100,7 +98,7 @@ async function main() {
     },
     data: {
       category: "GRAND_CENTER",
-      status: "BLOCKED",
+      status: "AVAILABLE",
       available: false,
       priceCents: 0,
       ownerId: null,
@@ -116,7 +114,7 @@ async function main() {
     copacabana: await prisma.block.count({ where: { category: "SOLIDARITY", gridX: { lt: GRID_COLS }, gridY: { lt: GRID_ROWS } } }),
     leblon: await prisma.block.count({ where: { category: "GOLD", gridX: { lt: GRID_COLS }, gridY: { lt: GRID_ROWS } } }),
     ipanema: await prisma.block.count({ where: { category: "PREMIUM", gridX: { lt: GRID_COLS }, gridY: { lt: GRID_ROWS } } }),
-    restrita: await prisma.block.count({ where: { category: "GRAND_CENTER", gridX: { lt: GRID_COLS }, gridY: { lt: GRID_ROWS } } }),
+    tomDelfim: await prisma.block.count({ where: { category: "GRAND_CENTER", gridX: { lt: GRID_COLS }, gridY: { lt: GRID_ROWS } } }),
   };
 
   console.log(counts);

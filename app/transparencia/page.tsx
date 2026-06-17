@@ -32,7 +32,7 @@ export default function TransparenciaPage() {
         </div>
 
         <div className="mt-6 rounded-3xl border border-orange-200 bg-orange-50 p-5">
-          <p className="text-xs font-black uppercase tracking-wide text-orange-700">Áreas restritas</p>
+          <p className="text-xs font-black uppercase tracking-wide text-orange-700">Área nobre</p>
           <h2 className="mt-2 text-2xl font-black text-orange-900">Placas bloqueadas nesta fase</h2>
           <p className="mt-3 text-sm leading-relaxed text-orange-900/80">
             As placas com os nomes dos bairros não estão à venda neste momento. Esses espaços exibem cadeado e a mensagem de liberação futura no próprio mural.

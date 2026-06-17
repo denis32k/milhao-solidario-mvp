@@ -71,3 +71,12 @@ Este é um projeto comercial de venda de espaços digitais em um mural público.
 - O zoom mínimo agora sempre cobre a tela.
 - O usuário continua podendo dar zoom e arrastar para os lados.
 - O eixo vertical segue centralizado no celular.
+
+
+## V19
+- Troca a imagem do mural para a nova arte enviada.
+- Remove a área privada/restrita.
+- Cria a área nobre Tom Delfim Moreira acima da placa do Leblon.
+- Preço da área nobre: R$ 500,00 por bloco.
+- Mantém o comportamento do grid fixo no mobile.
+- Bloqueia o zoom nativo do navegador para evitar o mural encolher na tela.

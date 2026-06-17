@@ -27,7 +27,7 @@ export default function TermosPage() {
               <p><strong>{siteConfig.areas.SOLIDARITY.name}:</strong> {formatMoney(siteConfig.areas.SOLIDARITY.priceCents)} por tijolinho, com cor, nome público, descrição curta e link opcional.</p>
               <p><strong>{siteConfig.areas.PREMIUM.name}:</strong> {formatMoney(siteConfig.areas.PREMIUM.priceCents)} por tijolinho, com imagem no mural, nome público, descrição e link.</p>
               <p><strong>{siteConfig.areas.GOLD.name}:</strong> {formatMoney(siteConfig.areas.GOLD.priceCents)} por tijolinho, com imagem no mural, nome público, descrição, link e maior destaque visual.</p>
-              <p><strong>Áreas restritas:</strong> as placas com os nomes dos bairros estão bloqueadas no momento e serão liberadas em uma fase especial da obra.</p>
+              <p><strong>Área nobre:</strong> o edifício Tom Delfim Moreira, acima da placa do Leblon, é uma área nobre com valor diferenciado.</p>
             </div>
           </section>
 

@@ -23,12 +23,16 @@ function themeClass(category: BuyableAreaKey) {
   if (category === "PREMIUM") {
     return "border-emerald-200 bg-[radial-gradient(circle_at_top,#bbf7d0,transparent_35%),linear-gradient(135deg,#064e3b,#f8fafc)] text-white";
   }
+  if (category === "GRAND_CENTER") {
+    return "border-fuchsia-200 bg-[radial-gradient(circle_at_top,#f5d0fe,transparent_35%),linear-gradient(135deg,#581c87,#fdf4ff)] text-white";
+  }
   return "border-yellow-200 bg-[radial-gradient(circle_at_top,#fde68a,transparent_35%),linear-gradient(135deg,#fff7ed,#f59e0b)] text-slate-950";
 }
 
 function areaIcon(category: BuyableAreaKey) {
   if (category === "SOLIDARITY") return "〰️";
   if (category === "PREMIUM") return "🌿";
+  if (category === "GRAND_CENTER") return "👑";
   return "✨";
 }
 
@@ -54,13 +58,13 @@ export default function AreaCards() {
       <div className="mx-auto max-w-6xl">
         <div className="max-w-3xl">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-orange-600">Escolha sua área</p>
-          <h2 className="mt-2 text-3xl font-black text-slate-950">Escolha onde sua marca vai ficar: Copacabana, Ipanema ou Leblon.</h2>
+          <h2 className="mt-2 text-3xl font-black text-slate-950">Escolha onde sua marca vai ficar: Copacabana, Ipanema, Leblon ou Tom Delfim Moreira.</h2>
           <p className="mt-3 text-sm font-semibold leading-relaxed text-slate-600">
             Cada espaço comprado deixa uma marca nessa obra. As áreas têm estilos, preços e níveis de destaque diferentes.
           </p>
         </div>
 
-        <div className="mt-7 grid gap-4 md:grid-cols-3">
+        <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {buyableAreaKeys.map((key) => {
             const area = siteConfig.areas[key];
             const areaStats = stats?.blocks.byCategory?.[key];

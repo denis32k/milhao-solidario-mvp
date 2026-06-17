@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { GRID_COLS, GRID_ROWS } from "@/lib/grid";
 import { getAreaName, getAreaPriceCents, getOperationalFeeCents, siteConfig } from "@/lib/site-config";
 
-type BuyableCategory = "SOLIDARITY" | "PREMIUM" | "GOLD";
+type BuyableCategory = "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTER";
 type CheckoutStep = "data" | "pix";
 
 type SelectedBlock = {
@@ -179,6 +179,16 @@ async function compressImageFile(file: File) {
 }
 
 function getCategoryTheme(category: BuyableCategory) {
+  if (category === "GRAND_CENTER") {
+    return {
+      border: "border-fuchsia-300",
+      bg: "bg-fuchsia-50",
+      text: "text-fuchsia-800",
+      button: "bg-fuchsia-600",
+      buttonText: "text-white",
+    };
+  }
+
   if (category === "GOLD") {
     return {
       border: "border-yellow-300",
@@ -240,7 +250,9 @@ export default function CompraPage() {
 
     setSelectedBlocks(blocks);
 
-    if (categoryParam === "GOLD") {
+    if (categoryParam === "GRAND_CENTER") {
+      setCategory("GRAND_CENTER");
+    } else if (categoryParam === "GOLD") {
       setCategory("GOLD");
     } else if (categoryParam === "PREMIUM") {
       setCategory("PREMIUM");
@@ -254,7 +266,7 @@ export default function CompraPage() {
   const operationalFeeCents = useMemo(() => getOperationalFeeCents(subtotalCents), [subtotalCents]);
   const totalCents = subtotalCents + operationalFeeCents;
   const theme = getCategoryTheme(category);
-  const requiresImageShape = category === "PREMIUM" || category === "GOLD";
+  const requiresImageShape = category === "PREMIUM" || category === "GOLD" || category === "GRAND_CENTER";
   const isRectangle = blocksFormRectangle(selectedBlocks);
 
   async function uploadImageIfNeeded() {
@@ -292,7 +304,7 @@ export default function CompraPage() {
       }
 
       if (requiresImageShape && !isRectangle) {
-        alert("Para Ipanema e Leblon, selecione uma área retangular.");
+        alert("Para áreas com imagem, selecione uma área retangular.");
         return;
       }
 

@@ -1,11 +1,11 @@
 import siteConfigJson from "@/config/site.config.json";
 
 export type AreaKey = "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTER";
-export type BuyableAreaKey = "SOLIDARITY" | "PREMIUM" | "GOLD";
+export type BuyableAreaKey = "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTER";
 
 export const siteConfig = siteConfigJson;
 
-export const buyableAreaKeys: BuyableAreaKey[] = ["SOLIDARITY", "PREMIUM", "GOLD"];
+export const buyableAreaKeys: BuyableAreaKey[] = ["SOLIDARITY", "PREMIUM", "GOLD", "GRAND_CENTER"];
 
 export const constructionPhases = siteConfig.constructionPhases;
 

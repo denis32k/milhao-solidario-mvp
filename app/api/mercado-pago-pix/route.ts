@@ -5,7 +5,7 @@ import { siteConfig } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
 
-type BuyableCategory = "SOLIDARITY" | "PREMIUM" | "GOLD";
+type BuyableCategory = "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTER";
 
 type SelectedBlockInput = {
   gridX: number;
@@ -153,6 +153,7 @@ function blocksFormRectangle(blocks: SelectedBlockInput[]) {
 }
 
 function mapCategoryToKind(category: BuyableCategory) {
+  if (category === "GRAND_CENTER") return "GOLD";
   if (category === "GOLD") return "GOLD";
   if (category === "PREMIUM") return "PREMIUM";
   return "SOLIDARITY";
@@ -259,7 +260,7 @@ export async function POST(request: Request) {
           status: "AVAILABLE",
           available: true,
           category: {
-            in: ["SOLIDARITY", "PREMIUM", "GOLD"],
+            in: ["SOLIDARITY", "PREMIUM", "GOLD", "GRAND_CENTER"],
           },
         },
         orderBy: [{ gridY: "asc" }, { gridX: "asc" }],
@@ -277,11 +278,11 @@ export async function POST(request: Request) {
 
       const category = categories[0] as BuyableCategory;
 
-      if ((category === "PREMIUM" || category === "GOLD") && !blocksFormRectangle(selectedBlocksInput)) {
+      if ((category === "PREMIUM" || category === "GOLD" || category === "GRAND_CENTER") && !blocksFormRectangle(selectedBlocksInput)) {
         throw new Error("Para usar imagem, selecione uma área retangular.");
       }
 
-      if ((category === "PREMIUM" || category === "GOLD") && !title.trim()) {
+      if ((category === "PREMIUM" || category === "GOLD" || category === "GRAND_CENTER") && !title.trim()) {
         throw new Error("Informe um título público para essa área.");
       }
 

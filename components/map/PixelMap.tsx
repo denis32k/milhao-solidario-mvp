@@ -7,19 +7,18 @@ import {
   AREA_DIVIDERS,
   BLOCK_SIZE,
   getBlockCategory,
-  getRestrictedAreaId,
   GRID_COLS,
   GRID_ROWS,
   MAP_HEIGHT,
   MAP_WIDTH,
-  RESTRICTED_AREAS,
+  NOBLE_AREAS,
 } from "@/lib/grid";
 
 const MAX_SCALE = 8;
 const MURAL_IMAGE_URL = "/mural-rio.png";
 
 type BlockCategory = "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTER";
-type BuyableCategory = "SOLIDARITY" | "PREMIUM" | "GOLD";
+type BuyableCategory = "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTER";
 
 type Camera = {
   x: number;
@@ -69,7 +68,6 @@ type ApiMapBlock = {
 
 type SelectedSheet =
   | null
-  | { type: "restricted-area" }
   | { type: "sold"; block: ApiMapBlock; anchorX: number; anchorY: number };
 
 type PointerPoint = {
@@ -159,6 +157,7 @@ function getSoldBlockOverlayColor(block: ApiMapBlock) {
   if (block.placement?.status === "BANNED" || block.placement?.status === "REMOVED") return "rgba(100,116,139,0.85)";
   if (block.status === "RESERVED") return "rgba(148,163,184,0.75)";
   if (block.category === "SOLIDARITY") return `${block.placement?.fillColor || "#22c55e"}CC`;
+  if (block.category === "GRAND_CENTER") return "rgba(168,85,247,0.30)";
   if (block.category === "GOLD") return "rgba(245,158,11,0.32)";
   if (block.category === "PREMIUM") return "rgba(14,116,144,0.28)";
   return "rgba(148,163,184,0.7)";
@@ -227,7 +226,7 @@ export default function PixelMap() {
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, scale: 1 });
 
   const selectedCategory = selectedBlocks[0]?.category || null;
-  const selectedNeedsRectangle = selectedCategory === "PREMIUM" || selectedCategory === "GOLD";
+  const selectedNeedsRectangle = selectedCategory === "PREMIUM" || selectedCategory === "GOLD" || selectedCategory === "GRAND_CENTER";
   const selectedIsRectangle = blocksFormRectangle(selectedBlocks);
   const canContinue = selectedBlocks.length > 0 && (!selectedNeedsRectangle || selectedIsRectangle);
 
@@ -427,7 +426,7 @@ export default function PixelMap() {
         const py = y * BLOCK_SIZE;
 
         if (category === "GRAND_CENTER") {
-          ctx.fillStyle = "rgba(2,6,23,0.35)";
+          ctx.fillStyle = "rgba(168,85,247,0.10)";
           ctx.fillRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
         }
 
@@ -446,7 +445,7 @@ export default function PixelMap() {
 
         // Grade branca do site. A nova imagem veio sem micrograde, então agora a grade técnica pode aparecer.
         if (camera.scale > 0.45) {
-          ctx.strokeStyle = category === "GRAND_CENTER" ? "rgba(251,191,36,0.30)" : "rgba(255,255,255,0.20)";
+          ctx.strokeStyle = category === "GRAND_CENTER" ? "rgba(250,204,21,0.28)" : "rgba(255,255,255,0.20)";
           ctx.lineWidth = camera.scale > 2 ? 0.28 : 0.16;
           ctx.strokeRect(px + 0.1, py + 0.1, BLOCK_SIZE - 0.2, BLOCK_SIZE - 0.2);
         }
@@ -483,30 +482,28 @@ export default function PixelMap() {
 
       drawImageCover(ctx, image, x, y, width, height);
 
-      ctx.strokeStyle = blocks[0].category === "GOLD" ? "#f59e0b" : "#0f766e";
+      ctx.strokeStyle = blocks[0].category === "GRAND_CENTER" ? "#a855f7" : blocks[0].category === "GOLD" ? "#f59e0b" : "#0f766e";
       ctx.lineWidth = 2.1;
       ctx.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
     }
 
-    // bloqueios visuais das placas
-    for (const area of RESTRICTED_AREAS) {
+    // destaque visual da área nobre Tom Delfim Moreira
+    for (const area of NOBLE_AREAS) {
       const x = area.minX * BLOCK_SIZE;
       const y = area.minY * BLOCK_SIZE;
       const width = (area.maxX - area.minX + 1) * BLOCK_SIZE;
       const height = (area.maxY - area.minY + 1) * BLOCK_SIZE;
 
-      ctx.fillStyle = "rgba(2,6,23,0.28)";
-      ctx.fillRect(x, y, width, height);
-      ctx.strokeStyle = "rgba(251,191,36,0.78)";
+      ctx.strokeStyle = "rgba(168,85,247,0.78)";
       ctx.lineWidth = 1.8;
       ctx.strokeRect(x + 1, y + 1, width - 2, height - 2);
 
-      if (camera.scale > 0.85) {
+      if (camera.scale > 1.1) {
         ctx.fillStyle = "rgba(255,255,255,0.92)";
-        ctx.font = camera.scale > 2 ? "24px Arial" : "16px Arial";
+        ctx.font = camera.scale > 2 ? "18px Arial" : "12px Arial";
         ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("🔒", x + width / 2, y + height / 2);
+        ctx.textBaseline = "top";
+        ctx.fillText("TOM DELFIM MOREIRA", x + width / 2, y + 10);
       }
     }
 
@@ -553,10 +550,6 @@ export default function PixelMap() {
   }
 
   function selectBlock(gridX: number, gridY: number, category: BlockCategory, clientX: number, clientY: number) {
-    if (category === "GRAND_CENTER" || getRestrictedAreaId(gridX, gridY)) {
-      setSelectedSheet({ type: "restricted-area" });
-      return;
-    }
 
     const soldBlock = getMapBlockAt(gridX, gridY);
     if (soldBlock) {
@@ -827,23 +820,6 @@ export default function PixelMap() {
                 </button>
               )}
             </div>
-          </div>
-        </div>
-      )}
-
-      {selectedSheet?.type === "restricted-area" && (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-950/55 p-6" onClick={() => setSelectedSheet(null)}>
-          <div className="w-full max-w-sm rounded-3xl border border-amber-300 bg-white p-6 text-center shadow-2xl" onClick={(event) => event.stopPropagation()}>
-            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-amber-400 text-4xl shadow-lg">🔒</div>
-            <h2 className="text-2xl font-black text-slate-950">Área restrita</h2>
-            <p className="mt-3 text-sm leading-relaxed text-slate-600">{siteConfig.copy.legendaryMessage}</p>
-            <button
-              type="button"
-              onClick={() => setSelectedSheet(null)}
-              className="mt-6 w-full rounded-2xl bg-slate-950 py-4 text-sm font-extrabold text-white"
-            >
-              Entendi
-            </button>
           </div>
         </div>
       )}
