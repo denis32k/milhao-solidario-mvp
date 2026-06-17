@@ -62,9 +62,7 @@ export default async function AdminFinanceiroPage({ searchParams }: { searchPara
   if (area && area !== "ALL") where.kind = area;
   if (status && status !== "ALL") where.status = status;
 
-  const approvedWhere: any = { ...where, status: "APPROVED" };
-
-  const [transactions, stuckReservations, webhookErrors, pendingPix, approvedToday] = await Promise.all([
+  const [transactions, stuckReservations, webhookErrors, pendingPix, approvedToday] = (await Promise.all([
     safeListQuery(() => (prisma as any).transaction.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -92,11 +90,9 @@ export default async function AdminFinanceiroPage({ searchParams }: { searchPara
     safeValueQuery(() => (prisma as any).transaction.count({
       where: { status: "APPROVED", approvedAt: { gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()), lte: now } },
     }), 0),
-  ]);
+  ])) as [any[], any[], any[], any[], number];
 
   const approved = transactions.filter((t: any) => t.status === "APPROVED");
-  const refunded = transactions.filter((t: any) => t.status === "REFUNDED");
-  const cancelled = transactions.filter((t: any) => t.status === "CANCELLED" || t.status === "REJECTED" || t.status === "EXPIRED");
   const disputes = transactions.filter((t: any) => (t.disputeCases || []).length > 0);
   const expiredPending = pendingPix.filter((t: any) => t.expiresAt && new Date(t.expiresAt) < now);
 
@@ -106,7 +102,7 @@ export default async function AdminFinanceiroPage({ searchParams }: { searchPara
   const avgTicketCents = approved.length ? Math.round(totalApprovedCents / approved.length) : 0;
   const soldBlocks = sum(approved, (t: any) => t.items?.length || 0);
 
-  const byArea = Object.values(transactions.reduce((acc: any, transaction: any) => {
+  const byArea = (Object.values(transactions.reduce((acc: Record<string, any>, transaction: any) => {
     const key = transaction.kind || "UNKNOWN";
     if (!acc[key]) acc[key] = { key, name: areaNames[key] || key, count: 0, blocks: 0, approved: 0, totalCents: 0 };
     acc[key].count += 1;
@@ -116,15 +112,15 @@ export default async function AdminFinanceiroPage({ searchParams }: { searchPara
       acc[key].totalCents += transaction.totalPaidCents || 0;
     }
     return acc;
-  }, {})).sort((a: any, b: any) => b.totalCents - a.totalCents);
+  }, {} as Record<string, any>)) as any[]).sort((a: any, b: any) => b.totalCents - a.totalCents);
 
-  const byStatus = Object.values(transactions.reduce((acc: any, transaction: any) => {
+  const byStatus = (Object.values(transactions.reduce((acc: Record<string, any>, transaction: any) => {
     const key = transaction.status || "UNKNOWN";
     if (!acc[key]) acc[key] = { key, count: 0, totalCents: 0 };
     acc[key].count += 1;
     acc[key].totalCents += transaction.totalPaidCents || 0;
     return acc;
-  }, {})).sort((a: any, b: any) => b.count - a.count);
+  }, {} as Record<string, any>)) as any[]).sort((a: any, b: any) => b.count - a.count);
 
   const healthAlerts = [
     ...(stuckReservations.length ? [`${stuckReservations.length} reserva(s) travada(s) ou expirada(s).`] : []),
