@@ -101,7 +101,15 @@ function areaLabel(value: string | null | undefined) {
   return value || "Área";
 }
 
-async function safeQuery<T>(factory: () => Promise<T>, fallback: T): Promise<T> {
+async function safeListQuery<T>(factory: () => Promise<T[]>): Promise<T[]> {
+  try {
+    return await factory();
+  } catch {
+    return [];
+  }
+}
+
+async function safeValueQuery<T>(factory: () => Promise<T>, fallback: T): Promise<T> {
   try {
     return await factory();
   } catch {
@@ -632,38 +640,31 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
     openDisputes,
     latestAdminActions,
   ] = await Promise.all([
-    safeQuery(
-      () =>
+    safeListQuery(() =>
         prisma.transaction.findMany({
           orderBy: { createdAt: "desc" },
           take: 10,
           include: { user: true, items: true },
         }),
-      []
     ),
-    safeQuery(() => prisma.block.count({ where: { status: "SOLD" } }), 0),
-    safeQuery(
-      () =>
+    safeValueQuery(() => prisma.block.count({ where: { status: "SOLD" } }), 0),
+    safeListQuery(() =>
         prisma.block.findMany({
           where: { status: "RESERVED" },
           orderBy: { reservedUntil: "asc" },
           take: 20,
           include: { owner: true },
         }),
-      []
     ),
-    safeQuery(
-      () =>
+    safeListQuery(() =>
         prisma.placement.findMany({
           where: { kind: { in: ["PREMIUM", "GOLD", "GRAND_CENTER"] } },
           orderBy: { createdAt: "desc" },
           take: 20,
           include: { user: true, blocks: { take: 1 } },
         }),
-      []
     ),
-    safeQuery(
-      () =>
+    safeListQuery(() =>
         prisma.report.findMany({
           orderBy: { createdAt: "desc" },
           take: 30,
@@ -672,47 +673,38 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
             placement: { include: { user: true } },
           },
         }),
-      []
     ),
-    safeQuery(() => prisma.user.count({ where: { isBanned: true } }), 0),
-    safeQuery(
-      () =>
+    safeValueQuery(() => prisma.user.count({ where: { isBanned: true } }), 0),
+    safeListQuery(() =>
         prisma.placement.findMany({
           where: { isTest: true },
           orderBy: { createdAt: "desc" },
           take: 30,
           include: { blocks: { take: 1 } },
         }),
-      []
     ),
-    safeQuery(
-      () =>
+    safeListQuery(() =>
         prisma.contentEditRequest.findMany({
           where: { status: "PENDING" },
           orderBy: { createdAt: "asc" },
           take: 20,
           include: { user: true, placement: { include: { user: true } } },
         }),
-      []
     ),
-    safeQuery(
-      () =>
+    safeListQuery(() =>
         prisma.disputeCase.findMany({
           where: { status: { in: ["OPEN", "REVIEWING"] } },
           orderBy: { createdAt: "desc" },
           take: 20,
           include: { transaction: { include: { user: true } } },
         }),
-      []
     ),
-    safeQuery(
-      () =>
+    safeListQuery(() =>
         prisma.adminAction.findMany({
           orderBy: { createdAt: "desc" },
           take: 20,
           include: { admin: true },
         }),
-      []
     ),
   ]);
 
