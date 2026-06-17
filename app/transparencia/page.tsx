@@ -37,10 +37,10 @@ export default function TransparenciaPage() {
           <p className="text-xs font-black uppercase tracking-wide text-slate-500">Resumo atual</p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <p className="rounded-2xl bg-white p-4 text-sm font-semibold leading-relaxed text-slate-700">
-              <strong className="text-slate-950">Copacabana</strong> é a entrada, <strong className="text-slate-950">Ipanema</strong> oferece mais destaque, <strong className="text-slate-950">Leblon</strong> é a área exclusiva e <strong className="text-slate-950">Tom Delfim Moreira</strong> é a área nobre no edifício acima da placa do Leblon.
+              <strong className="text-slate-950">Copacabana</strong> é a entrada do mural, <strong className="text-slate-950">Ipanema</strong> oferece mais destaque, <strong className="text-slate-950">Leblon</strong> é a área exclusiva e <strong className="text-slate-950">Tom Delfim Moreira</strong> é a área nobre no edifício acima da placa do Leblon.
             </p>
             <p className="rounded-2xl bg-white p-4 text-sm font-semibold leading-relaxed text-slate-700">
-              O cliente compra direito de exibição conforme as regras do site. As coordenadas vendidas viram histórico fixo e não devem ser remanejadas livremente.
+              As placas com os nomes dos bairros continuam decorativas no mural. O edifício Tom Delfim Moreira é a área premium de maior valor, com blocos de {formatMoney(siteConfig.areas.GRAND_CENTER.priceCents)}.
             </p>
           </div>
         </div>
@@ -48,7 +48,9 @@ export default function TransparenciaPage() {
         <div className="mt-6 rounded-3xl bg-slate-50 p-5">
           <p className="text-xs font-black uppercase tracking-wide text-slate-500">Fases da obra</p>
           <div className="mt-4 grid gap-3 text-sm font-bold text-slate-700 sm:grid-cols-2">
-            {siteConfig.constructionPhases.map((phase) => <p key={phase}>🧱 {phase}</p>)}
+            {siteConfig.constructionPhases.map((phase) => (
+              <p key={phase}>🧱 {phase}</p>
+            ))}
           </div>
         </div>
 

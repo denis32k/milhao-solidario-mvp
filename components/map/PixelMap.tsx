@@ -266,10 +266,7 @@ export default function PixelMap() {
       nextX = clamp(nextX, rect.width - scaledWidth, 0);
     }
 
-    if (rect.width < 768) {
-      // No celular o mural é uma faixa panorâmica: trava o eixo vertical e libera navegação lateral.
-      nextY = (rect.height - scaledHeight) / 2;
-    } else if (scaledHeight <= rect.height) {
+    if (scaledHeight <= rect.height) {
       nextY = (rect.height - scaledHeight) / 2;
     } else {
       nextY = clamp(nextY, rect.height - scaledHeight, 0);
@@ -284,8 +281,7 @@ export default function PixelMap() {
 
     const rect = wrapper.getBoundingClientRect();
     const minScale = getMinScale();
-    const isMobile = rect.width < 768;
-    const nextScale = isMobile ? minScale : clamp(minScale * 1.02, minScale, MAX_SCALE);
+    const nextScale = clamp(minScale * 1.02, minScale, MAX_SCALE);
 
     setCamera(
       clampCamera({
@@ -295,6 +291,7 @@ export default function PixelMap() {
       })
     );
   }
+
 
   function zoomFromScreenPoint(screenX: number, screenY: number, factor: number) {
     const nextScale = clamp(camera.scale * factor, getMinScale(), MAX_SCALE);
@@ -777,7 +774,7 @@ export default function PixelMap() {
       <canvas ref={canvasRef} className="block h-full w-full" />
 
       <div
-        className="pointer-events-none absolute right-3 top-20 z-40 hidden flex-col gap-2 md:flex"
+        className="absolute right-3 top-24 z-40 hidden flex-col gap-2 md:flex"
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => event.stopPropagation()}
       >

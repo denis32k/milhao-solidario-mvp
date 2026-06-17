@@ -1,12 +1,11 @@
 import StickyHeader from "@/components/layout/StickyHeader";
 import PixelMap from "@/components/map/PixelMap";
-import HomeHallOfFame from "@/components/home/HomeHallOfFame";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  let users: { id: string; name: string; publicName: string | null; totalApprovedCents: number }[] = [];
+  let users: { id: string; name: string | null; publicName: string | null; totalApprovedCents: number }[] = [];
 
   try {
     users = await prisma.user.findMany({
@@ -26,10 +25,9 @@ export default async function HomePage() {
   }));
 
   return (
-    <main className="h-[100dvh] overflow-hidden bg-slate-950 pt-16">
-      <StickyHeader />
+    <main className="h-[100dvh] overflow-hidden bg-slate-950 pt-[92px]">
+      <StickyHeader ranking={ranking} />
       <section id="mural" className="relative h-full">
-        <HomeHallOfFame ranking={ranking} />
         <PixelMap />
       </section>
     </main>

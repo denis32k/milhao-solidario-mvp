@@ -2,9 +2,15 @@ import HeaderMiniStats from "@/components/layout/HeaderMiniStats";
 import { siteConfig } from "@/lib/site-config";
 import Link from "next/link";
 
-export default function StickyHeader() {
+type RankingItem = {
+  id: string;
+  publicName: string;
+  totalApprovedCents: number;
+};
+
+export default function StickyHeader({ ranking = [] }: { ranking?: RankingItem[] }) {
   return (
-    <header className="fixed left-0 top-0 z-50 h-16 w-full border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur">
+    <header className="fixed left-0 top-0 z-50 h-[92px] w-full border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur">
       <div className="flex h-full w-full items-center justify-between gap-2 px-2 sm:px-4">
         <Link href="/" className="flex min-w-0 items-center rounded-full px-1 py-1 active:scale-95 sm:px-2">
           <img
@@ -14,7 +20,7 @@ export default function StickyHeader() {
           />
         </Link>
 
-        <HeaderMiniStats />
+        <HeaderMiniStats ranking={ranking} />
 
         <details className="relative shrink-0">
           <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full bg-slate-100 text-lg shadow-sm">☰</summary>
@@ -28,6 +34,7 @@ export default function StickyHeader() {
             <Link className="block border-b border-slate-100 px-5 py-4 text-sm font-black" href="/transparencia">📊 Transparência</Link>
             <Link className="block border-b border-slate-100 px-5 py-4 text-sm font-black" href="/termos">📜 Termos de Uso</Link>
             <Link className="block px-5 py-4 text-sm font-black" href="/privacidade">🔒 Privacidade</Link>
+            <Link className="block border-t border-slate-100 px-5 py-4 text-sm font-black text-emerald-700" href="/admin">🛠️ Admin</Link>
           </nav>
         </details>
       </div>

@@ -30,7 +30,7 @@ export default function HomeHallOfFame({ ranking }: { ranking: Item[] }) {
                 <p className="text-[9px] font-black uppercase tracking-wide opacity-70">{medal.label}</p>
                 <p className={`truncate font-black ${medal.name}`}>{item.publicName}</p>
                 <p className={`truncate font-bold opacity-80 ${medal.amount}`}>
-                  {item.totalApprovedCents > 0 ? formatMoney(item.totalApprovedCents) : "Aguardando destaque"}
+                  {item.totalApprovedCents > 0 ? formatMoney(item.totalApprovedCents) : "Aguardando primeiro destaque"}
                 </p>
               </div>
             </div>
