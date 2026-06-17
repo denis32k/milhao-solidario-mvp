@@ -2,12 +2,15 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Usa pnpm para evitar travamentos do npm no build do EasyPanel.
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_OPTIONS=--max-old-space-size=512
+
+# Usa pnpm com baixa concorrência para não estourar memória no EasyPanel.
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 
 COPY package*.json ./
 
-RUN pnpm install --no-frozen-lockfile
+RUN pnpm install --prod --no-frozen-lockfile --network-concurrency=1 --child-concurrency=1
 
 COPY . .
 
