@@ -6,6 +6,7 @@ import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { GRID_COLS, GRID_ROWS } from "@/lib/grid";
 import { getAreaName, siteConfig, type AreaKey } from "@/lib/site-config";
+import AdminNav from "@/components/admin/AdminNav";
 
 export const dynamic = "force-dynamic";
 
@@ -857,20 +858,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
           </p>
         </section>
 
-        <nav className="mb-6 overflow-x-auto rounded-3xl bg-white p-3 shadow-xl [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className="flex min-w-max gap-2 text-xs font-black text-slate-700">
-            <a href="#dashboard" className="rounded-full bg-slate-950 px-4 py-2 text-white">Dashboard</a>
-            <a href="#testes" className="rounded-full bg-slate-100 px-4 py-2">Área de testes</a>
-            <a href="#pedidos" className="rounded-full bg-slate-100 px-4 py-2">Pedidos</a>
-            <a href="#pagamentos" className="rounded-full bg-slate-100 px-4 py-2">Pagamentos</a>
-            <a href="#reservas" className="rounded-full bg-slate-100 px-4 py-2">Reservas</a>
-            <a href="#conteudos" className="rounded-full bg-slate-100 px-4 py-2">Conteúdos</a>
-            <a href="#edicoes" className="rounded-full bg-slate-100 px-4 py-2">Edições</a>
-            <a href="#denuncias" className="rounded-full bg-slate-100 px-4 py-2">Denúncias</a>
-            <a href="#disputas" className="rounded-full bg-slate-100 px-4 py-2">Disputas</a>
-            <a href="#auditoria" className="rounded-full bg-slate-100 px-4 py-2">Auditoria</a>
-          </div>
-        </nav>
+        <AdminNav secret={secret} active="dashboard" />
 
         <section id="dashboard" className="mb-6 space-y-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
