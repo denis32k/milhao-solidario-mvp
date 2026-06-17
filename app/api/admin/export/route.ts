@@ -65,6 +65,9 @@ export async function GET(request: Request) {
       ...domains.map((d: any) => ({ tipo: "dominio", id: d.id, dominio: d.domain, ativo: d.active, acao: "BLOCKED_DOMAIN", motivo: d.reason, admin: d.createdByAdmin?.email || d.createdByAdmin?.name, criado_em: d.createdAt, atualizado_em: d.updatedAt })),
       ...logs.map((l: any) => ({ tipo: "log", id: l.id, dominio: l.domain, ativo: "", acao: l.action, motivo: l.reason, url: l.url, pedido: l.transactionId, conteudo: l.placementId, criado_em: l.createdAt })),
     ];
+  } else if (type === "support") {
+    const data = await (prisma as any).supportNote.findMany({ orderBy: { createdAt: "desc" }, take: 5000, include: { transaction: { include: { user: true } }, customer: true, admin: true } });
+    rows = data.map((n: any) => ({ id: n.id, categoria: n.category, nota: n.note, pedido: n.transactionId, cliente: n.customer?.email || n.customer?.name || n.transaction?.user?.name, admin: n.admin?.email || n.admin?.name, criado_em: n.createdAt }));
   } else {
     rows = [{ erro: "tipo de exportação inválido" }];
   }

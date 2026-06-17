@@ -12,6 +12,7 @@ const items = [
   ["denuncias", "/admin/denuncias", "Denúncias"],
   ["links", "/admin/links-bloqueados", "Links bloqueados"],
   ["clientes", "/admin/clientes", "Clientes"],
+  ["suporte", "/admin/suporte", "Suporte"],
   ["logs", "/admin/logs", "Logs"],
   ["relatorios", "/admin/relatorios", "Relatórios"],
   ["lgpd", "/admin/lgpd", "LGPD"],
