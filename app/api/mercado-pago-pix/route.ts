@@ -15,6 +15,8 @@ type SelectedBlockInput = {
 
 const RESERVATION_MINUTES = 30;
 const TERMS_VERSION = "mural29-2026-06-17";
+const PRIVACY_VERSION = "mural29-privacy-2026-06-17";
+const CONTENT_RULES_VERSION = "mural29-content-2026-06-17";
 const ALLOWED_COLORS = new Set(siteConfig.mosaicColors.map((color) => color.value));
 
 function getErrorMessage(error: unknown) {
@@ -44,6 +46,13 @@ function getCleanAppUrl() {
 
 function hashCpf(cpf: string) {
   return createHash("sha256").update(cpf).digest("hex");
+}
+
+function getRequestIpHash(request: Request) {
+  const forwarded = request.headers.get("x-forwarded-for") || "";
+  const realIp = request.headers.get("x-real-ip") || "";
+  const ip = forwarded.split(",")[0]?.trim() || realIp || "unknown";
+  return createHash("sha256").update(ip).digest("hex");
 }
 
 function safeText(value: unknown, maxLength: number) {
@@ -186,6 +195,9 @@ export async function GET() {
       imageUrl: "optional premium/gold image url",
       fillColor: "optional block color",
       acceptedTerms: "boolean required",
+      termsVersion: TERMS_VERSION,
+      privacyVersion: PRIVACY_VERSION,
+      contentRulesVersion: CONTENT_RULES_VERSION,
       managementUrl: "returned after PIX creation for post-purchase management",
     },
   });
@@ -255,6 +267,8 @@ export async function POST(request: Request) {
     const uniqueId = Date.now();
     const externalReference = `mp-pix-${uniqueId}`;
     const reservedUntil = new Date(Date.now() + RESERVATION_MINUTES * 60 * 1000);
+
+    const consentIpHash = getRequestIpHash(request);
 
     const pendingData = await prisma.$transaction(async (tx: any) => {
       const foundBlocks = await tx.block.findMany({
@@ -345,6 +359,20 @@ export async function POST(request: Request) {
           mpStatusDetail: "waiting_pix_payment",
 
           expiresAt: reservedUntil,
+        },
+      });
+
+      await tx.consentLog.create({
+        data: {
+          userId: user.id,
+          transactionId: transaction.id,
+          termsVersion: TERMS_VERSION,
+          privacyVersion: PRIVACY_VERSION,
+          contentRulesVersion: CONTENT_RULES_VERSION,
+          acceptedAt: new Date(),
+          ipHash: consentIpHash,
+          channel: "checkout_pix",
+          purpose: "Compra de espaço personalizado no Mural29 e publicação de conteúdo público conforme regras aceitas.",
         },
       });
 

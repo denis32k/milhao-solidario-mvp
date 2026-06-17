@@ -113,6 +113,42 @@ enum AdminActionType {
   BAN_RELEASE
 }
 
+enum DataRequestType {
+  ACCESS
+  CORRECTION
+  DELETION
+  ANONYMIZATION
+  EXPORT
+}
+
+enum DataRequestStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+  REJECTED
+}
+
+enum PolicyKind {
+  TERMS
+  PRIVACY
+  CONTENT_RULES
+  REFUND
+  LINK_RULES
+  IMAGE_RULES
+}
+
+enum PolicyStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum BackupStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
 enum LedgerRecipient {
   CREATOR
   HOSPITAL
@@ -149,6 +185,10 @@ model User {
   adminActions       AdminAction[] @relation("AdminActions")
   adminSessions      AdminSession[]
   adminLoginAttempts AdminLoginAttempt[]
+  consentLogs        ConsentLog[]
+  dataRequests       DataPrivacyRequest[]
+  exportLogs         ExportLog[]
+  systemSettings     SystemSetting[] @relation("SystemSettingAdmin")
 
   @@index([role])
   @@index([totalApprovedCents])
@@ -281,6 +321,7 @@ model Transaction {
   ledgerEntries        DistributionLedger[]
   disputeCases         DisputeCase[]
   webhookEvents        PaymentWebhookEvent[]
+  consentLogs          ConsentLog[]
 
   isTest               Boolean           @default(false)
 
@@ -477,6 +518,109 @@ model AdminLoginAttempt {
   @@index([email, createdAt])
   @@index([success, createdAt])
   @@index([userId, createdAt])
+}
+
+model ConsentLog {
+  id                  String      @id @default(cuid())
+
+  userId              String?
+  user                User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  transactionId       String?
+  transaction         Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  termsVersion        String?
+  privacyVersion      String?
+  contentRulesVersion String?
+  acceptedAt          DateTime    @default(now())
+  ipHash              String?
+  channel             String?
+  purpose             String?     @db.Text
+
+  createdAt           DateTime    @default(now())
+
+  @@index([userId, createdAt])
+  @@index([transactionId])
+}
+
+model DataPrivacyRequest {
+  id            String            @id @default(cuid())
+
+  userId        String?
+  user          User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  email         String?
+  type          DataRequestType
+  status        DataRequestStatus @default(OPEN)
+  message       String?           @db.Text
+  internalNote  String?           @db.Text
+  resolvedAt    DateTime?
+
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([status, createdAt])
+  @@index([email])
+  @@index([userId])
+}
+
+model PolicyVersion {
+  id          String       @id @default(cuid())
+  kind        PolicyKind
+  version     String
+  title       String
+  content     String       @db.Text
+  status      PolicyStatus @default(DRAFT)
+  activeFrom  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([kind, version])
+  @@index([kind, status])
+}
+
+model SystemSetting {
+  id               String   @id @default(cuid())
+  key              String   @unique
+  value            Json
+  description      String?  @db.Text
+
+  updatedByAdminId String?
+  updatedByAdmin   User?    @relation("SystemSettingAdmin", fields: [updatedByAdminId], references: [id], onDelete: SetNull)
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([updatedByAdminId])
+}
+
+model ExportLog {
+  id                 String   @id @default(cuid())
+  type               String
+  format             String   @default("csv")
+  filters            Json?
+
+  requestedByAdminId String?
+  requestedByAdmin   User?    @relation(fields: [requestedByAdminId], references: [id], onDelete: SetNull)
+
+  createdAt          DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([requestedByAdminId])
+}
+
+model BackupRecord {
+  id          String       @id @default(cuid())
+  type        String
+  status      BackupStatus @default(PENDING)
+  note        String?      @db.Text
+  fileUrl     String?
+  startedAt   DateTime     @default(now())
+  completedAt DateTime?
+  createdAt   DateTime     @default(now())
+
+  @@index([status, createdAt])
+  @@index([type, createdAt])
 }
 
 model DistributionLedger {

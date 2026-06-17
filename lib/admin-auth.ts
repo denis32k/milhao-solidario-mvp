@@ -104,7 +104,7 @@ export async function createAdminSession(user: any) {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    path: "/admin",
+    path: "/",
     maxAge: SESSION_HOURS * 60 * 60,
   });
 
@@ -123,7 +123,7 @@ export async function clearAdminSession() {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    path: "/admin",
+    path: "/",
     maxAge: 0,
   });
 }
