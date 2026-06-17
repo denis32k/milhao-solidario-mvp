@@ -57,3 +57,10 @@ ADMIN_API_SECRET=sua_senha_admin_opcional
 ## Observação comercial/legal
 
 Este é um projeto comercial de venda de espaços digitais em um mural público. A compra de tijolinhos digitais não constitui doação, investimento, sorteio, rifa ou promessa de retorno financeiro.
+
+
+## V15
+
+- Grid/mural travado para preencher a tela no celular.
+- Zoom mínimo não deixa o grid diminuir demais.
+- Navegação mobile prioriza arrastar para os lados, com eixo vertical centralizado.

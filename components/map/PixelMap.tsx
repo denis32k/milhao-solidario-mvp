@@ -239,12 +239,10 @@ export default function PixelMap() {
     const wrapper = wrapperRef.current;
     if (!wrapper) return 1;
     const rect = wrapper.getBoundingClientRect();
-    const containScale = Math.min(rect.width / MAP_WIDTH, rect.height / MAP_HEIGHT);
-    const coverScale = Math.max(rect.width / MAP_WIDTH, rect.height / MAP_HEIGHT);
 
-    // No celular, o mural principal cabe inteiro.
-    // As sobras são preenchidas com a própria arte desfocada, sem faixa preta.
-    return rect.width < 768 ? containScale : coverScale;
+    // O grid não pode ficar pequeno no celular.
+    // O zoom mínimo sempre faz o mural preencher a tela; a pessoa navega arrastando para os lados.
+    return Math.max(rect.width / MAP_WIDTH, rect.height / MAP_HEIGHT);
   }
 
   function clampCamera(nextCamera: Camera): Camera {
@@ -266,7 +264,10 @@ export default function PixelMap() {
       nextX = clamp(nextX, rect.width - scaledWidth, 0);
     }
 
-    if (scaledHeight <= rect.height) {
+    if (rect.width < 768) {
+      // No celular o mural é uma faixa panorâmica: trava o eixo vertical e libera navegação lateral.
+      nextY = (rect.height - scaledHeight) / 2;
+    } else if (scaledHeight <= rect.height) {
       nextY = (rect.height - scaledHeight) / 2;
     } else {
       nextY = clamp(nextY, rect.height - scaledHeight, 0);
@@ -281,7 +282,7 @@ export default function PixelMap() {
 
     const rect = wrapper.getBoundingClientRect();
     const minScale = getMinScale();
-    const nextScale = clamp(rect.width < 768 ? minScale : minScale * 1.04, minScale, MAX_SCALE);
+    const nextScale = clamp(minScale * 1.02, minScale, MAX_SCALE);
 
     setCamera(
       clampCamera({
