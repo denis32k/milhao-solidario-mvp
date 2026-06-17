@@ -14,6 +14,7 @@ const items = [
   ["logs", "/admin/logs", "Logs"],
   ["testes", "/admin/testes", "Testes"],
   ["configuracoes", "/admin/configuracoes", "Configurações"],
+  ["usuarios", "/admin/usuarios", "Usuários"],
 ] as const;
 
 export default function AdminNav({ secret, active }: { secret: string; active: string }) {
@@ -29,6 +30,9 @@ export default function AdminNav({ secret, active }: { secret: string; active: s
             {label}
           </Link>
         ))}
+        {!secret && (
+          <Link href="/admin/logout" className="rounded-full bg-red-50 px-4 py-2 text-red-700">Sair</Link>
+        )}
       </div>
     </nav>
   );

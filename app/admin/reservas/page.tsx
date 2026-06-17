@@ -1,14 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import AdminLocked from "@/components/admin/AdminLocked";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
-import { AdminSearchParams, dateTime, getAdminSecret, isAuthorized, safeListQuery } from "@/lib/admin";
+import { AdminSearchParams, dateTime, getAdminAccess, safeListQuery } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminReservasPage({ searchParams }: { searchParams: AdminSearchParams }) {
   const params = await searchParams;
-  const secret = getAdminSecret(params);
-  if (!isAuthorized(secret)) return <AdminLocked />;
+  const access = await getAdminAccess(params);
+  const secret = access.secret;
+  if (!access.authorized) return <AdminLocked />;
   const now = new Date();
   const reservations = await safeListQuery(() => (prisma as any).block.findMany({ where: { status: "RESERVED" }, orderBy: { reservedUntil: "asc" }, take: 120, include: { owner: true, currentTransaction: { include: { user: true } } } }));
   return (

@@ -7,6 +7,9 @@ import { prisma } from "@/lib/prisma";
 import { GRID_COLS, GRID_ROWS } from "@/lib/grid";
 import { getAreaName, siteConfig, type AreaKey } from "@/lib/site-config";
 import AdminNav from "@/components/admin/AdminNav";
+import AdminLocked from "@/components/admin/AdminLocked";
+import { getAdminAccess } from "@/lib/admin";
+import { getAdminSession } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +24,13 @@ function money(cents: number) {
 
 function isAuthorized(secretFromUrl: string | undefined) {
   const secret = process.env.ADMIN_API_SECRET;
-  if (!secret) return true;
-  return secretFromUrl === secret;
+  return Boolean(secret && secretFromUrl === secret);
+}
+
+async function isAuthorizedForAction(secretFromForm: string | undefined) {
+  if (isAuthorized(secretFromForm)) return true;
+  const session = await getAdminSession();
+  return Boolean(session?.user);
 }
 
 const ADMIN_ACTION_TYPES = new Set([
@@ -186,7 +194,7 @@ async function updateBrandLogo(formData: FormData) {
   "use server";
 
   const secret = String(formData.get("secret") || "");
-  if (!isAuthorized(secret)) return;
+  if (!(await isAuthorizedForAction(secret))) return;
 
   const file = formData.get("logo");
   if (!(file instanceof File) || !file.size) return;
@@ -248,7 +256,7 @@ async function createTestArea(formData: FormData) {
   "use server";
 
   const secret = String(formData.get("secret") || "");
-  if (!isAuthorized(secret)) return;
+  if (!(await isAuthorizedForAction(secret))) return;
 
   const category = normalizeTestCategory(String(formData.get("category") || "SOLIDARITY"));
   const width = category === "SOLIDARITY" ? 1 : Math.max(1, Math.min(8, Number(formData.get("width") || (category === "GRAND_CENTER" ? 3 : 2))));
@@ -360,7 +368,7 @@ async function deleteTestAreas(formData: FormData) {
   "use server";
 
   const secret = String(formData.get("secret") || "");
-  if (!isAuthorized(secret)) return;
+  if (!(await isAuthorizedForAction(secret))) return;
 
   const placementId = String(formData.get("placementId") || "");
   const where = placementId ? { id: placementId, isTest: true } : { isTest: true };
@@ -410,7 +418,7 @@ async function adminAction(formData: FormData) {
   const disputeCaseId = String(formData.get("disputeCaseId") || "");
   const note = String(formData.get("note") || "").trim();
 
-  if (!isAuthorized(secret)) return;
+  if (!(await isAuthorizedForAction(secret))) return;
   if (!ADMIN_ACTION_TYPES.has(action)) return;
   if (note.length < 5) return;
 
@@ -647,33 +655,11 @@ function ActionButton({
 
 export default async function AdminPage({ searchParams }: { searchParams: AdminSearchParams }) {
   const params = await searchParams;
-  const secret = params?.secret || "";
-  const authorized = isAuthorized(secret);
+  const access = await getAdminAccess(params);
+  const secret = access.secret;
+  const authorized = access.authorized;
 
-  if (!authorized) {
-    return (
-      <main className="min-h-screen bg-slate-100 px-4 py-6">
-        <div className="mx-auto max-w-md rounded-3xl bg-white p-6 text-center shadow-xl">
-          <div className="text-5xl">🔐</div>
-          <h1 className="mt-4 text-2xl font-black text-slate-950">Admin protegido</h1>
-          <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            Digite a senha do admin ou acesse usando <strong>/admin?secret=SUA_SENHA</strong>.
-          </p>
-          <form action="/admin" className="mt-5 space-y-3">
-            <input
-              name="secret"
-              type="password"
-              autoComplete="current-password"
-              placeholder="Senha do admin"
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-center text-sm font-bold text-slate-800 outline-none focus:border-slate-950"
-            />
-            <button type="submit" className="w-full rounded-2xl bg-slate-950 py-4 text-sm font-black text-white">Entrar no admin</button>
-          </form>
-          <Link href="/" className="mt-3 block rounded-2xl bg-slate-100 py-4 text-sm font-black text-slate-800">Voltar ao mural</Link>
-        </div>
-      </main>
-    );
-  }
+  if (!authorized) return <AdminLocked />;
 
   const [
     latestTransactions,

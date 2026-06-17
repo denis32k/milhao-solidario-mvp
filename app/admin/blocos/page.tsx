@@ -1,14 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import AdminLocked from "@/components/admin/AdminLocked";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
-import { AdminSearchParams, dateTime, getAdminSecret, isAuthorized, normalizeSearch, safeListQuery, shortId } from "@/lib/admin";
+import { AdminSearchParams, dateTime, getAdminAccess, normalizeSearch, safeListQuery, shortId } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminBlocosPage({ searchParams }: { searchParams: AdminSearchParams }) {
   const params = await searchParams;
-  const secret = getAdminSecret(params);
-  if (!isAuthorized(secret)) return <AdminLocked />;
+  const access = await getAdminAccess(params);
+  const secret = access.secret;
+  if (!access.authorized) return <AdminLocked />;
 
   const status = normalizeSearch(params.status);
   const area = normalizeSearch(params.area);

@@ -1,14 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import AdminLocked from "@/components/admin/AdminLocked";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
-import { AdminSearchParams, dateTime, getAdminSecret, isAuthorized, money, normalizeSearch, safeListQuery } from "@/lib/admin";
+import { AdminSearchParams, dateTime, getAdminAccess, money, normalizeSearch, safeListQuery } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminClientesPage({ searchParams }: { searchParams: AdminSearchParams }) {
   const params = await searchParams;
-  const secret = getAdminSecret(params);
-  if (!isAuthorized(secret)) return <AdminLocked />;
+  const access = await getAdminAccess(params);
+  const secret = access.secret;
+  if (!access.authorized) return <AdminLocked />;
   const q = normalizeSearch(params.q);
   const where: any = { role: "USER" };
   if (q) where.OR = [{ name: { contains: q, mode: "insensitive" } }, { publicName: { contains: q, mode: "insensitive" } }, { email: { contains: q, mode: "insensitive" } }, { whatsapp: { contains: q, mode: "insensitive" } }];

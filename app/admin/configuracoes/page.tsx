@@ -1,14 +1,15 @@
 import AdminLocked from "@/components/admin/AdminLocked";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
-import { AdminSearchParams, getAdminSecret, isAuthorized, money } from "@/lib/admin";
+import { AdminSearchParams, getAdminAccess, money } from "@/lib/admin";
 import { siteConfig } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminConfiguracoesPage({ searchParams }: { searchParams: AdminSearchParams }) {
   const params = await searchParams;
-  const secret = getAdminSecret(params);
-  if (!isAuthorized(secret)) return <AdminLocked />;
+  const access = await getAdminAccess(params);
+  const secret = access.secret;
+  if (!access.authorized) return <AdminLocked />;
   const areas = Object.entries(siteConfig.areas as Record<string, any>);
   return <main className="min-h-screen bg-slate-100 px-4 py-6"><div className="mx-auto max-w-6xl"><AdminPageHeader secret={secret} active="configuracoes" title="Configurações" description="Visão das configurações operacionais. Coisas críticas do grid ficam travadas e não entram como edição livre." />
     <section className="mb-6 rounded-3xl border border-red-200 bg-red-50 p-5 shadow-xl"><h2 className="text-xl font-black text-red-950">Grid travado</h2><p className="mt-2 text-sm font-bold text-red-800">Não alterar quantidade de blocos, proporção, tamanho, coordenadas, fundo, divisões, bairros ou renderização principal do mural.</p></section>

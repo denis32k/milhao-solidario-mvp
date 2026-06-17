@@ -9,7 +9,12 @@ datasource db {
 
 enum UserRole {
   USER
+  OWNER
   ADMIN
+  FINANCE
+  MODERATOR
+  SUPPORT
+  DEV
 }
 
 enum BlockCategory {
@@ -142,6 +147,8 @@ model User {
   ownedBlocks        Block[]       @relation("BlockOwner")
   editRequests       ContentEditRequest[]
   adminActions       AdminAction[] @relation("AdminActions")
+  adminSessions      AdminSession[]
+  adminLoginAttempts AdminLoginAttempt[]
 
   @@index([role])
   @@index([totalApprovedCents])
@@ -432,6 +439,44 @@ model PaymentWebhookEvent {
   @@index([eventType, receivedAt])
   @@index([processed, ignored])
   @@index([transactionId])
+}
+
+model AdminSession {
+  id          String   @id @default(cuid())
+  tokenHash   String   @unique
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role        UserRole
+  ipHash      String?
+  userAgent   String?  @db.Text
+  expiresAt   DateTime
+  lastSeenAt  DateTime?
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId, expiresAt])
+  @@index([tokenHash])
+}
+
+model AdminLoginAttempt {
+  id          String   @id @default(cuid())
+
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  email       String?
+  success     Boolean  @default(false)
+  reason      String?  @db.Text
+  ipHash      String?
+  userAgent   String?  @db.Text
+
+  createdAt   DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([success, createdAt])
+  @@index([userId, createdAt])
 }
 
 model DistributionLedger {

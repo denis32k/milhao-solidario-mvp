@@ -1,3 +1,5 @@
+import { getAdminSession } from "@/lib/admin-auth";
+
 export type AdminSearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 export function money(cents: number) {
@@ -9,8 +11,7 @@ export function money(cents: number) {
 
 export function isAuthorized(secretFromUrl: string | undefined) {
   const secret = process.env.ADMIN_API_SECRET;
-  if (!secret) return true;
-  return secretFromUrl === secret;
+  return Boolean(secret && secretFromUrl === secret);
 }
 
 export function firstParam(value: string | string[] | undefined) {
@@ -60,4 +61,19 @@ export function dateTime(value: Date | string | null | undefined) {
 
 export function normalizeSearch(value: string | string[] | undefined) {
   return firstParam(value).trim();
+}
+
+export async function getAdminAccess(params: Record<string, string | string[] | undefined>) {
+  const secret = getAdminSecret(params);
+
+  if (isAuthorized(secret)) {
+    return { authorized: true, secret, mode: "secret" as const, user: null as any, role: "OWNER" };
+  }
+
+  const session = await getAdminSession();
+  if (session?.user) {
+    return { authorized: true, secret: "", mode: "session" as const, user: session.user, role: session.user.role };
+  }
+
+  return { authorized: false, secret: "", mode: "none" as const, user: null as any, role: null as any };
 }
