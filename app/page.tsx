@@ -20,12 +20,12 @@ export default async function HomePage() {
 
   const ranking = users.map((user) => ({
     id: user.id,
-    publicName: user.publicName || user.name || "Comprador",
+    publicName: user.name || user.publicName || "Comprador",
     totalApprovedCents: user.totalApprovedCents,
   }));
 
   return (
-    <main className="h-[100dvh] overflow-hidden bg-slate-950 pt-[92px]">
+    <main className="h-[100dvh] overflow-hidden bg-slate-950 pt-[108px]">
       <StickyHeader ranking={ranking} />
       <section id="mural" className="relative h-full">
         <PixelMap />

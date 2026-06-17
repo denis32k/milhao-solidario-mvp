@@ -335,7 +335,7 @@ export default function CompraPage() {
       }
 
       setIsLoading(true);
-      const finalImageUrl = category === "SOLIDARITY" ? "" : await uploadImageIfNeeded();
+      const finalImageUrl = await uploadImageIfNeeded();
 
       const response = await fetch("/api/mercado-pago-pix", {
         method: "POST",
@@ -603,7 +603,7 @@ export default function CompraPage() {
                   </div>
                 )}
 
-                {category !== "SOLIDARITY" && (
+                {(
                   <div className="space-y-3">
                     <label className="block">
                       <span className={`text-xs font-black uppercase tracking-wide ${theme.text}`}>Imagem que aparecerá no mural</span>

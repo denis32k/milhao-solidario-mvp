@@ -10,7 +10,7 @@ type RankingItem = {
 
 export default function StickyHeader({ ranking = [] }: { ranking?: RankingItem[] }) {
   return (
-    <header className="fixed left-0 top-0 z-50 h-[92px] w-full border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur">
+    <header className="fixed left-0 top-0 z-50 h-[108px] w-full border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur">
       <div className="flex h-full w-full items-center justify-between gap-2 px-2 sm:px-4">
         <Link href="/" className="flex min-w-0 items-center rounded-full px-1 py-1 active:scale-95 sm:px-2">
           <img

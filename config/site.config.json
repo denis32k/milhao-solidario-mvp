@@ -19,7 +19,7 @@
       "priceCents": 900,
       "description": "Entre no mural com seu primeiro tijolinho digital.",
       "cardText": "Comece sua presença no mural.",
-      "included": "Nome público, cor do tijolinho, descrição curta e link opcional."
+      "included": "Imagem no mural, nome público, cor opcional do tijolinho, descrição curta e link opcional."
     },
     "PREMIUM": {
       "id": "ipanema",

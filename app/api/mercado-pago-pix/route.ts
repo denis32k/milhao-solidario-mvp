@@ -324,7 +324,7 @@ export async function POST(request: Request) {
           placementTitle: title || publicName,
           placementDescription: description || null,
           placementRedirectUrl: redirectUrl || null,
-          placementImageUrl: category === "SOLIDARITY" ? null : imageUrl || null,
+          placementImageUrl: imageUrl || null,
           placementFillColor: category === "SOLIDARITY" ? fillColor : null,
 
           mpExternalReference: externalReference,

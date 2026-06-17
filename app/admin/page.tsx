@@ -139,7 +139,7 @@ async function createTestArea(formData: FormData) {
   const category = normalizeTestCategory(String(formData.get("category") || "SOLIDARITY"));
   const width = category === "SOLIDARITY" ? 1 : Math.max(1, Math.min(8, Number(formData.get("width") || (category === "GRAND_CENTER" ? 3 : 2))));
   const height = category === "SOLIDARITY" ? 1 : Math.max(1, Math.min(8, Number(formData.get("height") || (category === "GRAND_CENTER" ? 3 : 2))));
-  const imageUrl = category === "SOLIDARITY" ? null : await saveTestImage(formData.get("image"));
+  const imageUrl = await saveTestImage(formData.get("image"));
   const blocks = await findAvailableRectangle(category, width, height);
 
   if (blocks.length !== width * height) {

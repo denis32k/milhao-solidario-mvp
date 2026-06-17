@@ -24,7 +24,7 @@ export default function TermosPage() {
           <section className="rounded-3xl bg-slate-50 p-5">
             <h2 className="text-lg font-black text-slate-950">2. Áreas do mural</h2>
             <div className="mt-3 space-y-3 text-sm leading-relaxed text-slate-600">
-              <p><strong>{siteConfig.areas.SOLIDARITY.name}:</strong> {formatMoney(siteConfig.areas.SOLIDARITY.priceCents)} por tijolinho, com cor, nome público, descrição curta e link opcional.</p>
+              <p><strong>{siteConfig.areas.SOLIDARITY.name}:</strong> {formatMoney(siteConfig.areas.SOLIDARITY.priceCents)} por tijolinho, com imagem no mural, nome público, cor opcional do tijolinho, descrição curta e link opcional.</p>
               <p><strong>{siteConfig.areas.PREMIUM.name}:</strong> {formatMoney(siteConfig.areas.PREMIUM.priceCents)} por tijolinho, com imagem no mural, nome público, descrição e link.</p>
               <p><strong>{siteConfig.areas.GOLD.name}:</strong> {formatMoney(siteConfig.areas.GOLD.priceCents)} por tijolinho, com imagem no mural, nome público, descrição, link e maior destaque visual.</p>
               <p><strong>Área nobre:</strong> o edifício Tom Delfim Moreira, acima da placa do Leblon, é uma área nobre com valor diferenciado.</p>

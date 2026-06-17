@@ -43,14 +43,20 @@ export default function HeaderMiniStats({ ranking = [] }: { ranking?: RankingIte
   const total = stats?.blocks.total || 29000;
   const sold = stats?.blocks.sold || 0;
   const phase = getConstructionPhase(sold, total);
-  const topThree = Array.from({ length: 3 }, (_, index) => ranking[index] || { id: `placeholder-${index}`, publicName: `${index + 1}º em breve`, totalApprovedCents: 0 });
+  const summaryText = `${sold.toLocaleString("pt-BR")} tijolinhos vendidos • faltam ${phase.missingToNext.toLocaleString("pt-BR")} para a próxima fase`;
+  const topThree = Array.from({ length: 3 }, (_, index) =>
+    ranking[index] || { id: `placeholder-${index}`, publicName: `${index + 1}º lugar em breve`, totalApprovedCents: 0 }
+  );
 
   return (
     <div className="min-w-0 flex-1 px-2 sm:px-4">
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto max-w-3xl">
         <div className="flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-wide text-slate-500">
-          <span className="truncate">{phase.currentPhase}</span>
-          <span>{phase.progressPercent}%</span>
+          <p className="min-w-0 truncate">
+            <span>{phase.currentPhase}</span>
+            <span className="hidden sm:inline"> • {summaryText}</span>
+          </p>
+          <span className="shrink-0">{phase.progressPercent}%</span>
         </div>
 
         <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-200">
@@ -60,31 +66,31 @@ export default function HeaderMiniStats({ ranking = [] }: { ranking?: RankingIte
           />
         </div>
 
-        <div className="mt-1 flex items-center gap-1 overflow-hidden">
-          {topThree.map((item, index) => {
-            const medal = medalConfig[index];
-            return (
-              <div
-                key={item.id}
-                className={`flex min-w-0 flex-1 items-center gap-1 rounded-xl border px-1.5 py-1 shadow-sm ${medal.ring}`}
-                title={`${index + 1}º lugar — ${item.publicName}`}
-              >
-                <span className="shrink-0 text-[11px] leading-none">{medal.icon}</span>
-                <div className="min-w-0 leading-none">
-                  <p className="truncate text-[9px] font-black uppercase opacity-70">{index + 1}º</p>
-                  <p className={`truncate font-black ${index === 0 ? "text-[10px] sm:text-[11px]" : "text-[9px] sm:text-[10px]"}`}>{item.publicName}</p>
-                  <p className="truncate text-[8px] font-bold opacity-75">
-                    {item.totalApprovedCents > 0 ? formatMoney(item.totalApprovedCents) : "aguardando"}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <p className="mt-1 truncate text-[9px] font-bold text-slate-500 sm:hidden">{summaryText}</p>
 
-        <p className="mt-1 hidden truncate text-center text-[10px] font-bold text-slate-500 sm:block">
-          {sold.toLocaleString("pt-BR")} tijolinhos vendidos • faltam {phase.missingToNext.toLocaleString("pt-BR")} para a próxima fase
-        </p>
+        <div className="mt-1 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex min-w-max items-center gap-1">
+            {topThree.map((item, index) => {
+              const medal = medalConfig[index];
+              return (
+                <div
+                  key={item.id}
+                  className={`flex min-w-[110px] items-center gap-1 rounded-xl border px-1.5 py-1 shadow-sm ${medal.ring}`}
+                  title={`${index + 1}º lugar — ${item.publicName}`}
+                >
+                  <span className="shrink-0 text-[10px] leading-none">{medal.icon}</span>
+                  <div className="min-w-0 leading-none">
+                    <p className="text-[8px] font-black uppercase opacity-70">{index + 1}º lugar</p>
+                    <p className="text-[9px] font-black leading-tight sm:text-[10px]">{item.publicName}</p>
+                    <p className="text-[8px] font-bold opacity-75">
+                      {item.totalApprovedCents > 0 ? formatMoney(item.totalApprovedCents) : "aguardando"}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );

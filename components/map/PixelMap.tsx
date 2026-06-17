@@ -385,8 +385,7 @@ export default function PixelMap() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
+    ctx.imageSmoothingEnabled = false;
 
     const muralImage = getImage(MURAL_IMAGE_URL);
     const blockByCoord = new Map(mapBlocks.map((block) => [getBlockKey(block.gridX, block.gridY), block]));
@@ -451,7 +450,7 @@ export default function PixelMap() {
           ctx.fillRect(px, py, BLOCK_SIZE, BLOCK_SIZE);
         }
 
-        if (block && (!block.placement?.imageUrl || block.category === "SOLIDARITY" || block.status === "RESERVED" || block.status === "BLOCKED")) {
+        if (block && (!block.placement?.imageUrl || block.status === "RESERVED" || block.status === "BLOCKED")) {
           ctx.fillStyle = getSoldBlockOverlayColor(block);
           ctx.fillRect(px + 0.6, py + 0.6, BLOCK_SIZE - 1.2, BLOCK_SIZE - 1.2);
         }
@@ -479,7 +478,6 @@ export default function PixelMap() {
       const placement = block.placement;
       if (!placement?.imageUrl) continue;
       if (placement.status !== "ACTIVE") continue;
-      if (block.category === "SOLIDARITY") continue;
       const group = imageGroups.get(placement.id) || [];
       group.push(block);
       imageGroups.set(placement.id, group);
@@ -507,6 +505,16 @@ export default function PixelMap() {
       ctx.lineWidth = 2.1;
       ctx.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
     }
+
+    // redesenha as divisões no final para ficarem sempre exatamente visíveis entre as duas linhas douradas.
+    ctx.strokeStyle = "rgba(255,214,10,0.82)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (const dividerX of VISUAL_AREA_DIVIDERS_PX) {
+      ctx.moveTo(dividerX, 0);
+      ctx.lineTo(dividerX, MAP_HEIGHT);
+    }
+    ctx.stroke();
 
     // destaque visual da área nobre Tom Delfim Moreira
     for (const area of NOBLE_AREAS) {
