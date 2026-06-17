@@ -242,7 +242,8 @@ export default function PixelMap() {
     const containScale = Math.min(rect.width / MAP_WIDTH, rect.height / MAP_HEIGHT);
     const coverScale = Math.max(rect.width / MAP_WIDTH, rect.height / MAP_HEIGHT);
 
-    // No celular, abre mostrando a imagem inteira. No desktop, mantém o mural preenchendo melhor a tela.
+    // No celular, o mural principal cabe inteiro.
+    // As sobras são preenchidas com a própria arte desfocada, sem faixa preta.
     return rect.width < 768 ? containScale : coverScale;
   }
 
@@ -280,7 +281,7 @@ export default function PixelMap() {
 
     const rect = wrapper.getBoundingClientRect();
     const minScale = getMinScale();
-    const nextScale = clamp(rect.width < 768 ? minScale : minScale * 1.1, minScale, MAX_SCALE);
+    const nextScale = clamp(rect.width < 768 ? minScale : minScale * 1.04, minScale, MAX_SCALE);
 
     setCamera(
       clampCamera({
@@ -372,6 +373,19 @@ export default function PixelMap() {
     ctx.clearRect(0, 0, rect.width, rect.height);
     ctx.fillStyle = "#020617";
     ctx.fillRect(0, 0, rect.width, rect.height);
+
+    // Fundo de preenchimento: usa a própria arte ampliada/desfocada nas sobras.
+    // Assim o mural pode caber inteiro no celular sem aparecer faixa preta.
+    if (muralImage.complete && muralImage.naturalWidth) {
+      ctx.save();
+      ctx.filter = "blur(22px)";
+      ctx.globalAlpha = 0.72;
+      drawImageCover(ctx, muralImage, -32, -32, rect.width + 64, rect.height + 64);
+      ctx.restore();
+
+      ctx.fillStyle = "rgba(2,6,23,0.18)";
+      ctx.fillRect(0, 0, rect.width, rect.height);
+    }
 
     ctx.save();
     ctx.translate(camera.x, camera.y);
