@@ -13,6 +13,18 @@ type SelectedBlock = {
   gridY: number;
 };
 
+
+type OperationalClientSettings = {
+  maintenanceMode: boolean;
+  blockNewPurchases: boolean;
+  preorderMode: boolean;
+  uploadsEnabled: boolean;
+  publicLinksEnabled: boolean;
+  checkoutNotice: string;
+  reservationMinutes: number;
+  maxImageMb: number;
+};
+
 type PixResult = {
   payment: {
     id: string | number;
@@ -245,6 +257,16 @@ export default function CompraPage() {
   const [copyMessage, setCopyMessage] = useState("");
   const [verifyMessage, setVerifyMessage] = useState("");
   const [paymentApproved, setPaymentApproved] = useState(false);
+  const [operationalSettings, setOperationalSettings] = useState<OperationalClientSettings | null>(null);
+
+  useEffect(() => {
+    fetch("/api/mercado-pago-pix", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data?.settings) setOperationalSettings(data.settings);
+      })
+      .catch(() => null);
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -339,6 +361,21 @@ export default function CompraPage() {
 
       if (!acceptedTerms) {
         alert("Aceite os termos para gerar o PIX.");
+        return;
+      }
+
+      if (operationalSettings?.maintenanceMode || operationalSettings?.blockNewPurchases) {
+        alert(operationalSettings?.maintenanceMode ? "O Mural29 está em manutenção no momento." : "Novas compras estão temporariamente bloqueadas.");
+        return;
+      }
+
+      if (redirectUrl.trim() && operationalSettings?.publicLinksEnabled === false) {
+        alert("Links públicos estão temporariamente desativados.");
+        return;
+      }
+
+      if (imageFile && operationalSettings?.uploadsEnabled === false) {
+        alert("Uploads estão temporariamente desativados.");
         return;
       }
 
@@ -501,6 +538,18 @@ export default function CompraPage() {
             <div className={`rounded-2xl p-3 ${step === "data" ? "bg-green-500 text-white" : "bg-slate-100 text-slate-500"}`}>2. Dados</div>
             <div className={`rounded-2xl p-3 ${step === "pix" ? "bg-green-500 text-white" : "bg-slate-100 text-slate-500"}`}>3. PIX</div>
           </div>
+
+          {operationalSettings?.checkoutNotice && (
+            <div className="mt-5 rounded-3xl border border-yellow-200 bg-yellow-50 p-4 text-sm font-black leading-relaxed text-yellow-900">
+              {operationalSettings?.checkoutNotice}
+            </div>
+          )}
+
+          {(operationalSettings?.maintenanceMode || operationalSettings?.blockNewPurchases) && (
+            <div className="mt-5 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm font-black leading-relaxed text-red-800">
+              {operationalSettings?.maintenanceMode ? "O Mural29 está em manutenção no momento." : "Novas compras estão temporariamente bloqueadas."}
+            </div>
+          )}
 
           {step === "data" && (
             <div className="mt-6 space-y-4">

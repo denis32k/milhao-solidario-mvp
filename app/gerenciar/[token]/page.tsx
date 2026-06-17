@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { hashManagementToken } from "@/lib/customer-access";
 import { dateTime, money, safeValueQuery } from "@/lib/admin";
 import { findBlockedDomain, getHostnameFromUrl, normalizePublicUrl, validateImageFile } from "@/lib/content-validation";
+import { getOperationalSettings } from "@/lib/system-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -19,11 +20,11 @@ function safeText(value: FormDataEntryValue | null, maxLength: number) {
   return String(value || "").trim().slice(0, maxLength);
 }
 
-async function savePendingImage(file: FormDataEntryValue | null) {
+async function savePendingImage(file: FormDataEntryValue | null, maxImageMb: number) {
   if (!(file instanceof File)) return null;
   if (!file.size) return null;
 
-  const validation = validateImageFile(file);
+  const validation = validateImageFile(file, maxImageMb * 1024 * 1024);
   if (!validation.ok || !validation.extension) {
     throw new Error(validation.message);
   }
@@ -62,9 +63,19 @@ async function requestEdit(formData: FormData) {
     redirect(`/gerenciar/${encodeURIComponent(token)}?error=pagamento`);
   }
 
+  const settings = await getOperationalSettings();
+  if (settings.maintenanceMode) {
+    redirect(`/gerenciar/${encodeURIComponent(token)}?error=manutencao`);
+  }
+
+  const imageFile = formData.get("image");
+  if (imageFile instanceof File && imageFile.size && !settings.uploadsEnabled) {
+    redirect(`/gerenciar/${encodeURIComponent(token)}?error=upload_desativado`);
+  }
+
   let requestedImageUrl: string | null = null;
   try {
-    requestedImageUrl = await savePendingImage(formData.get("image"));
+    requestedImageUrl = await savePendingImage(imageFile, settings.maxImageMb);
   } catch {
     redirect(`/gerenciar/${encodeURIComponent(token)}?error=imagem`);
   }
@@ -76,6 +87,10 @@ async function requestEdit(formData: FormData) {
   const requestedTextLabel = requestedTitle || requestedDisplayName || null;
 
   const rawRequestedRedirectText = String(rawRequestedRedirectUrl || "").trim();
+  if (rawRequestedRedirectText && !settings.publicLinksEnabled) {
+    redirect(`/gerenciar/${encodeURIComponent(token)}?error=link_desativado`);
+  }
+
   if (rawRequestedRedirectText && !requestedRedirectUrl) {
     redirect(`/gerenciar/${encodeURIComponent(token)}?error=link_invalido`);
   }
@@ -173,7 +188,7 @@ export default async function ManageOrderPage({ params, searchParams }: ManagePa
         </section>
 
         {sent && <div className="mt-5 rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-black text-emerald-800">Solicitação enviada. Vamos analisar sua alteração.</div>}
-        {error && <div className="mt-5 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm font-black text-red-800">Não foi possível enviar: {error === "motivo" ? "informe um motivo com pelo menos 5 caracteres." : error === "sem_alteracao" ? "preencha pelo menos uma alteração." : error === "pagamento" ? "o pagamento ainda não está aprovado." : error === "imagem" ? "a imagem precisa ser JPG, PNG ou WEBP e ter até 5MB." : error === "link_invalido" ? "use o link completo com https:// ou http://. Ex: https://instagram.com/meuusuario." : error === "link_bloqueado" ? "esse domínio está bloqueado para publicação." : "pedido não encontrado."}</div>}
+        {error && <div className="mt-5 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm font-black text-red-800">Não foi possível enviar: {error === "motivo" ? "informe um motivo com pelo menos 5 caracteres." : error === "sem_alteracao" ? "preencha pelo menos uma alteração." : error === "pagamento" ? "o pagamento ainda não está aprovado." : error === "imagem" ? "a imagem precisa ser JPG, PNG ou WEBP e ter até 5MB." : error === "link_invalido" ? "use o link completo com https:// ou http://. Ex: https://instagram.com/meuusuario." : error === "link_desativado" ? "links públicos estão temporariamente desativados." : error === "upload_desativado" ? "uploads estão temporariamente desativados." : error === "manutencao" ? "o Mural29 está em manutenção no momento." : error === "link_bloqueado" ? "esse domínio está bloqueado para publicação." : "pedido não encontrado."}</div>}
 
         <section className="mt-5 grid gap-4 md:grid-cols-2">
           <div className="rounded-3xl bg-white p-5 shadow-xl">

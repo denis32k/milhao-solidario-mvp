@@ -3,6 +3,7 @@ import path from "path";
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { validateImageFile } from "@/lib/content-validation";
+import { getOperationalSettings } from "@/lib/system-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,14 @@ function getErrorMessage(error: unknown) {
 
 export async function POST(request: Request) {
   try {
+    const settings = await getOperationalSettings();
+    if (settings.maintenanceMode || !settings.uploadsEnabled) {
+      return NextResponse.json(
+        { ok: false, message: "Uploads estão temporariamente desativados." },
+        { status: 403 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get("file");
 
@@ -23,7 +32,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const validation = validateImageFile(file);
+    const validation = validateImageFile(file, settings.maxImageMb * 1024 * 1024);
     if (!validation.ok || !validation.extension) {
       return NextResponse.json(
         { ok: false, message: validation.message },

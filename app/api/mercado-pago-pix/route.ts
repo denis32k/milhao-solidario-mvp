@@ -4,6 +4,7 @@ import { GRID_COLS, GRID_ROWS } from "@/lib/grid";
 import { siteConfig } from "@/lib/site-config";
 import { createManagementToken, getManagementPath, getManagementUrl, hashManagementToken } from "@/lib/customer-access";
 import { findBlockedDomain, getHostnameFromUrl, normalizePublicUrl } from "@/lib/content-validation";
+import { getOperationalSettings } from "@/lib/system-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,6 @@ type SelectedBlockInput = {
   gridY: number;
 };
 
-const RESERVATION_MINUTES = 30;
 const TERMS_VERSION = "mural29-2026-06-17";
 const PRIVACY_VERSION = "mural29-privacy-2026-06-17";
 const CONTENT_RULES_VERSION = "mural29-content-2026-06-17";
@@ -149,6 +149,7 @@ function getCategoryDescription(category: BuyableCategory, fullName: string) {
 
 export async function GET() {
   const cleanAppUrl = getCleanAppUrl();
+  const settings = await getOperationalSettings();
 
   return NextResponse.json({
     ok: true,
@@ -159,6 +160,7 @@ export async function GET() {
     webhookUrl: cleanAppUrl
       ? `${cleanAppUrl}/api/mercado-pago-pix/webhook`
       : null,
+    settings: { maintenanceMode: settings.maintenanceMode, blockNewPurchases: settings.blockNewPurchases, preorderMode: settings.preorderMode, uploadsEnabled: settings.uploadsEnabled, publicLinksEnabled: settings.publicLinksEnabled, checkoutNotice: settings.checkoutNotice, reservationMinutes: settings.reservationMinutes, maxImageMb: settings.maxImageMb },
     accepts: {
       fullName: "string",
       publicName: "string",
@@ -194,6 +196,14 @@ export async function POST(request: Request) {
     }
 
     const { prisma } = await import("@/lib/prisma");
+    const settings = await getOperationalSettings();
+
+    if (settings.maintenanceMode || settings.blockNewPurchases) {
+      return NextResponse.json(
+        { ok: false, message: settings.maintenanceMode ? "O Mural29 está em manutenção no momento." : "Novas compras estão temporariamente bloqueadas." },
+        { status: 403 }
+      );
+    }
 
     const body = await request.json();
     const fullName = safeText(body.fullName, 120);
@@ -214,6 +224,10 @@ export async function POST(request: Request) {
       : "#22c55e";
 
     const rawRedirectText = String(rawRedirectUrl || "").trim();
+    if (rawRedirectText && !settings.publicLinksEnabled) {
+      return NextResponse.json({ ok: false, message: "Links públicos estão temporariamente desativados." }, { status: 400 });
+    }
+
     if (rawRedirectText && !redirectUrl) {
       return NextResponse.json({ ok: false, message: "Link inválido. Use o link completo com https:// ou http://. Exemplo: https://instagram.com/meuusuario" }, { status: 400 });
     }
@@ -265,11 +279,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, message: "Os tijolinhos selecionados precisam estar encostados." }, { status: 400 });
     }
 
+    const consentIpHash = getRequestIpHash(request);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    if (settings.perCustomerLimitPerDay > 0) {
+      const customerPurchasesToday = await (prisma as any).transaction.count({
+        where: { checkoutWhatsapp: whatsapp, createdAt: { gte: todayStart } },
+      }).catch(() => 0);
+
+      if (customerPurchasesToday >= settings.perCustomerLimitPerDay) {
+        return NextResponse.json({ ok: false, message: "Limite diário de compras por cliente atingido." }, { status: 429 });
+      }
+    }
+
+    if (settings.perIpLimitPerDay > 0) {
+      const ipPurchasesToday = await (prisma as any).consentLog.count({
+        where: { ipHash: consentIpHash, createdAt: { gte: todayStart } },
+      }).catch(() => 0);
+
+      if (ipPurchasesToday >= settings.perIpLimitPerDay) {
+        return NextResponse.json({ ok: false, message: "Limite diário de compras por IP atingido." }, { status: 429 });
+      }
+    }
+
     const uniqueId = Date.now();
     const externalReference = `mp-pix-${uniqueId}`;
-    const reservedUntil = new Date(Date.now() + RESERVATION_MINUTES * 60 * 1000);
-
-    const consentIpHash = getRequestIpHash(request);
+    const reservedUntil = new Date(Date.now() + settings.reservationMinutes * 60 * 1000);
 
     const pendingData = await prisma.$transaction(async (tx: any) => {
       const foundBlocks = await tx.block.findMany({

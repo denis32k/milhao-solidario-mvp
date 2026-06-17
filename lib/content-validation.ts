@@ -12,14 +12,15 @@ export function getImageExtension(fileType: string) {
   return ALLOWED_IMAGE_TYPES[fileType] || null;
 }
 
-export function validateImageFile(file: File) {
+export function validateImageFile(file: File, maxBytes = MAX_IMAGE_SIZE_BYTES) {
   const extension = getImageExtension(file.type);
   if (!extension) {
     return { ok: false, message: "Formato inválido. Use JPG, PNG ou WEBP.", extension: null as string | null };
   }
 
-  if (file.size > MAX_IMAGE_SIZE_BYTES) {
-    return { ok: false, message: "Imagem muito grande. Envie até 5MB.", extension: null as string | null };
+  if (file.size > maxBytes) {
+    const maxMb = Math.max(1, Math.round(maxBytes / 1024 / 1024));
+    return { ok: false, message: `Imagem muito grande. Envie até ${maxMb}MB.`, extension: null as string | null };
   }
 
   return { ok: true, message: "Imagem válida.", extension };
