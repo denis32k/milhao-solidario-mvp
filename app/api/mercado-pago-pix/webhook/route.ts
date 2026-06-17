@@ -62,6 +62,71 @@ function getNotificationType(
   );
 }
 
+function getWebhookEventId(body: MercadoPagoNotificationBody | null) {
+  const raw = body?.id || body?.data?.id;
+  return raw ? String(raw) : null;
+}
+
+function getQueryPayload(request: Request) {
+  const url = new URL(request.url);
+  return Object.fromEntries(url.searchParams.entries());
+}
+
+async function createPaymentWebhookEvent({
+  request,
+  body,
+  eventType,
+  paymentId,
+}: {
+  request: Request;
+  body: MercadoPagoNotificationBody | null;
+  eventType: string;
+  paymentId: string | null;
+}) {
+  try {
+    const { prisma } = await import("@/lib/prisma");
+    const event = await (prisma as any).paymentWebhookEvent.create({
+      data: {
+        eventId: getWebhookEventId(body),
+        eventType: eventType || "unknown",
+        paymentId,
+        payload: body || getQueryPayload(request),
+        processed: false,
+        ignored: false,
+      },
+      select: { id: true },
+    });
+
+    return event.id as string;
+  } catch {
+    return null;
+  }
+}
+
+async function updatePaymentWebhookEvent(
+  eventLogId: string | null,
+  data: {
+    previousStatus?: string | null;
+    newStatus?: string | null;
+    processed?: boolean;
+    ignored?: boolean;
+    error?: string | null;
+    transactionId?: string | null;
+  }
+) {
+  if (!eventLogId) return;
+
+  try {
+    const { prisma } = await import("@/lib/prisma");
+    await (prisma as any).paymentWebhookEvent.update({
+      where: { id: eventLogId },
+      data,
+    });
+  } catch {
+    // O webhook não pode falhar só porque o log falhou.
+  }
+}
+
 function mapStatus(status: string): TransactionStatusValue {
   if (status === "approved") {
     return "APPROVED";
@@ -209,6 +274,8 @@ async function processPayment(paymentId: string) {
         "Pagamento encontrado no Mercado Pago, mas transação não encontrada no banco.",
       paymentId,
       externalReference,
+      previousTransactionStatus: null,
+      transactionStatus: null,
       mercadoPagoStatus: paymentData.status,
       mercadoPagoStatusDetail: paymentData.status_detail,
     };
@@ -222,6 +289,8 @@ async function processPayment(paymentId: string) {
       message: "Transação já estava aprovada.",
       paymentId,
       transactionId: transaction.id,
+      previousTransactionStatus: transaction.status,
+      transactionStatus: transaction.status,
       mercadoPagoStatus: paymentData.status,
       mercadoPagoStatusDetail: paymentData.status_detail,
     };
@@ -272,6 +341,7 @@ async function processPayment(paymentId: string) {
         : "Pagamento ainda não aprovado.",
       paymentId,
       transactionId: updatedTransaction.id,
+      previousTransactionStatus: transaction.status,
       transactionStatus: updatedTransaction.status,
       mercadoPagoStatus: paymentData.status,
       mercadoPagoStatusDetail: paymentData.status_detail,
@@ -405,12 +475,16 @@ async function processPayment(paymentId: string) {
     transactionId: result.transaction.id,
     placementId: result.placement.id,
     blockIds,
+    previousTransactionStatus: transaction.status,
+    transactionStatus: result.transaction.status,
     mercadoPagoStatus: paymentData.status,
     mercadoPagoStatusDetail: paymentData.status_detail,
   };
 }
 
 export async function GET(request: Request) {
+  let eventLogId: string | null = null;
+
   try {
     const paymentId = getPaymentIdFromRequest(request, null);
 
@@ -424,7 +498,23 @@ export async function GET(request: Request) {
       });
     }
 
+    eventLogId = await createPaymentWebhookEvent({
+      request,
+      body: null,
+      eventType: "manual-sync",
+      paymentId,
+    });
+
     const result = await processPayment(paymentId);
+
+    await updatePaymentWebhookEvent(eventLogId, {
+      processed: Boolean(result.ok),
+      ignored: false,
+      previousStatus: (result as any).previousTransactionStatus || null,
+      newStatus: (result as any).transactionStatus || (result as any).mercadoPagoStatus || null,
+      transactionId: (result as any).transactionId || null,
+      error: result.ok ? null : result.message || "Sincronização manual não processada.",
+    });
 
     return NextResponse.json({
       ok: true,
@@ -432,6 +522,12 @@ export async function GET(request: Request) {
       result,
     });
   } catch (error) {
+    await updatePaymentWebhookEvent(eventLogId, {
+      processed: false,
+      ignored: false,
+      error: getErrorMessage(error),
+    });
+
     return NextResponse.json(
       {
         ok: false,
@@ -446,19 +542,35 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  try {
-    let body: MercadoPagoNotificationBody | null = null;
+  let body: MercadoPagoNotificationBody | null = null;
+  let notificationType = "";
+  let paymentId: string | null = null;
+  let eventLogId: string | null = null;
 
+  try {
     try {
       body = await request.json();
     } catch {
       body = null;
     }
 
-    const notificationType = getNotificationType(request, body);
-    const paymentId = getPaymentIdFromRequest(request, body);
+    notificationType = getNotificationType(request, body);
+    paymentId = getPaymentIdFromRequest(request, body);
+
+    eventLogId = await createPaymentWebhookEvent({
+      request,
+      body,
+      eventType: notificationType || "unknown",
+      paymentId,
+    });
 
     if (!paymentId) {
+      await updatePaymentWebhookEvent(eventLogId, {
+        processed: false,
+        ignored: true,
+        error: "Notificação recebida sem paymentId.",
+      });
+
       return NextResponse.json({
         ok: true,
         message: "Notificação recebida sem paymentId. Ignorada.",
@@ -471,6 +583,12 @@ export async function POST(request: Request) {
       notificationType !== "payment" &&
       notificationType !== "payments"
     ) {
+      await updatePaymentWebhookEvent(eventLogId, {
+        processed: false,
+        ignored: true,
+        error: `Notificação ignorada por tipo: ${notificationType}.`,
+      });
+
       return NextResponse.json({
         ok: true,
         message: "Notificação recebida, mas não é de pagamento. Ignorada.",
@@ -481,12 +599,27 @@ export async function POST(request: Request) {
 
     const result = await processPayment(paymentId);
 
+    await updatePaymentWebhookEvent(eventLogId, {
+      processed: Boolean(result.ok),
+      ignored: false,
+      previousStatus: (result as any).previousTransactionStatus || null,
+      newStatus: (result as any).transactionStatus || (result as any).mercadoPagoStatus || null,
+      transactionId: (result as any).transactionId || null,
+      error: result.ok ? null : result.message || "Webhook recebido, mas não processado.",
+    });
+
     return NextResponse.json({
       ok: true,
       mode: "webhook",
       result,
     });
   } catch (error) {
+    await updatePaymentWebhookEvent(eventLogId, {
+      processed: false,
+      ignored: false,
+      error: getErrorMessage(error),
+    });
+
     return NextResponse.json(
       {
         ok: false,

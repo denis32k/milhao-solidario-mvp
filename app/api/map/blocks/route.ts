@@ -18,9 +18,14 @@ export async function GET() {
       where: {
         gridX: { lt: GRID_COLS },
         gridY: { lt: GRID_ROWS },
-        status: {
-          in: ["SOLD", "RESERVED", "BLOCKED"],
-        },
+        OR: [
+          { status: "RESERVED" },
+          { status: "BLOCKED" },
+          {
+            status: "SOLD",
+            OR: [{ placement: null }, { placement: { isTest: false } }],
+          },
+        ],
       },
       select: {
         id: true,

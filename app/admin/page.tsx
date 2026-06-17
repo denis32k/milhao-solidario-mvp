@@ -35,6 +35,7 @@ const ADMIN_ACTION_TYPES = new Set([
   "RESOLVE_REPORT",
   "REJECT_REPORT",
   "RESTORE_CONTENT",
+  "APPROVE_CONTENT",
   "APPROVE_EDIT",
   "REJECT_EDIT",
   "OPEN_DISPUTE",
@@ -115,6 +116,33 @@ async function safeValueQuery<T>(factory: () => Promise<T>, fallback: T): Promis
   } catch {
     return fallback;
   }
+}
+
+async function sumTransactionCents(where: any) {
+  return safeValueQuery(async () => {
+    const result = (await (prisma as any).transaction.aggregate({
+      where,
+      _sum: { totalPaidCents: true },
+    })) as any;
+
+    return Number(result?._sum?.totalPaidCents || 0);
+  }, 0);
+}
+
+function startOfDay(date: Date) {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function subDays(date: Date, days: number) {
+  const copy = new Date(date);
+  copy.setDate(copy.getDate() - days);
+  return copy;
 }
 
 
@@ -439,6 +467,14 @@ async function adminAction(formData: FormData) {
     performed = true;
   }
 
+  if (action === "APPROVE_CONTENT" && placementId) {
+    await prisma.placement.update({
+      where: { id: placementId },
+      data: { status: "ACTIVE", reviewStatus: "APPROVED", placeholderReason: null },
+    });
+    performed = true;
+  }
+
   if (action === "RESTORE_CONTENT" && placementId) {
     await prisma.placement.update({
       where: { id: placementId },
@@ -620,9 +656,19 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
           <div className="text-5xl">🔐</div>
           <h1 className="mt-4 text-2xl font-black text-slate-950">Admin protegido</h1>
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            Acesse usando <strong>/admin?secret=SUA_SENHA</strong>.
+            Digite a senha do admin ou acesse usando <strong>/admin?secret=SUA_SENHA</strong>.
           </p>
-          <Link href="/" className="mt-5 block rounded-2xl bg-slate-950 py-4 text-sm font-black text-white">Voltar ao mural</Link>
+          <form action="/admin" className="mt-5 space-y-3">
+            <input
+              name="secret"
+              type="password"
+              autoComplete="current-password"
+              placeholder="Senha do admin"
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-center text-sm font-bold text-slate-800 outline-none focus:border-slate-950"
+            />
+            <button type="submit" className="w-full rounded-2xl bg-slate-950 py-4 text-sm font-black text-white">Entrar no admin</button>
+          </form>
+          <Link href="/" className="mt-3 block rounded-2xl bg-slate-100 py-4 text-sm font-black text-slate-800">Voltar ao mural</Link>
         </div>
       </main>
     );
@@ -658,9 +704,9 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
     ),
     safeListQuery(() =>
         prisma.placement.findMany({
-          where: { kind: { in: ["PREMIUM", "GOLD", "GRAND_CENTER"] } },
-          orderBy: { createdAt: "desc" },
-          take: 20,
+          where: { isTest: false },
+          orderBy: [{ reviewStatus: "asc" }, { createdAt: "desc" }],
+          take: 50,
           include: { user: true, blocks: { take: 1 } },
         }),
     ),
@@ -719,7 +765,84 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
     any[],
   ];
 
-  const openReports = reports.filter((report) => report.status === "OPEN" || report.status === "REVIEWING").length;
+  const latestTransactionsList = latestTransactions as any[];
+  const pendingReservationsList = pendingReservations as any[];
+  const premiumPlacementsList = premiumPlacements as any[];
+  const reportsList = reports as any[];
+  const testPlacementsList = testPlacements as any[];
+  const pendingEditRequestsList = pendingEditRequests as any[];
+  const openDisputesList = openDisputes as any[];
+  const latestAdminActionsList = latestAdminActions as any[];
+  const paymentWebhookEventsList = await safeListQuery(() =>
+    (prisma as any).paymentWebhookEvent.findMany({
+      orderBy: { receivedAt: "desc" },
+      take: 12,
+    })
+  );
+
+  const now = new Date();
+  const todayStart = startOfDay(now);
+  const weekStart = subDays(todayStart, 7);
+  const monthStart = startOfMonth(now);
+
+  const [
+    totalRevenueCents,
+    todayRevenueCents,
+    weekRevenueCents,
+    monthRevenueCents,
+    availableBlocks,
+    reservedBlocks,
+    expiredReservationsCount,
+    unreviewedContentCount,
+    pendingPaymentsCount,
+    approvedPaymentsTodayCount,
+    problematicPaymentsCount,
+    soldBlocksByDb,
+    areaSalesRaw,
+  ] = (await Promise.all([
+    sumTransactionCents({ status: "APPROVED", isTest: false }),
+    sumTransactionCents({ status: "APPROVED", isTest: false, approvedAt: { gte: todayStart } }),
+    sumTransactionCents({ status: "APPROVED", isTest: false, approvedAt: { gte: weekStart } }),
+    sumTransactionCents({ status: "APPROVED", isTest: false, approvedAt: { gte: monthStart } }),
+    safeValueQuery(() => (prisma as any).block.count({ where: { status: "AVAILABLE", available: true } }), 0),
+    safeValueQuery(() => (prisma as any).block.count({ where: { status: "RESERVED" } }), 0),
+    safeValueQuery(() => (prisma as any).block.count({ where: { status: "RESERVED", reservedUntil: { lt: now } } }), 0),
+    safeValueQuery(() => (prisma as any).placement.count({ where: { reviewStatus: "PUBLISHED_NOT_REVIEWED", isTest: false } }), 0),
+    safeValueQuery(() => (prisma as any).transaction.count({ where: { status: "PENDING", isTest: false } }), 0),
+    safeValueQuery(() => (prisma as any).transaction.count({ where: { status: "APPROVED", isTest: false, approvedAt: { gte: todayStart } } }), 0),
+    safeValueQuery(() => (prisma as any).transaction.count({ where: { status: { in: ["REJECTED", "CANCELLED", "EXPIRED", "REFUNDED"] }, isTest: false } }), 0),
+    safeValueQuery(() => (prisma as any).block.count({ where: { status: "SOLD" } }), soldBlocks),
+    safeListQuery(() =>
+      (prisma as any).transaction.findMany({
+        where: { status: "APPROVED", isTest: false },
+        orderBy: { approvedAt: "desc" },
+        take: 1000,
+        select: { kind: true, totalPaidCents: true, items: { select: { blockId: true } } },
+      })
+    ),
+  ])) as [number, number, number, number, number, number, number, number, number, number, number, number, any[]];
+
+  const openReports = reportsList.filter((report: any) => report.status === "OPEN" || report.status === "REVIEWING").length;
+  const activeBlocks = Number(soldBlocksByDb || soldBlocks || 0);
+
+  const areaSales = Object.values(
+    areaSalesRaw.reduce((acc: Record<string, { kind: string; count: number; blocks: number; totalCents: number }>, transaction: any) => {
+      const kind = String(transaction.kind || "SOLIDARITY");
+      if (!acc[kind]) acc[kind] = { kind, count: 0, blocks: 0, totalCents: 0 };
+      acc[kind].count += 1;
+      acc[kind].blocks += Array.isArray(transaction.items) ? transaction.items.length : 0;
+      acc[kind].totalCents += Number(transaction.totalPaidCents || 0);
+      return acc;
+    }, {})
+  ).sort((a, b) => b.totalCents - a.totalCents);
+
+  const healthAlerts = [
+    expiredReservationsCount > 0 ? `${expiredReservationsCount} reserva(s) expirada(s) para liberar/verificar` : null,
+    unreviewedContentCount > 0 ? `${unreviewedContentCount} conteúdo(s) publicado(s) sem revisão` : null,
+    openReports > 0 ? `${openReports} denúncia(s) aberta(s)` : null,
+    pendingEditRequestsList.length > 0 ? `${pendingEditRequestsList.length} edição(ões) pendente(s)` : null,
+    problematicPaymentsCount > 0 ? `${problematicPaymentsCount} pagamento(s) com status problemático` : null,
+  ].filter(Boolean);
 
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-6">
@@ -734,13 +857,83 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
           </p>
         </section>
 
-        <section className="mb-6 grid gap-3 sm:grid-cols-6">
-          <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Tijolinhos vendidos</p><p className="mt-1 text-2xl font-black">{soldBlocks}</p></div>
-          <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Reservas pendentes</p><p className="mt-1 text-2xl font-black">{pendingReservations.length}</p></div>
-          <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Denúncias abertas</p><p className="mt-1 text-2xl font-black">{openReports}</p></div>
-          <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Edições pendentes</p><p className="mt-1 text-2xl font-black">{pendingEditRequests.length}</p></div>
-          <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Disputas internas</p><p className="mt-1 text-2xl font-black">{openDisputes.length}</p></div>
-          <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Usuários banidos</p><p className="mt-1 text-2xl font-black">{bannedUsers}</p></div>
+        <nav className="mb-6 overflow-x-auto rounded-3xl bg-white p-3 shadow-xl [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex min-w-max gap-2 text-xs font-black text-slate-700">
+            <a href="#dashboard" className="rounded-full bg-slate-950 px-4 py-2 text-white">Dashboard</a>
+            <a href="#testes" className="rounded-full bg-slate-100 px-4 py-2">Área de testes</a>
+            <a href="#pedidos" className="rounded-full bg-slate-100 px-4 py-2">Pedidos</a>
+            <a href="#pagamentos" className="rounded-full bg-slate-100 px-4 py-2">Pagamentos</a>
+            <a href="#reservas" className="rounded-full bg-slate-100 px-4 py-2">Reservas</a>
+            <a href="#conteudos" className="rounded-full bg-slate-100 px-4 py-2">Conteúdos</a>
+            <a href="#edicoes" className="rounded-full bg-slate-100 px-4 py-2">Edições</a>
+            <a href="#denuncias" className="rounded-full bg-slate-100 px-4 py-2">Denúncias</a>
+            <a href="#disputas" className="rounded-full bg-slate-100 px-4 py-2">Disputas</a>
+            <a href="#auditoria" className="rounded-full bg-slate-100 px-4 py-2">Auditoria</a>
+          </div>
+        </nav>
+
+        <section id="dashboard" className="mb-6 space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Entrou hoje</p><p className="mt-1 text-2xl font-black text-slate-950">{money(todayRevenueCents)}</p><p className="mt-1 text-[10px] font-bold text-slate-400">{approvedPaymentsTodayCount} pagamento(s) aprovado(s)</p></div>
+            <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Entrou na semana</p><p className="mt-1 text-2xl font-black text-slate-950">{money(weekRevenueCents)}</p></div>
+            <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Entrou no mês</p><p className="mt-1 text-2xl font-black text-slate-950">{money(monthRevenueCents)}</p></div>
+            <div className="rounded-3xl bg-slate-950 p-4 text-white shadow"><p className="text-xs font-black text-slate-300">Total aprovado</p><p className="mt-1 text-2xl font-black">{money(totalRevenueCents)}</p></div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+            <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Blocos vendidos</p><p className="mt-1 text-2xl font-black">{activeBlocks}</p></div>
+            <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Disponíveis</p><p className="mt-1 text-2xl font-black">{availableBlocks}</p></div>
+            <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Reservados</p><p className="mt-1 text-2xl font-black">{reservedBlocks}</p></div>
+            <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Expirados</p><p className="mt-1 text-2xl font-black text-orange-600">{expiredReservationsCount}</p></div>
+            <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Sem revisão</p><p className="mt-1 text-2xl font-black text-yellow-600">{unreviewedContentCount}</p></div>
+            <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Pendências</p><p className="mt-1 text-2xl font-black text-red-600">{openReports + pendingEditRequestsList.length + problematicPaymentsCount}</p></div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+            <div className="rounded-3xl bg-white p-5 shadow-xl">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wide text-slate-500">Painel de avião</p>
+                  <h2 className="mt-1 text-xl font-black text-slate-950">Saúde da operação</h2>
+                </div>
+                <span className={`rounded-full px-3 py-2 text-xs font-black ${healthAlerts.length ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>
+                  {healthAlerts.length ? "Atenção" : "Saudável"}
+                </span>
+              </div>
+              <div className="mt-4 grid gap-2 text-sm font-bold text-slate-700">
+                <p>Pagamentos pendentes: <strong>{pendingPaymentsCount}</strong></p>
+                <p>Pagamentos problemáticos: <strong>{problematicPaymentsCount}</strong></p>
+                <p>Denúncias abertas: <strong>{openReports}</strong></p>
+                <p>Edições pendentes: <strong>{pendingEditRequestsList.length}</strong></p>
+                <p>Disputas internas: <strong>{openDisputesList.length}</strong></p>
+              </div>
+              <div className="mt-4 rounded-2xl bg-slate-50 p-4">
+                {healthAlerts.length === 0 ? (
+                  <p className="text-sm font-bold text-emerald-700">Tudo limpo por enquanto. Sem alerta crítico no painel.</p>
+                ) : (
+                  <ul className="space-y-2 text-sm font-bold text-red-700">
+                    {healthAlerts.map((alert: any) => <li key={String(alert)}>• {alert}</li>)}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-3xl bg-white p-5 shadow-xl">
+              <p className="text-xs font-black uppercase tracking-wide text-slate-500">Áreas que mais vendem</p>
+              <div className="mt-4 space-y-3">
+                {areaSales.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma venda aprovada ainda.</p>}
+                {areaSales.map((area: any) => (
+                  <div key={area.kind} className="rounded-2xl bg-slate-50 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-black text-slate-950">{areaLabel(area.kind)}</p>
+                      <p className="text-xs font-black text-slate-500">{money(area.totalCents)}</p>
+                    </div>
+                    <p className="mt-1 text-xs font-bold text-slate-500">{area.count} pedido(s) • {area.blocks} bloco(s)</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </section>
 
         <section className="mb-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
@@ -763,7 +956,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
           </form>
         </section>
 
-        <section className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
+        <section id="testes" className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="text-xl font-black text-slate-950">Testes do mural</h2>
@@ -821,9 +1014,9 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
             </form>
           </div>
 
-          {testPlacements.length > 0 && (
+          {testPlacementsList.length > 0 && (
             <div className="mt-5 space-y-2">
-              {testPlacements.map((placement) => (
+              {testPlacementsList.map((placement: any) => (
                 <article key={placement.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50 p-3">
                   <div>
                     <p className="text-sm font-black text-slate-950">{placement.title || placement.displayName}</p>
@@ -843,7 +1036,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
         <section className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
           <h2 className="text-xl font-black text-slate-950">Últimas compras</h2>
           <div className="mt-4 space-y-3">
-            {latestTransactions.map((transaction) => (
+            {latestTransactionsList.map((transaction: any) => (
               <article key={transaction.id} className="rounded-2xl bg-slate-50 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
@@ -857,11 +1050,11 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
           </div>
         </section>
 
-        <section className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
+        <section id="reservas" className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
           <h2 className="text-xl font-black text-slate-950">Reservas pendentes</h2>
           <div className="mt-4 space-y-3">
-            {pendingReservations.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma reserva pendente.</p>}
-            {pendingReservations.map((block) => (
+            {pendingReservationsList.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma reserva pendente.</p>}
+            {pendingReservationsList.map((block: any) => (
               <article key={block.id} className="rounded-2xl bg-yellow-50 p-4">
                 <p className="text-sm font-black text-yellow-950">x{block.gridX}/y{block.gridY} • {areaLabel(block.category)}</p>
                 <p className="text-xs font-bold text-yellow-700">{block.owner?.name || "Sem comprador"} • vence {block.reservedUntil?.toLocaleString("pt-BR")}</p>
@@ -870,20 +1063,21 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
           </div>
         </section>
 
-        <section className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
-          <h2 className="text-xl font-black text-slate-950">Ipanema e Leblon com imagem/link</h2>
+        <section id="conteudos" className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
+          <h2 className="text-xl font-black text-slate-950">Conteúdos publicados / sem revisão</h2>
           <div className="mt-4 space-y-3">
-            {premiumPlacements.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhum espaço de Ipanema, Leblon ou Tom Delfim Moreira vendido ainda.</p>}
-            {premiumPlacements.map((placement) => (
+            {premiumPlacementsList.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhum conteúdo publicado ainda.</p>}
+            {premiumPlacementsList.map((placement: any) => (
               <article key={placement.id} className="rounded-2xl border border-slate-200 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-black uppercase text-slate-500">{areaLabel(placement.kind)} • {placement.status}</p>
+                    <p className="text-xs font-black uppercase text-slate-500">{areaLabel(placement.kind)} • {placement.status} • {placement.reviewStatus}</p>
                     <h3 className="mt-1 text-lg font-black text-slate-950">{placement.title || placement.displayName}</h3>
                     <p className="mt-1 text-sm text-slate-600">{placement.description || "Sem descrição"}</p>
                     <p className="mt-1 text-xs font-bold text-slate-500">Imagem: {placement.imageUrl ? "sim" : "não"} • Link: {placement.redirectUrl && !placement.linkDisabled ? "ativo" : "não"}</p>
                   </div>
                   <div className="grid min-w-44 gap-2">
+                    <ActionButton label="Aprovar/revisar" action="APPROVE_CONTENT" secret={secret} placementId={placement.id} className="w-full rounded-2xl bg-green-600 px-3 py-2 text-xs font-black text-white" />
                     <ActionButton label="Bloquear imagem" action="BLOCK_IMAGE" secret={secret} placementId={placement.id} className="w-full rounded-2xl bg-slate-800 px-3 py-2 text-xs font-black text-white" />
                     <ActionButton label="Bloquear link" action="BLOCK_LINK" secret={secret} placementId={placement.id} className="w-full rounded-2xl bg-orange-500 px-3 py-2 text-xs font-black text-white" />
                     <ActionButton label="Ocultar descrição" action="HIDE_DESCRIPTION" secret={secret} placementId={placement.id} className="w-full rounded-2xl bg-yellow-400 px-3 py-2 text-xs font-black text-yellow-950" />
@@ -897,12 +1091,12 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
           </div>
         </section>
 
-        <section className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
+        <section id="edicoes" className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
           <h2 className="text-xl font-black text-slate-950">Edições futuras pendentes</h2>
           <p className="mt-1 text-xs font-bold text-slate-500">Toda alteração futura de nome, imagem, link, frase ou descrição fica parada aqui até aprovação com motivo.</p>
           <div className="mt-4 space-y-3">
-            {pendingEditRequests.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma edição pendente.</p>}
-            {pendingEditRequests.map((request) => (
+            {pendingEditRequestsList.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma edição pendente.</p>}
+            {pendingEditRequestsList.map((request: any) => (
               <article key={request.id} className="rounded-2xl border border-slate-200 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
@@ -927,12 +1121,39 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
           </div>
         </section>
 
-        <section className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
+        <section id="pagamentos" className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-black text-slate-950">Pagamentos e webhooks</h2>
+              <p className="mt-1 text-xs font-bold text-slate-500">Registro técnico dos eventos recebidos do Mercado Pago. Se webhook duplicar, atrasar ou falhar, aparece aqui.</p>
+            </div>
+            <div className="rounded-2xl bg-slate-100 px-4 py-3 text-xs font-black text-slate-700">{paymentWebhookEventsList.length} evento(s)</div>
+          </div>
+          <div className="mt-4 space-y-2">
+            {paymentWebhookEventsList.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhum webhook registrado ainda.</p>}
+            {paymentWebhookEventsList.map((event: any) => (
+              <article key={event.id} className="rounded-2xl border border-slate-200 p-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-black uppercase text-slate-500">{event.eventType || "evento"} • payment_id {event.paymentId || "—"}</p>
+                    <p className="mt-1 text-sm font-bold text-slate-700">{event.previousStatus || "sem status"} → {event.newStatus || "sem status"}</p>
+                    {event.error && <p className="mt-1 text-xs font-bold text-red-600">Erro: {event.error}</p>}
+                  </div>
+                  <span className={`rounded-full px-3 py-1 text-[10px] font-black ${event.processed ? "bg-emerald-100 text-emerald-700" : event.ignored ? "bg-slate-100 text-slate-600" : "bg-yellow-100 text-yellow-700"}`}>
+                    {event.processed ? "processado" : event.ignored ? "ignorado" : "pendente"}
+                  </span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section id="disputas" className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
           <h2 className="text-xl font-black text-slate-950">Disputas / chargebacks internos</h2>
           <p className="mt-1 text-xs font-bold text-slate-500">Controle interno, sem criar fluxo público de reembolso.</p>
           <div className="mt-4 space-y-3">
-            {openDisputes.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma disputa aberta.</p>}
-            {openDisputes.map((dispute) => (
+            {openDisputesList.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma disputa aberta.</p>}
+            {openDisputesList.map((dispute: any) => (
               <article key={dispute.id} className="rounded-2xl border border-red-100 bg-red-50 p-4">
                 <p className="text-xs font-black uppercase text-red-700">{dispute.status} • {dispute.transaction.user?.publicName || dispute.transaction.user?.name || "Comprador"}</p>
                 <h3 className="mt-1 text-lg font-black text-red-950">{money(dispute.transaction.totalPaidCents)}</h3>
@@ -943,11 +1164,11 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
           </div>
         </section>
 
-        <section className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
+        <section id="auditoria" className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
           <h2 className="text-xl font-black text-slate-950">Histórico administrativo</h2>
           <div className="mt-4 space-y-2">
-            {latestAdminActions.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma ação registrada.</p>}
-            {latestAdminActions.map((item) => (
+            {latestAdminActionsList.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma ação registrada.</p>}
+            {latestAdminActionsList.map((item: any) => (
               <article key={item.id} className="rounded-2xl bg-slate-50 p-3">
                 <p className="text-xs font-black uppercase text-slate-500">{item.type} • {item.createdAt.toLocaleString("pt-BR")}</p>
                 <p className="mt-1 text-sm font-bold text-slate-700">{item.note || "Sem nota"}</p>
@@ -956,11 +1177,11 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
           </div>
         </section>
 
-        <section className="rounded-3xl bg-white p-5 shadow-xl">
+        <section id="denuncias" className="rounded-3xl bg-white p-5 shadow-xl">
           <h2 className="text-xl font-black text-slate-950">Denúncias</h2>
           <div className="mt-4 space-y-3">
-            {reports.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma denúncia ainda.</p>}
-            {reports.map((report) => (
+            {reportsList.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma denúncia ainda.</p>}
+            {reportsList.map((report: any) => (
               <article key={report.id} className="rounded-2xl border border-slate-200 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
