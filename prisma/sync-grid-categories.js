@@ -5,14 +5,14 @@ const siteConfig = require("../config/site.config.json");
 
 const GRID_COLS = 232;
 const GRID_ROWS = 125;
-const COPACABANA_MAX_X = 68;
-const LEBLON_MAX_X = 151;
+const COPACABANA_MAX_X = 64;
+const LEBLON_MAX_X = 154;
 const NOBLE_SQL = `
-  ("gridX" BETWEEN 91 AND 127 AND "gridY" BETWEEN 0 AND 49)
+  ("gridX" BETWEEN 95 AND 125 AND "gridY" BETWEEN 4 AND 57)
 `;
 
 const NOBLE_AREAS = [
-  { minX: 91, maxX: 127, minY: 0, maxY: 49 },
+  { minX: 95, maxX: 125, minY: 4, maxY: 57 },
 ];
 
 function isGrandCenterBlock(x, y) {

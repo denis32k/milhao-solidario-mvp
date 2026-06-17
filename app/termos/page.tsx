@@ -41,7 +41,7 @@ export default function TermosPage() {
           <section className="rounded-3xl bg-slate-50 p-5">
             <h2 className="text-lg font-black text-slate-950">4. Publicação automática</h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              Após a confirmação do PIX, os tijolinhos podem aparecer automaticamente no mural. Conteúdos públicos podem ser removidos, ocultados ou bloqueados posteriormente em caso de denúncia, abuso ou análise administrativa.
+              Após a confirmação do PIX, os tijolinhos aparecem automaticamente no mural como publicado não revisado. O administrador revisa depois e pode remover, ocultar ou bloquear conteúdo em caso de denúncia, abuso ou análise administrativa.
             </p>
           </section>
 
@@ -55,7 +55,7 @@ export default function TermosPage() {
           <section className="rounded-3xl bg-slate-50 p-5">
             <h2 className="text-lg font-black text-slate-950">6. Denúncias e moderação</h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              Qualquer visitante pode denunciar um tijolinho. O administrador pode bloquear imagem, bloquear link, ocultar descrição, ocultar nome público, banir comprador, resolver denúncia ou liberar o espaço conforme a gravidade.
+              Qualquer visitante pode denunciar um tijolinho. O administrador pode bloquear imagem, bloquear link, ocultar descrição, ocultar nome público, banir comprador, resolver denúncia ou liberar o espaço conforme a gravidade. Toda ação administrativa precisa registrar motivo interno.
             </p>
           </section>
 
@@ -67,7 +67,21 @@ export default function TermosPage() {
           </section>
 
           <section className="rounded-3xl bg-slate-50 p-5">
-            <h2 className="text-lg font-black text-slate-950">8. Privacidade</h2>
+            <h2 className="text-lg font-black text-slate-950">8. Edições futuras</h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">
+              Mudanças futuras de nome, imagem, link, frase ou descrição exigem motivo e ficam pendentes até aprovação do administrador antes de alterar o mural público.
+            </p>
+          </section>
+
+          <section className="rounded-3xl bg-red-50 p-5">
+            <h2 className="text-lg font-black text-red-900">9. Reembolso e disputas</h2>
+            <p className="mt-2 text-sm leading-relaxed text-red-900/80">
+              Por se tratar de personalização e publicação em mural público, não há fluxo público automático de reembolso. O sistema mantém controle interno para disputa, chargeback ou caso excepcional analisado pela administração.
+            </p>
+          </section>
+
+          <section className="rounded-3xl bg-slate-50 p-5">
+            <h2 className="text-lg font-black text-slate-950">10. Privacidade</h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">
               CPF e WhatsApp são dados privados usados para controle administrativo, pagamento, segurança e contato. Publicamente aparecem apenas os dados que o comprador decidiu exibir no mural.
             </p>

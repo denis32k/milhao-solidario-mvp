@@ -24,6 +24,75 @@ function isAuthorized(secretFromUrl: string | undefined) {
   return secretFromUrl === secret;
 }
 
+const ADMIN_ACTION_TYPES = new Set([
+  "WARN",
+  "BLOCK_IMAGE",
+  "BLOCK_LINK",
+  "HIDE_DESCRIPTION",
+  "HIDE_PUBLIC_NAME",
+  "RELEASE_BLOCK",
+  "BAN_USER",
+  "RESOLVE_REPORT",
+  "REJECT_REPORT",
+  "RESTORE_CONTENT",
+  "APPROVE_EDIT",
+  "REJECT_EDIT",
+  "OPEN_DISPUTE",
+  "CLOSE_DISPUTE",
+  "BAN_RELEASE",
+]);
+
+async function getSystemAdminId() {
+  const admin = await prisma.user.upsert({
+    where: { email: "admin@mural29.local" },
+    update: { role: "ADMIN" },
+    create: {
+      name: "Admin Mural29",
+      publicName: "Admin",
+      email: "admin@mural29.local",
+      role: "ADMIN",
+    },
+    select: { id: true },
+  });
+
+  return admin.id;
+}
+
+async function recordAdminAction({
+  type,
+  note,
+  reportId,
+  placementId,
+  blockId,
+  editRequestId,
+  disputeCaseId,
+}: {
+  type: string;
+  note: string;
+  reportId?: string | null;
+  placementId?: string | null;
+  blockId?: string | null;
+  editRequestId?: string | null;
+  disputeCaseId?: string | null;
+}) {
+  if (!ADMIN_ACTION_TYPES.has(type)) return;
+
+  const adminId = await getSystemAdminId();
+
+  await prisma.adminAction.create({
+    data: {
+      type: type as any,
+      note,
+      adminId,
+      reportId: reportId || null,
+      placementId: placementId || null,
+      blockId: blockId || null,
+      editRequestId: editRequestId || null,
+      disputeCaseId: disputeCaseId || null,
+    },
+  });
+}
+
 function areaLabel(value: string | null | undefined) {
   if (value === "SOLIDARITY" || value === "PREMIUM" || value === "GOLD" || value === "GRAND_CENTER") {
     return getAreaName(value as AreaKey);
@@ -292,10 +361,17 @@ async function adminAction(formData: FormData) {
   const reportId = String(formData.get("reportId") || "");
   const placementId = String(formData.get("placementId") || "");
   const userId = String(formData.get("userId") || "");
+  const editRequestId = String(formData.get("editRequestId") || "");
+  const disputeCaseId = String(formData.get("disputeCaseId") || "");
+  const note = String(formData.get("note") || "").trim();
 
-  if (!isAuthorized(secret)) {
-    return;
-  }
+  if (!isAuthorized(secret)) return;
+  if (!ADMIN_ACTION_TYPES.has(action)) return;
+  if (note.length < 5) return;
+
+  let affectedBlockId: string | null = null;
+  let affectedPlacementId: string | null = placementId || null;
+  let performed = false;
 
   if (action === "BLOCK_IMAGE" && placementId) {
     await prisma.placement.update({
@@ -305,26 +381,60 @@ async function adminAction(formData: FormData) {
         imageStorageKey: null,
         placeholderReason: "Imagem bloqueada pela moderação.",
         status: "IMAGE_BLOCKED",
+        reviewStatus: "HIDDEN_BY_ADMIN",
       },
     });
 
-    if (reportId) {
-      await prisma.report.update({ where: { id: reportId }, data: { status: "BLOCKED" } });
-    }
+    if (reportId) await prisma.report.update({ where: { id: reportId }, data: { status: "BLOCKED" } });
+    performed = true;
   }
 
   if (action === "BLOCK_LINK" && placementId) {
     await prisma.placement.update({
       where: { id: placementId },
-      data: { linkDisabled: true },
+      data: { linkDisabled: true, reviewStatus: "CHANGES_REQUESTED" },
     });
 
-    if (reportId) {
-      await prisma.report.update({ where: { id: reportId }, data: { status: "BLOCKED" } });
-    }
+    if (reportId) await prisma.report.update({ where: { id: reportId }, data: { status: "BLOCKED" } });
+    performed = true;
+  }
+
+  if (action === "HIDE_DESCRIPTION" && placementId) {
+    await prisma.placement.update({
+      where: { id: placementId },
+      data: { description: null, placeholderReason: "Descrição ocultada pela moderação.", reviewStatus: "CHANGES_REQUESTED" },
+    });
+    if (reportId) await prisma.report.update({ where: { id: reportId }, data: { status: "BLOCKED" } });
+    performed = true;
+  }
+
+  if (action === "HIDE_PUBLIC_NAME" && placementId) {
+    await prisma.placement.update({
+      where: { id: placementId },
+      data: {
+        title: "Oculto pela moderação",
+        displayName: "Oculto pela moderação",
+        textLabel: "Oculto",
+        placeholderReason: "Nome público ocultado pela moderação.",
+        reviewStatus: "CHANGES_REQUESTED",
+      },
+    });
+    if (reportId) await prisma.report.update({ where: { id: reportId }, data: { status: "BLOCKED" } });
+    performed = true;
+  }
+
+  if (action === "RESTORE_CONTENT" && placementId) {
+    await prisma.placement.update({
+      where: { id: placementId },
+      data: { status: "ACTIVE", linkDisabled: false, placeholderReason: null, reviewStatus: "APPROVED" },
+    });
+    performed = true;
   }
 
   if (action === "RELEASE_BLOCK" && placementId) {
+    const firstBlock = await prisma.block.findFirst({ where: { placementId }, select: { id: true } });
+    affectedBlockId = firstBlock?.id || null;
+
     await prisma.$transaction(async (tx: any) => {
       await tx.block.updateMany({
         where: { placementId },
@@ -343,6 +453,7 @@ async function adminAction(formData: FormData) {
         where: { id: placementId },
         data: {
           status: "REMOVED",
+          reviewStatus: "HIDDEN_BY_ADMIN",
           imageUrl: null,
           redirectUrl: null,
           linkDisabled: true,
@@ -350,10 +461,9 @@ async function adminAction(formData: FormData) {
         },
       });
 
-      if (reportId) {
-        await tx.report.update({ where: { id: reportId }, data: { status: "RESOLVED" } });
-      }
+      if (reportId) await tx.report.update({ where: { id: reportId }, data: { status: "RESOLVED" } });
     });
+    performed = true;
   }
 
   if (action === "BAN_USER" && userId) {
@@ -363,6 +473,7 @@ async function adminAction(formData: FormData) {
         where: { userId },
         data: {
           status: "BANNED",
+          reviewStatus: "HIDDEN_BY_ADMIN",
           imageUrl: null,
           redirectUrl: null,
           linkDisabled: true,
@@ -371,14 +482,68 @@ async function adminAction(formData: FormData) {
         },
       });
 
-      if (reportId) {
-        await tx.report.update({ where: { id: reportId }, data: { status: "BANNED" } });
-      }
+      if (reportId) await tx.report.update({ where: { id: reportId }, data: { status: "BANNED" } });
     });
+    performed = true;
   }
 
   if (action === "RESOLVE_REPORT" && reportId) {
     await prisma.report.update({ where: { id: reportId }, data: { status: "RESOLVED" } });
+    performed = true;
+  }
+
+  if (action === "REJECT_REPORT" && reportId) {
+    await prisma.report.update({ where: { id: reportId }, data: { status: "DISMISSED" } });
+    performed = true;
+  }
+
+  if ((action === "APPROVE_EDIT" || action === "REJECT_EDIT") && editRequestId) {
+    const editRequest = await prisma.contentEditRequest.findUnique({
+      where: { id: editRequestId },
+      include: { placement: true },
+    });
+
+    if (editRequest && editRequest.status === "PENDING") {
+      affectedPlacementId = editRequest.placementId;
+      const adminId = await getSystemAdminId();
+
+      if (action === "APPROVE_EDIT") {
+        const placementData: any = { reviewStatus: "APPROVED", status: "ACTIVE" };
+        if (editRequest.requestedTitle !== null) placementData.title = editRequest.requestedTitle;
+        if (editRequest.requestedDescription !== null) placementData.description = editRequest.requestedDescription;
+        if (editRequest.requestedImageUrl !== null) placementData.imageUrl = editRequest.requestedImageUrl;
+        if (editRequest.requestedRedirectUrl !== null) placementData.redirectUrl = editRequest.requestedRedirectUrl;
+        if (editRequest.requestedDisplayName !== null) placementData.displayName = editRequest.requestedDisplayName;
+        if (editRequest.requestedTextLabel !== null) placementData.textLabel = editRequest.requestedTextLabel;
+
+        await prisma.$transaction(async (tx: any) => {
+          await tx.placement.update({ where: { id: editRequest.placementId }, data: placementData });
+          await tx.contentEditRequest.update({
+            where: { id: editRequest.id },
+            data: { status: "APPROVED", reviewedByAdminId: adminId, reviewedAt: new Date(), adminNote: note },
+          });
+        });
+      } else {
+        await prisma.contentEditRequest.update({
+          where: { id: editRequest.id },
+          data: { status: "REJECTED", reviewedByAdminId: adminId, reviewedAt: new Date(), adminNote: note },
+        });
+      }
+
+      performed = true;
+    }
+  }
+
+  if (performed) {
+    await recordAdminAction({
+      type: action,
+      note,
+      reportId: reportId || null,
+      placementId: affectedPlacementId,
+      blockId: affectedBlockId,
+      editRequestId: editRequestId || null,
+      disputeCaseId: disputeCaseId || null,
+    });
   }
 
   revalidatePath("/admin");
@@ -392,6 +557,8 @@ function ActionButton({
   reportId,
   placementId,
   userId,
+  editRequestId,
+  disputeCaseId,
   className,
 }: {
   label: string;
@@ -400,15 +567,26 @@ function ActionButton({
   reportId?: string | null;
   placementId?: string | null;
   userId?: string | null;
+  editRequestId?: string | null;
+  disputeCaseId?: string | null;
   className: string;
 }) {
   return (
-    <form action={adminAction}>
+    <form action={adminAction} className="space-y-2">
       <input type="hidden" name="secret" value={secret} />
       <input type="hidden" name="action" value={action} />
       {reportId && <input type="hidden" name="reportId" value={reportId} />}
       {placementId && <input type="hidden" name="placementId" value={placementId} />}
       {userId && <input type="hidden" name="userId" value={userId} />}
+      {editRequestId && <input type="hidden" name="editRequestId" value={editRequestId} />}
+      {disputeCaseId && <input type="hidden" name="disputeCaseId" value={disputeCaseId} />}
+      <input
+        name="note"
+        required
+        minLength={5}
+        placeholder="Motivo obrigatório"
+        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-700 outline-none focus:border-slate-950"
+      />
       <button type="submit" className={className}>{label}</button>
     </form>
   );
@@ -442,6 +620,9 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
     reports,
     bannedUsers,
     testPlacements,
+    pendingEditRequests,
+    openDisputes,
+    latestAdminActions,
   ] = await Promise.all([
     prisma.transaction.findMany({
       orderBy: { createdAt: "desc" },
@@ -476,6 +657,23 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
       take: 30,
       include: { blocks: { take: 1 } },
     }),
+    prisma.contentEditRequest.findMany({
+      where: { status: "PENDING" },
+      orderBy: { createdAt: "asc" },
+      take: 20,
+      include: { user: true, placement: { include: { user: true } } },
+    }),
+    prisma.disputeCase.findMany({
+      where: { status: { in: ["OPEN", "REVIEWING"] } },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      include: { transaction: { include: { user: true } } },
+    }),
+    prisma.adminAction.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      include: { admin: true },
+    }),
   ]);
 
   const openReports = reports.filter((report) => report.status === "OPEN" || report.status === "REVIEWING").length;
@@ -493,10 +691,12 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
           </p>
         </section>
 
-        <section className="mb-6 grid gap-3 sm:grid-cols-4">
+        <section className="mb-6 grid gap-3 sm:grid-cols-6">
           <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Tijolinhos vendidos</p><p className="mt-1 text-2xl font-black">{soldBlocks}</p></div>
           <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Reservas pendentes</p><p className="mt-1 text-2xl font-black">{pendingReservations.length}</p></div>
           <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Denúncias abertas</p><p className="mt-1 text-2xl font-black">{openReports}</p></div>
+          <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Edições pendentes</p><p className="mt-1 text-2xl font-black">{pendingEditRequests.length}</p></div>
+          <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Disputas internas</p><p className="mt-1 text-2xl font-black">{openDisputes.length}</p></div>
           <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Usuários banidos</p><p className="mt-1 text-2xl font-black">{bannedUsers}</p></div>
         </section>
 
@@ -641,11 +841,73 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
                     <p className="mt-1 text-xs font-bold text-slate-500">Imagem: {placement.imageUrl ? "sim" : "não"} • Link: {placement.redirectUrl && !placement.linkDisabled ? "ativo" : "não"}</p>
                   </div>
                   <div className="grid min-w-44 gap-2">
-                    <ActionButton label="Bloquear imagem" action="BLOCK_IMAGE" secret={secret} placementId={placement.id} className="rounded-2xl bg-slate-800 px-3 py-2 text-xs font-black text-white" />
-                    <ActionButton label="Bloquear link" action="BLOCK_LINK" secret={secret} placementId={placement.id} className="rounded-2xl bg-orange-500 px-3 py-2 text-xs font-black text-white" />
-                    <ActionButton label="Banir comprador" action="BAN_USER" secret={secret} placementId={placement.id} userId={placement.userId} className="rounded-2xl bg-red-600 px-3 py-2 text-xs font-black text-white" />
+                    <ActionButton label="Bloquear imagem" action="BLOCK_IMAGE" secret={secret} placementId={placement.id} className="w-full rounded-2xl bg-slate-800 px-3 py-2 text-xs font-black text-white" />
+                    <ActionButton label="Bloquear link" action="BLOCK_LINK" secret={secret} placementId={placement.id} className="w-full rounded-2xl bg-orange-500 px-3 py-2 text-xs font-black text-white" />
+                    <ActionButton label="Ocultar descrição" action="HIDE_DESCRIPTION" secret={secret} placementId={placement.id} className="w-full rounded-2xl bg-yellow-400 px-3 py-2 text-xs font-black text-yellow-950" />
+                    <ActionButton label="Ocultar nome" action="HIDE_PUBLIC_NAME" secret={secret} placementId={placement.id} className="w-full rounded-2xl bg-yellow-500 px-3 py-2 text-xs font-black text-yellow-950" />
+                    <ActionButton label="Restaurar conteúdo" action="RESTORE_CONTENT" secret={secret} placementId={placement.id} className="w-full rounded-2xl bg-green-600 px-3 py-2 text-xs font-black text-white" />
+                    <ActionButton label="Banir comprador" action="BAN_USER" secret={secret} placementId={placement.id} userId={placement.userId} className="w-full rounded-2xl bg-red-600 px-3 py-2 text-xs font-black text-white" />
                   </div>
                 </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
+          <h2 className="text-xl font-black text-slate-950">Edições futuras pendentes</h2>
+          <p className="mt-1 text-xs font-bold text-slate-500">Toda alteração futura de nome, imagem, link, frase ou descrição fica parada aqui até aprovação com motivo.</p>
+          <div className="mt-4 space-y-3">
+            {pendingEditRequests.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma edição pendente.</p>}
+            {pendingEditRequests.map((request) => (
+              <article key={request.id} className="rounded-2xl border border-slate-200 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-black uppercase text-slate-500">{areaLabel(request.placement.kind)} • {request.status}</p>
+                    <h3 className="mt-1 text-lg font-black text-slate-950">{request.placement.title || request.placement.displayName || "Sem título"}</h3>
+                    <p className="mt-2 text-sm font-bold text-slate-600">Motivo do comprador: {request.reason}</p>
+                    <div className="mt-3 rounded-2xl bg-slate-50 p-3 text-xs font-bold leading-relaxed text-slate-600">
+                      {request.requestedTitle && <p>Novo nome/título: {request.requestedTitle}</p>}
+                      {request.requestedDisplayName && <p>Novo nome público: {request.requestedDisplayName}</p>}
+                      {request.requestedDescription && <p>Nova descrição: {request.requestedDescription}</p>}
+                      {request.requestedRedirectUrl && <p>Novo link: {request.requestedRedirectUrl}</p>}
+                      {request.requestedImageUrl && <p>Nova imagem: {request.requestedImageUrl}</p>}
+                    </div>
+                  </div>
+                  <div className="grid min-w-44 gap-2">
+                    <ActionButton label="Aprovar edição" action="APPROVE_EDIT" secret={secret} editRequestId={request.id} className="w-full rounded-2xl bg-green-600 px-3 py-2 text-xs font-black text-white" />
+                    <ActionButton label="Rejeitar edição" action="REJECT_EDIT" secret={secret} editRequestId={request.id} className="w-full rounded-2xl bg-red-600 px-3 py-2 text-xs font-black text-white" />
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
+          <h2 className="text-xl font-black text-slate-950">Disputas / chargebacks internos</h2>
+          <p className="mt-1 text-xs font-bold text-slate-500">Controle interno, sem criar fluxo público de reembolso.</p>
+          <div className="mt-4 space-y-3">
+            {openDisputes.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma disputa aberta.</p>}
+            {openDisputes.map((dispute) => (
+              <article key={dispute.id} className="rounded-2xl border border-red-100 bg-red-50 p-4">
+                <p className="text-xs font-black uppercase text-red-700">{dispute.status} • {dispute.transaction.user.publicName || dispute.transaction.user.name}</p>
+                <h3 className="mt-1 text-lg font-black text-red-950">{money(dispute.transaction.totalPaidCents)}</h3>
+                <p className="mt-2 text-sm font-bold text-red-900/80">{dispute.reason}</p>
+                {dispute.internalNote && <p className="mt-1 text-xs font-bold text-red-800/70">Nota interna: {dispute.internalNote}</p>}
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
+          <h2 className="text-xl font-black text-slate-950">Histórico administrativo</h2>
+          <div className="mt-4 space-y-2">
+            {latestAdminActions.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma ação registrada.</p>}
+            {latestAdminActions.map((item) => (
+              <article key={item.id} className="rounded-2xl bg-slate-50 p-3">
+                <p className="text-xs font-black uppercase text-slate-500">{item.type} • {item.createdAt.toLocaleString("pt-BR")}</p>
+                <p className="mt-1 text-sm font-bold text-slate-700">{item.note || "Sem nota"}</p>
               </article>
             ))}
           </div>
@@ -664,11 +926,14 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
                     <p className="mt-2 text-sm leading-relaxed text-slate-600">{report.reason}</p>
                   </div>
                   <div className="grid min-w-44 gap-2">
-                    <ActionButton label="Bloquear imagem" action="BLOCK_IMAGE" secret={secret} reportId={report.id} placementId={report.placementId} className="rounded-2xl bg-slate-800 px-3 py-2 text-xs font-black text-white" />
-                    <ActionButton label="Bloquear link" action="BLOCK_LINK" secret={secret} reportId={report.id} placementId={report.placementId} className="rounded-2xl bg-orange-500 px-3 py-2 text-xs font-black text-white" />
-                    <ActionButton label="Liberar tijolinho" action="RELEASE_BLOCK" secret={secret} reportId={report.id} placementId={report.placementId} className="rounded-2xl bg-yellow-400 px-3 py-2 text-xs font-black text-yellow-950" />
-                    <ActionButton label="Banir comprador" action="BAN_USER" secret={secret} reportId={report.id} placementId={report.placementId} userId={report.placement?.userId} className="rounded-2xl bg-red-600 px-3 py-2 text-xs font-black text-white" />
-                    <ActionButton label="Resolver" action="RESOLVE_REPORT" secret={secret} reportId={report.id} className="rounded-2xl bg-green-600 px-3 py-2 text-xs font-black text-white" />
+                    <ActionButton label="Bloquear imagem" action="BLOCK_IMAGE" secret={secret} reportId={report.id} placementId={report.placementId} className="w-full rounded-2xl bg-slate-800 px-3 py-2 text-xs font-black text-white" />
+                    <ActionButton label="Bloquear link" action="BLOCK_LINK" secret={secret} reportId={report.id} placementId={report.placementId} className="w-full rounded-2xl bg-orange-500 px-3 py-2 text-xs font-black text-white" />
+                    <ActionButton label="Ocultar descrição" action="HIDE_DESCRIPTION" secret={secret} reportId={report.id} placementId={report.placementId} className="w-full rounded-2xl bg-yellow-400 px-3 py-2 text-xs font-black text-yellow-950" />
+                    <ActionButton label="Ocultar nome" action="HIDE_PUBLIC_NAME" secret={secret} reportId={report.id} placementId={report.placementId} className="w-full rounded-2xl bg-yellow-500 px-3 py-2 text-xs font-black text-yellow-950" />
+                    <ActionButton label="Liberar tijolinho" action="RELEASE_BLOCK" secret={secret} reportId={report.id} placementId={report.placementId} className="w-full rounded-2xl bg-yellow-400 px-3 py-2 text-xs font-black text-yellow-950" />
+                    <ActionButton label="Banir comprador" action="BAN_USER" secret={secret} reportId={report.id} placementId={report.placementId} userId={report.placement?.userId} className="w-full rounded-2xl bg-red-600 px-3 py-2 text-xs font-black text-white" />
+                    <ActionButton label="Resolver" action="RESOLVE_REPORT" secret={secret} reportId={report.id} className="w-full rounded-2xl bg-green-600 px-3 py-2 text-xs font-black text-white" />
+                    <ActionButton label="Rejeitar denúncia" action="REJECT_REPORT" secret={secret} reportId={report.id} className="w-full rounded-2xl bg-slate-200 px-3 py-2 text-xs font-black text-slate-800" />
                   </div>
                 </div>
               </article>

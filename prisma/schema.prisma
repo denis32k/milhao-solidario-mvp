@@ -31,6 +31,7 @@ enum PlacementKind {
   SOLIDARITY
   PREMIUM
   GOLD
+  GRAND_CENTER
 }
 
 enum PlacementStatus {
@@ -40,10 +41,18 @@ enum PlacementStatus {
   REMOVED
 }
 
+enum ReviewStatus {
+  PUBLISHED_NOT_REVIEWED
+  APPROVED
+  CHANGES_REQUESTED
+  HIDDEN_BY_ADMIN
+}
+
 enum TransactionKind {
   SOLIDARITY
   PREMIUM
   GOLD
+  GRAND_CENTER
 }
 
 enum TransactionStatus {
@@ -65,13 +74,36 @@ enum ReportStatus {
   BANNED
 }
 
+enum EditRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum DisputeStatus {
+  OPEN
+  REVIEWING
+  WON
+  LOST
+  CLOSED_EXCEPTION
+}
+
 enum AdminActionType {
   WARN
   BLOCK_IMAGE
   BLOCK_LINK
+  HIDE_DESCRIPTION
+  HIDE_PUBLIC_NAME
   RELEASE_BLOCK
   BAN_USER
   RESOLVE_REPORT
+  REJECT_REPORT
+  RESTORE_CONTENT
+  APPROVE_EDIT
+  REJECT_EDIT
+  OPEN_DISPUTE
+  CLOSE_DISPUTE
   BAN_RELEASE
 }
 
@@ -107,6 +139,7 @@ model User {
   transactions       Transaction[]
   placements         Placement[]
   ownedBlocks        Block[]       @relation("BlockOwner")
+  editRequests       ContentEditRequest[]
   adminActions       AdminAction[] @relation("AdminActions")
 
   @@index([role])
@@ -152,6 +185,7 @@ model Placement {
   id                String          @id @default(cuid())
   kind              PlacementKind
   status            PlacementStatus @default(ACTIVE)
+  reviewStatus      ReviewStatus    @default(PUBLISHED_NOT_REVIEWED)
 
   userId            String
   user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -178,63 +212,68 @@ model Placement {
 
   blocks            Block[]
   reports           Report[]
+  editRequests      ContentEditRequest[]
 
-  isTest           Boolean         @default(false)
+  isTest            Boolean         @default(false)
 
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
   @@index([kind, status])
+  @@index([reviewStatus, createdAt])
   @@index([userId])
 }
 
 model Transaction {
-  id                  String            @id @default(cuid())
-  kind                TransactionKind
-  status              TransactionStatus @default(PENDING)
+  id                   String            @id @default(cuid())
+  kind                 TransactionKind
+  status               TransactionStatus @default(PENDING)
 
-  userId              String
-  user                User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  userId               String
+  user                 User              @relation(fields: [userId], references: [id], onDelete: Restrict)
 
-  subtotalCents       Int
-  operatorFeeCents    Int
-  totalPaidCents      Int
+  subtotalCents        Int
+  operatorFeeCents     Int
+  totalPaidCents       Int
 
-  creatorShareCents   Int
-  hospitalShareCents  Int
+  creatorShareCents    Int
+  hospitalShareCents   Int
 
-  checkoutWhatsapp    String?
-  checkoutCpfHash     String?
-  checkoutCpfLast4    String?
+  checkoutWhatsapp     String?
+  checkoutCpfHash      String?
+  checkoutCpfLast4     String?
+  termsAcceptedAt      DateTime?
+  termsVersion         String?
 
-  placementTitle      String?
-  placementDescription String?          @db.Text
+  placementTitle       String?
+  placementDescription String?           @db.Text
   placementRedirectUrl String?
-  placementImageUrl   String?
-  placementFillColor  String?
+  placementImageUrl    String?
+  placementFillColor   String?
 
-  mpPaymentId         String?           @unique
-  mpExternalReference String            @unique
-  mpStatus            String?
-  mpStatusDetail      String?
+  mpPaymentId          String?           @unique
+  mpExternalReference  String            @unique
+  mpStatus             String?
+  mpStatusDetail       String?
 
-  pixQrCode           String?
-  pixQrCodeBase64     String?           @db.Text
-  pixCopyPaste        String?           @db.Text
+  pixQrCode            String?
+  pixQrCodeBase64      String?           @db.Text
+  pixCopyPaste         String?           @db.Text
 
-  expiresAt           DateTime?
-  approvedAt          DateTime?
-  paidAt              DateTime?
+  expiresAt            DateTime?
+  approvedAt           DateTime?
+  paidAt               DateTime?
 
-  items               TransactionBlock[]
-  currentBlocks       Block[]           @relation("CurrentTransactionBlocks")
-  placement           Placement?
-  ledgerEntries       DistributionLedger[]
+  items                TransactionBlock[]
+  currentBlocks        Block[]           @relation("CurrentTransactionBlocks")
+  placement            Placement?
+  ledgerEntries        DistributionLedger[]
+  disputeCases         DisputeCase[]
 
-  isTest              Boolean            @default(false)
+  isTest               Boolean           @default(false)
 
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
 
   @@index([status, createdAt])
   @@index([userId, status])
@@ -280,27 +319,90 @@ model Report {
   @@index([blockId])
 }
 
+model ContentEditRequest {
+  id                    String            @id @default(cuid())
+  placementId           String
+  placement             Placement         @relation(fields: [placementId], references: [id], onDelete: Cascade)
+
+  userId                String
+  user                  User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  reason                String            @db.Text
+  status                EditRequestStatus @default(PENDING)
+
+  requestedTitle        String?
+  requestedDescription  String?           @db.Text
+  requestedImageUrl     String?
+  requestedRedirectUrl  String?
+  requestedDisplayName  String?
+  requestedTextLabel    String?
+
+  reviewedByAdminId     String?
+  reviewedAt            DateTime?
+  adminNote             String?           @db.Text
+
+  actions               AdminAction[]
+
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@index([status, createdAt])
+  @@index([placementId])
+  @@index([userId])
+}
+
+model DisputeCase {
+  id             String        @id @default(cuid())
+
+  transactionId  String
+  transaction    Transaction   @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  status         DisputeStatus @default(OPEN)
+  reason         String        @db.Text
+  internalNote   String?       @db.Text
+  externalRef    String?
+  openedAt       DateTime      @default(now())
+  closedAt       DateTime?
+
+  actions        AdminAction[]
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([status, createdAt])
+  @@index([transactionId])
+}
+
 model AdminAction {
-  id          String          @id @default(cuid())
-  type        AdminActionType
+  id            String          @id @default(cuid())
+  type          AdminActionType
 
-  reportId    String?
-  report      Report?         @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  reportId      String?
+  report        Report?         @relation(fields: [reportId], references: [id], onDelete: SetNull)
 
-  blockId     String?
-  block       Block?          @relation(fields: [blockId], references: [id], onDelete: SetNull)
+  blockId       String?
+  block         Block?          @relation(fields: [blockId], references: [id], onDelete: SetNull)
 
-  placementId String?
+  placementId   String?
 
-  adminId     String
-  admin       User            @relation("AdminActions", fields: [adminId], references: [id], onDelete: Restrict)
+  editRequestId String?
+  editRequest   ContentEditRequest? @relation(fields: [editRequestId], references: [id], onDelete: SetNull)
 
-  note        String?         @db.Text
+  disputeCaseId String?
+  disputeCase   DisputeCase?    @relation(fields: [disputeCaseId], references: [id], onDelete: SetNull)
 
-  createdAt   DateTime        @default(now())
+  adminId       String
+  admin         User            @relation("AdminActions", fields: [adminId], references: [id], onDelete: Restrict)
+
+  note          String?         @db.Text
+
+  createdAt     DateTime        @default(now())
 
   @@index([type, createdAt])
   @@index([adminId])
+  @@index([placementId])
+  @@index([editRequestId])
+  @@index([disputeCaseId])
 }
 
 model DistributionLedger {

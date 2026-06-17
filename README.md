@@ -13,7 +13,8 @@ Versão ajustada para o projeto comercial de venda de tijolinhos digitais.
   - Copacabana: R$ 9,00 por tijolinho
   - Leblon: R$ 149,00 por tijolinho
   - Ipanema: R$ 49,00 por tijolinho
-- Placas dos bairros como áreas restritas/bloqueadas.
+- Divisão dos bairros preservada no grid atual, com a linha visual centralizada no vão preto entre as linhas douradas.
+- Área nobre Tom Delfim Moreira mantida acima da placa do Leblon, sem recalcular o grid.
 - Sem taxa extra operacional.
 - Docker mantido no modo leve para EasyPanel com pouca memória.
 
@@ -80,3 +81,13 @@ Este é um projeto comercial de venda de espaços digitais em um mural público.
 - Preço da área nobre: R$ 500,00 por bloco.
 - Mantém o comportamento do grid fixo no mobile.
 - Bloqueia o zoom nativo do navegador para evitar o mural encolher na tela.
+
+
+## V20
+- Não mexe na estrutura do grid: 232 x 125, 29.000 blocos, tamanho e coordenadas preservados.
+- Corrige Prisma para aceitar GRAND_CENTER em transações e placements.
+- Publicação pós-PIX entra como `PUBLISHED_NOT_REVIEWED`, mantendo revisão posterior pelo admin.
+- Todos os blocos podem receber imagem no checkout.
+- Checkout passa a exigir aceite dos termos antes de gerar PIX.
+- Admin ganha base para motivo obrigatório nas ações, histórico de ação, solicitações futuras de edição e controle interno de disputa/chargeback.
+- Scripts de seed/sync foram alinhados às coordenadas atuais do grid para não desfazer a marcação correta do Tom Delfim Moreira.

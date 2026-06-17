@@ -234,6 +234,7 @@ export default function CompraPage() {
 
   const [imageUrl, setImageUrl] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
@@ -334,6 +335,11 @@ export default function CompraPage() {
         return;
       }
 
+      if (!acceptedTerms) {
+        alert("Aceite os termos para gerar o PIX.");
+        return;
+      }
+
       setIsLoading(true);
       const finalImageUrl = await uploadImageIfNeeded();
 
@@ -351,6 +357,7 @@ export default function CompraPage() {
           redirectUrl,
           imageUrl: finalImageUrl,
           fillColor,
+          acceptedTerms,
         }),
       });
 
@@ -630,6 +637,18 @@ export default function CompraPage() {
                 )}
               </div>
 
+              <label className="flex items-start gap-3 rounded-3xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(event) => setAcceptedTerms(event.target.checked)}
+                  className="mt-1 h-5 w-5 rounded border-slate-300"
+                />
+                <span>
+                  Aceito os <Link href="/termos" className="font-black text-slate-950 underline">Termos de Uso</Link> e entendo que, após o PIX aprovado, o conteúdo entra no mural automaticamente como publicado e ainda não revisado.
+                </span>
+              </label>
+
               <div className="space-y-3 rounded-3xl bg-slate-50 p-4">
                 <div className="flex justify-between text-sm">
                   <span className="font-bold text-slate-600">Valor dos tijolinhos</span>
@@ -652,7 +671,7 @@ export default function CompraPage() {
               <button
                 type="button"
                 onClick={handleGeneratePix}
-                disabled={isLoading || (requiresImageShape && !isRectangle)}
+                disabled={isLoading || !acceptedTerms || (requiresImageShape && !isRectangle)}
                 className={`w-full rounded-2xl ${theme.button} py-4 text-sm font-extrabold ${theme.buttonText} shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-60`}
               >
                 {isLoading ? "Gerando PIX..." : siteConfig.copy.pixButton}

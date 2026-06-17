@@ -605,7 +605,7 @@ export default function PixelMap() {
     }
 
     const nextBlocks = [...selectedBlocks, { gridX, gridY, category, priceCents: getBlockPrice(category) }];
-    if ((category === "PREMIUM" || category === "GOLD") && !blocksFormRectangle(nextBlocks)) {
+    if ((category === "PREMIUM" || category === "GOLD" || category === "GRAND_CENTER") && !blocksFormRectangle(nextBlocks)) {
       setSelectionMessage("A imagem precisa de uma área retangular. Complete o retângulo para continuar.");
     } else {
       setSelectionMessage("");
@@ -894,7 +894,7 @@ export default function PixelMap() {
           </button>
 
           <p className="pr-8 text-[9px] font-black uppercase tracking-[0.18em] text-slate-400">
-            vendido • {getAreaName(selectedSheet.block.category)}
+            {selectedSheet.block.status === "RESERVED" ? "reservado" : selectedSheet.block.status === "BLOCKED" ? "bloqueado" : "vendido"} • {getAreaName(selectedSheet.block.category)}
           </p>
 
           <h2 className="mt-1 pr-8 text-lg font-black leading-tight text-slate-950">{getDisplayName(selectedSheet.block)}</h2>

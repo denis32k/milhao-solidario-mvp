@@ -43,7 +43,8 @@ export default function HeaderMiniStats({ ranking = [] }: { ranking?: RankingIte
   const total = stats?.blocks.total || 29000;
   const sold = stats?.blocks.sold || 0;
   const phase = getConstructionPhase(sold, total);
-  const summaryText = `${sold.toLocaleString("pt-BR")} tijolinhos vendidos • faltam ${phase.missingToNext.toLocaleString("pt-BR")} para a próxima fase`;
+  const soldText = `${sold.toLocaleString("pt-BR")} tijolinhos vendidos`;
+  const nextText = `faltam ${phase.missingToNext.toLocaleString("pt-BR")} para a próxima fase`;
   const topThree = ranking.slice(0, 3);
 
   return (
@@ -52,6 +53,7 @@ export default function HeaderMiniStats({ ranking = [] }: { ranking?: RankingIte
         <div className="flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-wide text-slate-500">
           <p className="min-w-0 truncate">
             <span>{phase.currentPhase}</span>
+            <span className="ml-1 normal-case tracking-normal text-slate-700">• {soldText}</span>
           </p>
           <span className="shrink-0">{phase.progressPercent}%</span>
         </div>
@@ -63,7 +65,7 @@ export default function HeaderMiniStats({ ranking = [] }: { ranking?: RankingIte
           />
         </div>
 
-        <p className="mt-1 truncate text-[9px] font-bold text-slate-500">{summaryText}</p>
+        <p className="mt-1 truncate text-[9px] font-bold text-slate-500">{nextText}</p>
 
         {topThree.length > 0 && (
           <div className="mt-1 overflow-x-auto whitespace-nowrap pb-0.5 text-[9px] font-bold text-slate-700 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

@@ -13,6 +13,7 @@ type SelectedBlockInput = {
 };
 
 const RESERVATION_MINUTES = 30;
+const TERMS_VERSION = "mural29-2026-06-17";
 const ALLOWED_COLORS = new Set(siteConfig.mosaicColors.map((color) => color.value));
 
 function getErrorMessage(error: unknown) {
@@ -153,10 +154,7 @@ function blocksFormRectangle(blocks: SelectedBlockInput[]) {
 }
 
 function mapCategoryToKind(category: BuyableCategory) {
-  if (category === "GRAND_CENTER") return "GOLD";
-  if (category === "GOLD") return "GOLD";
-  if (category === "PREMIUM") return "PREMIUM";
-  return "SOLIDARITY";
+  return category;
 }
 
 function getCategoryDescription(category: BuyableCategory, fullName: string) {
@@ -185,7 +183,8 @@ export async function GET() {
       description: "short public description",
       redirectUrl: "optional public link or instagram",
       imageUrl: "optional premium/gold image url",
-      fillColor: "optional solidarity color",
+      fillColor: "optional block color",
+      acceptedTerms: "boolean required",
     },
   });
 }
@@ -218,6 +217,7 @@ export async function POST(request: Request) {
     const redirectUrl = normalizePublicLink(body.redirectUrl || body.instagram || body.publicLink);
     const imageUrl = safeText(body.imageUrl, 500);
     const requestedFillColor = safeText(body.fillColor, 20);
+    const acceptedTerms = body.acceptedTerms === true;
     const fillColor = ALLOWED_COLORS.has(requestedFillColor)
       ? requestedFillColor
       : "#22c55e";
@@ -240,6 +240,10 @@ export async function POST(request: Request) {
 
     if (selectedBlocksInput.length === 0) {
       return NextResponse.json({ ok: false, message: "Selecione pelo menos um tijolinho no mural." }, { status: 400 });
+    }
+
+    if (!acceptedTerms) {
+      return NextResponse.json({ ok: false, message: "Aceite os termos para gerar o PIX." }, { status: 400 });
     }
 
     if (!areBlocksContiguous(selectedBlocksInput)) {
@@ -325,7 +329,9 @@ export async function POST(request: Request) {
           placementDescription: description || null,
           placementRedirectUrl: redirectUrl || null,
           placementImageUrl: imageUrl || null,
-          placementFillColor: category === "SOLIDARITY" ? fillColor : null,
+          placementFillColor: fillColor || null,
+          termsAcceptedAt: new Date(),
+          termsVersion: TERMS_VERSION,
 
           mpExternalReference: externalReference,
           mpStatus: "pending",

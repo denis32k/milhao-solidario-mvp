@@ -13,7 +13,7 @@ export default function PrivacidadePage() {
         <div className="mt-6 space-y-4">
           <section className="rounded-3xl bg-orange-50 p-5">
             <h2 className="text-lg font-black text-orange-900">O que aparece publicamente</h2>
-            <p className="mt-2 text-sm leading-relaxed text-orange-900/80">Nome público, descrição curta, cor do tijolinho, imagem enviada em {siteConfig.areas.PREMIUM.name}/{siteConfig.areas.GOLD.name} e link/Instagram informado pelo comprador.</p>
+            <p className="mt-2 text-sm leading-relaxed text-orange-900/80">Nome público, descrição curta, cor do tijolinho, imagem enviada em qualquer área comprada e link/Instagram informado pelo comprador.</p>
           </section>
 
           <section className="rounded-3xl bg-slate-50 p-5">
@@ -28,7 +28,7 @@ export default function PrivacidadePage() {
 
           <section className="rounded-3xl bg-slate-950 p-5 text-white">
             <h2 className="text-lg font-black">Contato e remoção</h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-300">Caso precise corrigir ou remover informações públicas de um tijolinho, o comprador poderá entrar em contato com a administração do projeto.</p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-300">Caso precise corrigir informações públicas de um tijolinho, a alteração precisará de motivo e aprovação administrativa antes de mudar o mural público.</p>
           </section>
         </div>
       </div>

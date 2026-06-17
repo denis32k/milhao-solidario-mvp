@@ -313,11 +313,13 @@ async function processPayment(paymentId: string) {
     const heightBlocks = maxY - minY + 1;
     const placementKind = transaction.kind as any;
     const defaultFillColor =
-      transaction.kind === "GOLD"
-        ? "#f59e0b"
-        : transaction.kind === "PREMIUM"
-          ? "#0f172a"
-          : "#22c55e";
+      transaction.kind === "GRAND_CENTER"
+        ? "#c026d3"
+        : transaction.kind === "GOLD"
+          ? "#f59e0b"
+          : transaction.kind === "PREMIUM"
+            ? "#0f172a"
+            : "#22c55e";
 
     const placement = await tx.placement.upsert({
       where: {
@@ -341,6 +343,7 @@ async function processPayment(paymentId: string) {
       create: {
         kind: placementKind,
         status: "ACTIVE",
+        reviewStatus: "PUBLISHED_NOT_REVIEWED",
 
         userId: transaction.userId,
         transactionId: transaction.id,
