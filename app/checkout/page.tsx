@@ -573,15 +573,16 @@ export default function CompraPage() {
                 <p className={`text-xs font-black uppercase tracking-wide ${theme.text}`}>Informações públicas do tijolinho</p>
 
                 <label className="block">
-                  <span className={`text-xs font-black uppercase tracking-wide ${theme.text}`}>Instagram, site ou link</span>
+                  <span className={`text-xs font-black uppercase tracking-wide ${theme.text}`}>Link público</span>
                   <input
                     type="text"
                     value={redirectUrl}
                     onChange={(event) => setRedirectUrl(event.target.value)}
-                    placeholder="@instagram ou https://..."
+                    placeholder="https://instagram.com/meuusuario"
                     className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-bold outline-none focus:border-slate-950"
                   />
                 </label>
+                <p className="-mt-2 text-xs font-semibold text-slate-500">Use o link completo com https:// ou http://.</p>
 
                 <label className="block">
                   <span className={`text-xs font-black uppercase tracking-wide ${theme.text}`}>Descrição curta</span>

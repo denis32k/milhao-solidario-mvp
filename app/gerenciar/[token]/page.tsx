@@ -19,19 +19,6 @@ function safeText(value: FormDataEntryValue | null, maxLength: number) {
   return String(value || "").trim().slice(0, maxLength);
 }
 
-function normalizeExternalUrl(value: FormDataEntryValue | null) {
-  const raw = String(value || "").trim();
-  if (!raw) return "";
-  if (/^https?:\/\//i.test(raw)) return raw.slice(0, 300);
-  if (raw.startsWith("@")) {
-    const handle = raw.replace("@", "").replace(/[^a-zA-Z0-9._]/g, "");
-    return handle ? `https://instagram.com/${handle}` : "";
-  }
-  if (/^[a-zA-Z0-9._-]+$/.test(raw)) return `https://instagram.com/${raw}`;
-  if (raw.includes(".") && !raw.includes(" ")) return `https://${raw}`.slice(0, 300);
-  return "";
-}
-
 async function savePendingImage(file: FormDataEntryValue | null) {
   if (!(file instanceof File)) return null;
   if (!file.size) return null;
@@ -186,7 +173,7 @@ export default async function ManageOrderPage({ params, searchParams }: ManagePa
         </section>
 
         {sent && <div className="mt-5 rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-black text-emerald-800">Solicitação enviada. Vamos analisar sua alteração.</div>}
-        {error && <div className="mt-5 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm font-black text-red-800">Não foi possível enviar: {error === "motivo" ? "informe um motivo com pelo menos 5 caracteres." : error === "sem_alteracao" ? "preencha pelo menos uma alteração." : error === "pagamento" ? "o pagamento ainda não está aprovado." : error === "imagem" ? "a imagem precisa ser JPG, PNG ou WEBP e ter até 5MB." : error === "link_invalido" ? "o link informado não é válido." : error === "link_bloqueado" ? "esse domínio está bloqueado para publicação." : "pedido não encontrado."}</div>}
+        {error && <div className="mt-5 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm font-black text-red-800">Não foi possível enviar: {error === "motivo" ? "informe um motivo com pelo menos 5 caracteres." : error === "sem_alteracao" ? "preencha pelo menos uma alteração." : error === "pagamento" ? "o pagamento ainda não está aprovado." : error === "imagem" ? "a imagem precisa ser JPG, PNG ou WEBP e ter até 5MB." : error === "link_invalido" ? "use o link completo com https:// ou http://. Ex: https://instagram.com/meuusuario." : error === "link_bloqueado" ? "esse domínio está bloqueado para publicação." : "pedido não encontrado."}</div>}
 
         <section className="mt-5 grid gap-4 md:grid-cols-2">
           <div className="rounded-3xl bg-white p-5 shadow-xl">
@@ -235,7 +222,7 @@ export default async function ManageOrderPage({ params, searchParams }: ManagePa
               <input type="hidden" name="token" value={token} />
               <input name="title" placeholder="Novo título/nome do bloco" className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold outline-none focus:border-slate-950" />
               <input name="displayName" placeholder="Novo nome público" className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold outline-none focus:border-slate-950" />
-              <input name="redirectUrl" placeholder="Novo link ou @instagram" className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold outline-none focus:border-slate-950" />
+              <input name="redirectUrl" placeholder="Novo link. Ex: https://instagram.com/meuusuario" className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold outline-none focus:border-slate-950" />
               <textarea name="description" rows={3} placeholder="Nova frase/descrição" className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold outline-none focus:border-slate-950" />
               <div className="rounded-2xl bg-slate-50 p-3">
                 <p className="text-xs font-black uppercase text-slate-500">Nova imagem/logo</p>

@@ -32,33 +32,18 @@ export function normalizePublicUrl(value: unknown) {
   const lower = raw.toLowerCase();
   if (BLOCKED_PROTOCOLS.some((protocol) => lower.startsWith(protocol))) return "";
 
-  if (raw.startsWith("@")) {
-    const handle = raw.replace("@", "").replace(/[^a-zA-Z0-9._]/g, "");
-    return handle ? `https://instagram.com/${handle}` : "";
+  // Regra simples para não confundir domínio com Instagram:
+  // link público precisa vir completo com http:// ou https://.
+  if (!/^https?:\/\//i.test(raw)) return "";
+
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+    if (!parsed.hostname || !parsed.hostname.includes(".")) return "";
+    return parsed.toString().slice(0, 500);
+  } catch {
+    return "";
   }
-
-  if (/^https?:\/\//i.test(raw)) {
-    try {
-      const parsed = new URL(raw);
-      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
-      return parsed.toString().slice(0, 500);
-    } catch {
-      return "";
-    }
-  }
-
-  if (/^[a-zA-Z0-9._-]+$/.test(raw)) return `https://instagram.com/${raw}`;
-
-  if (raw.includes(".") && !raw.includes(" ")) {
-    try {
-      const parsed = new URL(`https://${raw}`);
-      return parsed.toString().slice(0, 500);
-    } catch {
-      return "";
-    }
-  }
-
-  return "";
 }
 
 export function getHostnameFromUrl(url: string | null | undefined) {

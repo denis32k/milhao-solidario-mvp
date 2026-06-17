@@ -60,31 +60,6 @@ function safeText(value: unknown, maxLength: number) {
   return String(value || "").trim().slice(0, maxLength);
 }
 
-function normalizePublicLink(value: unknown) {
-  const raw = String(value || "").trim();
-
-  if (!raw) return "";
-
-  if (raw.startsWith("@")) {
-    const handle = raw.replace("@", "").replace(/[^a-zA-Z0-9._]/g, "");
-    return handle ? `https://instagram.com/${handle}` : "";
-  }
-
-  if (/^https?:\/\//i.test(raw)) {
-    return raw.slice(0, 300);
-  }
-
-  if (/^[a-zA-Z0-9._-]+$/.test(raw)) {
-    return `https://instagram.com/${raw}`;
-  }
-
-  if (raw.includes(".") && !raw.includes(" ")) {
-    return `https://${raw}`.slice(0, 300);
-  }
-
-  return "";
-}
-
 function normalizeSelectedBlocks(value: unknown): SelectedBlockInput[] {
   if (!Array.isArray(value)) {
     return [];
@@ -192,7 +167,7 @@ export async function GET() {
       selectedBlocks: [{ gridX: 7, gridY: 0 }],
       title: "public title/name",
       description: "short public description",
-      redirectUrl: "optional public link or instagram",
+      redirectUrl: "optional public link with https:// or http://. Example: https://instagram.com/meuusuario",
       imageUrl: "optional premium/gold image url",
       fillColor: "optional block color",
       acceptedTerms: "boolean required",
@@ -229,7 +204,7 @@ export async function POST(request: Request) {
 
     const title = safeText(body.title || publicName, 80);
     const description = safeText(body.description, 180);
-    const rawRedirectUrl = body.redirectUrl || body.instagram || body.publicLink;
+    const rawRedirectUrl = body.redirectUrl || body.publicLink;
     const redirectUrl = normalizePublicUrl(rawRedirectUrl);
     const imageUrl = safeText(body.imageUrl, 500);
     const requestedFillColor = safeText(body.fillColor, 20);
@@ -240,7 +215,7 @@ export async function POST(request: Request) {
 
     const rawRedirectText = String(rawRedirectUrl || "").trim();
     if (rawRedirectText && !redirectUrl) {
-      return NextResponse.json({ ok: false, message: "Link inválido. Use um site válido, https:// ou @instagram." }, { status: 400 });
+      return NextResponse.json({ ok: false, message: "Link inválido. Use o link completo com https:// ou http://. Exemplo: https://instagram.com/meuusuario" }, { status: 400 });
     }
 
     if (redirectUrl) {
