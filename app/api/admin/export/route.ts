@@ -68,6 +68,21 @@ export async function GET(request: Request) {
   } else if (type === "support") {
     const data = await (prisma as any).supportNote.findMany({ orderBy: { createdAt: "desc" }, take: 5000, include: { transaction: { include: { user: true } }, customer: true, admin: true } });
     rows = data.map((n: any) => ({ id: n.id, categoria: n.category, nota: n.note, pedido: n.transactionId, cliente: n.customer?.email || n.customer?.name || n.transaction?.user?.name, admin: n.admin?.email || n.admin?.name, criado_em: n.createdAt }));
+  } else if (type === "financial") {
+    const from = url.searchParams.get("from");
+    const to = url.searchParams.get("to");
+    const area = url.searchParams.get("area");
+    const status = url.searchParams.get("status");
+    const where: any = {};
+    if (from || to) {
+      where.createdAt = {};
+      if (from) where.createdAt.gte = new Date(`${from}T00:00:00.000`);
+      if (to) where.createdAt.lte = new Date(`${to}T23:59:59.999`);
+    }
+    if (area && area !== "ALL") where.kind = area;
+    if (status && status !== "ALL") where.status = status;
+    const data = await (prisma as any).transaction.findMany({ where, orderBy: { createdAt: "desc" }, take: 5000, include: { user: true, items: true, disputeCases: true } });
+    rows = data.map((t: any) => ({ pedido: t.id, cliente: t.user?.name, email: t.user?.email, whatsapp: t.checkoutWhatsapp || t.user?.whatsapp, area: t.kind, status: t.status, mp_status: t.mpStatus, mp_status_detail: t.mpStatusDetail, payment_id: t.mpPaymentId, subtotal_centavos: t.subtotalCents, taxa_operacional_centavos: t.operatorFeeCents, total_pago_centavos: t.totalPaidCents, blocos: t.items?.length || 0, disputa: (t.disputeCases || []).length > 0, criado_em: t.createdAt, pago_em: t.paidAt, aprovado_em: t.approvedAt }));
   } else {
     rows = [{ erro: "tipo de exportação inválido" }];
   }

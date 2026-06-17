@@ -6,6 +6,7 @@ const items = [
   ["pedidos", "/admin/pedidos", "Pedidos"],
   ["blocos", "/admin/blocos", "Blocos"],
   ["pagamentos", "/admin/pagamentos", "Pagamentos"],
+  ["financeiro", "/admin/financeiro", "Financeiro"],
   ["reservas", "/admin/reservas", "Reservas"],
   ["conteudos", "/admin/conteudos", "Conteúdos"],
   ["edicoes", "/admin/edicoes", "Edições"],
