@@ -21,7 +21,7 @@ export const AREA_DIVIDERS = [COPACABANA_MAX_X + 1, LEBLON_MAX_X + 1] as const;
 // Área nobre: edifício Tom Delfim Moreira, acima da placa do Leblon.
 export const NOBLE_AREAS = [
   // Apenas o edifício Tom Delfim Moreira: do topo do prédio até a calçada/entrada.
-  { id: "tom-delfim-moreira", minX: 95, maxX: 125, minY: 4, maxY: 57 },
+  { id: "tom-delfim-moreira", minX: 97, maxX: 126, minY: 6, maxY: 55 },
 ] as const;
 
 function isInsideRect(

@@ -17,7 +17,7 @@ import {
 const MAX_SCALE = 8;
 const MURAL_IMAGE_URL = "/mural-rio.png";
 // As linhas finas amarelas precisam ficar exatamente no vão entre as duas linhas douradas grossas da arte.
-const VISUAL_AREA_DIVIDERS_PX = [657.5, 1544.5] as const;
+const VISUAL_AREA_DIVIDERS_PX = [650, 1550] as const;
 
 type BlockCategory = "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTER";
 type BuyableCategory = "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTER";
@@ -266,7 +266,10 @@ export default function PixelMap() {
       nextX = clamp(nextX, rect.width - scaledWidth, 0);
     }
 
-    if (scaledHeight <= rect.height) {
+    if (rect.width < 768) {
+      // No celular o mural é uma faixa panorâmica: trava o eixo vertical e libera navegação lateral.
+      nextY = (rect.height - scaledHeight) / 2;
+    } else if (scaledHeight <= rect.height) {
       nextY = (rect.height - scaledHeight) / 2;
     } else {
       nextY = clamp(nextY, rect.height - scaledHeight, 0);
@@ -281,7 +284,8 @@ export default function PixelMap() {
 
     const rect = wrapper.getBoundingClientRect();
     const minScale = getMinScale();
-    const nextScale = clamp(minScale * 1.02, minScale, MAX_SCALE);
+    const isMobile = rect.width < 768;
+    const nextScale = isMobile ? minScale : clamp(minScale * 1.02, minScale, MAX_SCALE);
 
     setCamera(
       clampCamera({
@@ -291,7 +295,6 @@ export default function PixelMap() {
       })
     );
   }
-
 
   function zoomFromScreenPoint(screenX: number, screenY: number, factor: number) {
     const nextScale = clamp(camera.scale * factor, getMinScale(), MAX_SCALE);
@@ -773,9 +776,14 @@ export default function PixelMap() {
     >
       <canvas ref={canvasRef} className="block h-full w-full" />
 
-      <div className="pointer-events-none absolute right-3 top-20 z-40 hidden flex-col gap-2 md:flex">
+      <div
+        className="pointer-events-none absolute right-3 top-20 z-40 hidden flex-col gap-2 md:flex"
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
+      >
         <button
           type="button"
+          onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => { event.stopPropagation(); zoomBy(1.2); }}
           className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-white/95 text-2xl font-black text-slate-900 shadow-xl"
         >
@@ -783,6 +791,7 @@ export default function PixelMap() {
         </button>
         <button
           type="button"
+          onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => { event.stopPropagation(); zoomBy(1 / 1.2); }}
           className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-white/95 text-2xl font-black text-slate-900 shadow-xl"
         >
@@ -790,6 +799,7 @@ export default function PixelMap() {
         </button>
         <button
           type="button"
+          onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => { event.stopPropagation(); focusCenter(); }}
           className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-white/95 text-xs font-black text-slate-900 shadow-xl"
         >
@@ -800,6 +810,7 @@ export default function PixelMap() {
       {selectedBlocks.length > 0 && (
         <div
           className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/98 p-3 shadow-2xl backdrop-blur"
+          onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => event.stopPropagation()}
         >
           <div className="mx-auto max-w-3xl">
@@ -831,6 +842,7 @@ export default function PixelMap() {
             <div className="mt-2 grid grid-cols-2 gap-2">
               <button
                 type="button"
+                onPointerDown={(event) => event.stopPropagation()}
                 onClick={clearSelection}
                 className="rounded-2xl bg-slate-100 py-3 text-sm font-black text-slate-800"
               >
@@ -840,6 +852,7 @@ export default function PixelMap() {
               {canContinue ? (
                 <a
                   href={buildCheckoutHref(selectedBlocks)}
+                  onPointerDown={(event) => event.stopPropagation()}
                   onClick={(event) => event.stopPropagation()}
                   className="rounded-2xl bg-emerald-600 py-3 text-center text-sm font-black text-white shadow-lg"
                 >
@@ -863,6 +876,7 @@ export default function PixelMap() {
         <div
           className="fixed z-[999] w-[292px] rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl"
           style={getBubbleStyle(selectedSheet.anchorX, selectedSheet.anchorY)}
+          onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => event.stopPropagation()}
         >
           <div className="absolute -left-2 top-6 h-4 w-4 rotate-45 border-b border-l border-slate-200 bg-white" />
