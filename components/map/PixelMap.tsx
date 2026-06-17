@@ -17,7 +17,7 @@ import {
 const MAX_SCALE = 8;
 const MURAL_IMAGE_URL = "/mural-rio.png";
 // As linhas finas amarelas precisam ficar exatamente no vão entre as duas linhas douradas grossas da arte.
-const VISUAL_AREA_DIVIDERS_PX = [646.5, 1555.5] as const;
+const VISUAL_AREA_DIVIDERS_PX = [657.5, 1544.5] as const;
 
 type BlockCategory = "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTER";
 type BuyableCategory = "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTER";
@@ -266,10 +266,7 @@ export default function PixelMap() {
       nextX = clamp(nextX, rect.width - scaledWidth, 0);
     }
 
-    if (rect.width < 768) {
-      // No celular o mural é uma faixa panorâmica: trava o eixo vertical e libera navegação lateral.
-      nextY = (rect.height - scaledHeight) / 2;
-    } else if (scaledHeight <= rect.height) {
+    if (scaledHeight <= rect.height) {
       nextY = (rect.height - scaledHeight) / 2;
     } else {
       nextY = clamp(nextY, rect.height - scaledHeight, 0);
@@ -284,8 +281,7 @@ export default function PixelMap() {
 
     const rect = wrapper.getBoundingClientRect();
     const minScale = getMinScale();
-    const isMobile = rect.width < 768;
-    const nextScale = isMobile ? minScale : clamp(minScale * 1.02, minScale, MAX_SCALE);
+    const nextScale = clamp(minScale * 1.02, minScale, MAX_SCALE);
 
     setCamera(
       clampCamera({
@@ -294,6 +290,28 @@ export default function PixelMap() {
         scale: nextScale,
       })
     );
+  }
+
+
+  function zoomFromScreenPoint(screenX: number, screenY: number, factor: number) {
+    const nextScale = clamp(camera.scale * factor, getMinScale(), MAX_SCALE);
+    const worldX = (screenX - camera.x) / camera.scale;
+    const worldY = (screenY - camera.y) / camera.scale;
+
+    setCamera(
+      clampCamera({
+        x: screenX - worldX * nextScale,
+        y: screenY - worldY * nextScale,
+        scale: nextScale,
+      })
+    );
+  }
+
+  function zoomBy(factor: number) {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    const rect = wrapper.getBoundingClientRect();
+    zoomFromScreenPoint(rect.width / 2, rect.height / 2, factor);
   }
 
   useEffect(() => {
@@ -703,17 +721,7 @@ export default function PixelMap() {
     const rect = wrapper.getBoundingClientRect();
     const screenX = event.clientX - rect.left;
     const screenY = event.clientY - rect.top;
-    const worldX = (screenX - camera.x) / camera.scale;
-    const worldY = (screenY - camera.y) / camera.scale;
-    const nextScale = clamp(event.deltaY > 0 ? camera.scale * 0.9 : camera.scale * 1.1, getMinScale(), MAX_SCALE);
-
-    setCamera(
-      clampCamera({
-        x: screenX - worldX * nextScale,
-        y: screenY - worldY * nextScale,
-        scale: nextScale,
-      })
-    );
+    zoomFromScreenPoint(screenX, screenY, event.deltaY > 0 ? 0.9 : 1.1);
   }
 
   function getBubbleStyle(anchorX: number, anchorY: number) {
@@ -764,6 +772,30 @@ export default function PixelMap() {
       onWheel={handleWheel}
     >
       <canvas ref={canvasRef} className="block h-full w-full" />
+
+      <div className="pointer-events-none absolute right-3 top-20 z-40 hidden flex-col gap-2 md:flex">
+        <button
+          type="button"
+          onClick={(event) => { event.stopPropagation(); zoomBy(1.2); }}
+          className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-white/95 text-2xl font-black text-slate-900 shadow-xl"
+        >
+          +
+        </button>
+        <button
+          type="button"
+          onClick={(event) => { event.stopPropagation(); zoomBy(1 / 1.2); }}
+          className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-white/95 text-2xl font-black text-slate-900 shadow-xl"
+        >
+          −
+        </button>
+        <button
+          type="button"
+          onClick={(event) => { event.stopPropagation(); focusCenter(); }}
+          className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-white/95 text-xs font-black text-slate-900 shadow-xl"
+        >
+          Centro
+        </button>
+      </div>
 
       {selectedBlocks.length > 0 && (
         <div
