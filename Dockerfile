@@ -4,18 +4,18 @@ WORKDIR /app
 
 COPY package*.json ./
 
-# Instala devDependencies também para garantir que a versão fixa do Prisma do projeto esteja disponível.
-RUN npm install --include=dev
+# Instala dependências sem auditoria/funding para evitar travamentos do npm no build.
+RUN npm install --no-audit --no-fund --legacy-peer-deps
 
 COPY . .
 
 # DATABASE_URL dummy apenas para o prisma generate/build.
-# O EasyPanel sobrescreve com a DATABASE_URL real nas variáveis do app.
+# O EasyPanel sobrescreve com a DATABASE_URL real nas variáveis/build args do app.
 ARG DATABASE_URL="postgresql://user:password@localhost:5432/db?schema=public"
 ENV DATABASE_URL=${DATABASE_URL}
 
-# Usa o Prisma local do projeto. Isso evita o npx baixar Prisma 7 automaticamente.
-RUN ./node_modules/.bin/prisma generate
+# Usa Prisma 6 fixo. Isso evita o npx baixar Prisma 7 automaticamente.
+RUN npx --yes prisma@6.19.0 generate
 
 RUN npm run build
 
