@@ -101,6 +101,14 @@ function areaLabel(value: string | null | undefined) {
   return value || "Área";
 }
 
+async function safeQuery<T>(factory: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await factory();
+  } catch {
+    return fallback;
+  }
+}
+
 
 type TestCategory = "SOLIDARITY" | "PREMIUM" | "GOLD" | "GRAND_CENTER";
 
@@ -624,56 +632,88 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
     openDisputes,
     latestAdminActions,
   ] = await Promise.all([
-    prisma.transaction.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 10,
-      include: { user: true, items: true },
-    }),
-    prisma.block.count({ where: { status: "SOLD" } }),
-    prisma.block.findMany({
-      where: { status: "RESERVED" },
-      orderBy: { reservedUntil: "asc" },
-      take: 20,
-      include: { owner: true },
-    }),
-    prisma.placement.findMany({
-      where: { kind: { in: ["PREMIUM", "GOLD", "GRAND_CENTER"] } },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-      include: { user: true, blocks: { take: 1 } },
-    }),
-    prisma.report.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 30,
-      include: {
-        block: true,
-        placement: { include: { user: true } },
-      },
-    }),
-    prisma.user.count({ where: { isBanned: true } }),
-    prisma.placement.findMany({
-      where: { isTest: true },
-      orderBy: { createdAt: "desc" },
-      take: 30,
-      include: { blocks: { take: 1 } },
-    }),
-    prisma.contentEditRequest.findMany({
-      where: { status: "PENDING" },
-      orderBy: { createdAt: "asc" },
-      take: 20,
-      include: { user: true, placement: { include: { user: true } } },
-    }),
-    prisma.disputeCase.findMany({
-      where: { status: { in: ["OPEN", "REVIEWING"] } },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-      include: { transaction: { include: { user: true } } },
-    }),
-    prisma.adminAction.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 20,
-      include: { admin: true },
-    }),
+    safeQuery(
+      () =>
+        prisma.transaction.findMany({
+          orderBy: { createdAt: "desc" },
+          take: 10,
+          include: { user: true, items: true },
+        }),
+      []
+    ),
+    safeQuery(() => prisma.block.count({ where: { status: "SOLD" } }), 0),
+    safeQuery(
+      () =>
+        prisma.block.findMany({
+          where: { status: "RESERVED" },
+          orderBy: { reservedUntil: "asc" },
+          take: 20,
+          include: { owner: true },
+        }),
+      []
+    ),
+    safeQuery(
+      () =>
+        prisma.placement.findMany({
+          where: { kind: { in: ["PREMIUM", "GOLD", "GRAND_CENTER"] } },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+          include: { user: true, blocks: { take: 1 } },
+        }),
+      []
+    ),
+    safeQuery(
+      () =>
+        prisma.report.findMany({
+          orderBy: { createdAt: "desc" },
+          take: 30,
+          include: {
+            block: true,
+            placement: { include: { user: true } },
+          },
+        }),
+      []
+    ),
+    safeQuery(() => prisma.user.count({ where: { isBanned: true } }), 0),
+    safeQuery(
+      () =>
+        prisma.placement.findMany({
+          where: { isTest: true },
+          orderBy: { createdAt: "desc" },
+          take: 30,
+          include: { blocks: { take: 1 } },
+        }),
+      []
+    ),
+    safeQuery(
+      () =>
+        prisma.contentEditRequest.findMany({
+          where: { status: "PENDING" },
+          orderBy: { createdAt: "asc" },
+          take: 20,
+          include: { user: true, placement: { include: { user: true } } },
+        }),
+      []
+    ),
+    safeQuery(
+      () =>
+        prisma.disputeCase.findMany({
+          where: { status: { in: ["OPEN", "REVIEWING"] } },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+          include: { transaction: { include: { user: true } } },
+        }),
+      []
+    ),
+    safeQuery(
+      () =>
+        prisma.adminAction.findMany({
+          orderBy: { createdAt: "desc" },
+          take: 20,
+          include: { admin: true },
+        }),
+      []
+    ),
   ]);
 
   const openReports = reports.filter((report) => report.status === "OPEN" || report.status === "REVIEWING").length;
@@ -891,7 +931,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
             {openDisputes.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma disputa aberta.</p>}
             {openDisputes.map((dispute) => (
               <article key={dispute.id} className="rounded-2xl border border-red-100 bg-red-50 p-4">
-                <p className="text-xs font-black uppercase text-red-700">{dispute.status} • {dispute.transaction.user.publicName || dispute.transaction.user.name}</p>
+                <p className="text-xs font-black uppercase text-red-700">{dispute.status} • {dispute.transaction.user?.publicName || dispute.transaction.user?.name || "Comprador"}</p>
                 <h3 className="mt-1 text-lg font-black text-red-950">{money(dispute.transaction.totalPaidCents)}</h3>
                 <p className="mt-2 text-sm font-bold text-red-900/80">{dispute.reason}</p>
                 {dispute.internalNote && <p className="mt-1 text-xs font-bold text-red-800/70">Nota interna: {dispute.internalNote}</p>}
@@ -921,7 +961,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
               <article key={report.id} className="rounded-2xl border border-slate-200 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-black uppercase text-slate-500">{report.status} • tijolinho x{report.block.gridX}/y{report.block.gridY}</p>
+                    <p className="text-xs font-black uppercase text-slate-500">{report.status} • tijolinho {report.block ? `x${report.block.gridX}/y${report.block.gridY}` : "sem coordenada"}</p>
                     <h3 className="mt-1 text-lg font-black text-slate-950">{report.placement?.title || report.placement?.displayName || "Tijolinho denunciado"}</h3>
                     <p className="mt-2 text-sm leading-relaxed text-slate-600">{report.reason}</p>
                   </div>

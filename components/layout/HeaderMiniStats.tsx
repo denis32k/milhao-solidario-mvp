@@ -17,11 +17,15 @@ type RankingItem = {
   totalApprovedCents: number;
 };
 
-const medalConfig = [
-  { icon: "🥇", label: "1º lugar" },
-  { icon: "🥈", label: "2º lugar" },
-  { icon: "🥉", label: "3º lugar" },
+const podiumSlots = [
+  { rank: 2, icon: "🥈", label: "2º lugar" },
+  { rank: 1, icon: "🥇", label: "1º lugar" },
+  { rank: 3, icon: "🥉", label: "3º lugar" },
 ] as const;
+
+function getRankItem(ranking: RankingItem[], rank: number) {
+  return ranking[rank - 1] || null;
+}
 
 export default function HeaderMiniStats({ ranking = [] }: { ranking?: RankingItem[] }) {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -68,19 +72,29 @@ export default function HeaderMiniStats({ ranking = [] }: { ranking?: RankingIte
         <p className="mt-1 truncate text-[9px] font-bold text-slate-500">{nextText}</p>
 
         {topThree.length > 0 && (
-          <div className="mt-1 overflow-x-auto whitespace-nowrap pb-0.5 text-[9px] font-bold text-slate-700 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div className="flex min-w-max items-center gap-3">
-              {topThree.map((item, index) => {
-                const medal = medalConfig[index];
-                return (
-                  <span key={item.id} className="inline-flex items-center gap-1 whitespace-nowrap leading-none">
-                    <span className="text-[10px] leading-none">{medal.icon}</span>
-                    <span className="font-black text-slate-600">{medal.label}</span>
-                    <span className="font-black text-slate-900">{item.publicName}</span>
-                  </span>
-                );
-              })}
-            </div>
+          <div className="mt-1.5 grid grid-cols-3 items-end gap-1 text-center">
+            {podiumSlots.map((slot) => {
+              const item = getRankItem(topThree, slot.rank);
+              const isLeader = slot.rank === 1;
+
+              return (
+                <div
+                  key={slot.rank}
+                  className={`min-w-0 rounded-2xl px-1 ${isLeader ? "pb-1.5 pt-1" : "pb-1 pt-0.5"}`}
+                >
+                  <div className={`flex items-center justify-center gap-1 leading-none ${isLeader ? "text-[10px]" : "text-[9px]"}`}>
+                    <span>{slot.icon}</span>
+                    <span className="font-black text-slate-600">{slot.label}</span>
+                  </div>
+                  <p
+                    title={item?.publicName || ""}
+                    className={`mt-0.5 truncate font-black text-slate-900 ${isLeader ? "text-[10px]" : "text-[9px]"}`}
+                  >
+                    {item?.publicName || "—"}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
