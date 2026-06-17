@@ -17,7 +17,7 @@ Nele você consegue alterar:
 - emoji/logotipo simples
 - nomes das áreas
 - valores dos blocos
-- taxa operacional
+- taxa operacional (atualmente 0%)
 - frases principais
 - cores do Mosaico Apoiador
 - dados fictícios dos testes

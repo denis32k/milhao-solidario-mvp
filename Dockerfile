@@ -2,25 +2,24 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Usa pnpm para evitar travamentos do npm no build do EasyPanel.
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
+
 COPY package*.json ./
 
-# Instala dependências sem auditoria/funding para evitar travamentos do npm no build.
-RUN npm install --no-audit --no-fund --legacy-peer-deps
+RUN pnpm install --no-frozen-lockfile
 
 COPY . .
 
-# DATABASE_URL dummy apenas para o prisma generate/build.
-# O EasyPanel sobrescreve com a DATABASE_URL real nas variáveis/build args do app.
 ARG DATABASE_URL="postgresql://user:password@localhost:5432/db?schema=public"
 ENV DATABASE_URL=${DATABASE_URL}
 
-# Usa Prisma 6 fixo. Isso evita o npx baixar Prisma 7 automaticamente.
-RUN npx --yes prisma@6.19.0 generate
+RUN pnpm exec prisma generate
 
-RUN npm run build
+RUN pnpm build
 
 EXPOSE 3000
 
 ENV NODE_ENV=production
 
-CMD ["npm", "run", "start"]
+CMD ["pnpm", "start"]
