@@ -639,7 +639,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
     pendingEditRequests,
     openDisputes,
     latestAdminActions,
-  ] = await Promise.all([
+  ] = (await Promise.all([
     safeListQuery(() =>
         prisma.transaction.findMany({
           orderBy: { createdAt: "desc" },
@@ -706,7 +706,18 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
           include: { admin: true },
         }),
     ),
-  ]);
+  ])) as [
+    any[],
+    number,
+    any[],
+    any[],
+    any[],
+    number,
+    any[],
+    any[],
+    any[],
+    any[],
+  ];
 
   const openReports = reports.filter((report) => report.status === "OPEN" || report.status === "REVIEWING").length;
 
