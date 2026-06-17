@@ -358,7 +358,8 @@ export default function PixelMap() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    ctx.imageSmoothingEnabled = false;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
 
     const muralImage = getImage(MURAL_IMAGE_URL);
     const blockByCoord = new Map(mapBlocks.map((block) => [getBlockKey(block.gridX, block.gridY), block]));
@@ -385,7 +386,7 @@ export default function PixelMap() {
 
     // divisões visuais principais das três áreas, seguindo a imagem marcada enviada.
     ctx.strokeStyle = "rgba(234,179,8,0.78)";
-    ctx.lineWidth = 2.2;
+    ctx.lineWidth = 1.6;
     ctx.beginPath();
     for (const dividerX of AREA_DIVIDERS) {
       ctx.moveTo(dividerX * BLOCK_SIZE, 0);
@@ -419,9 +420,9 @@ export default function PixelMap() {
           ctx.strokeRect(px + 0.6, py + 0.6, BLOCK_SIZE - 1.2, BLOCK_SIZE - 1.2);
         }
 
-        if (camera.scale > 0.75) {
-          ctx.strokeStyle = category === "GRAND_CENTER" ? "rgba(251,191,36,0.22)" : "rgba(15,23,42,0.16)";
-          ctx.lineWidth = camera.scale > 2 ? 0.42 : 0.25;
+        if (camera.scale > 1.05) {
+          ctx.strokeStyle = category === "GRAND_CENTER" ? "rgba(251,191,36,0.18)" : "rgba(15,23,42,0.11)";
+          ctx.lineWidth = camera.scale > 2 ? 0.34 : 0.18;
           ctx.strokeRect(px + 0.1, py + 0.1, BLOCK_SIZE - 0.2, BLOCK_SIZE - 0.2);
         }
       }
