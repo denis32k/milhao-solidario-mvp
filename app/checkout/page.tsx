@@ -320,12 +320,12 @@ export default function CompraPage() {
 
   if (selectedBlocks.length === 0) {
     return (
-      <main className="min-h-screen bg-transparent px-4 py-6">
-        <div className="mx-auto max-w-md rounded-3xl bg-white p-6 text-center shadow-xl">
-          <div className="text-5xl">🧩</div>
-          <h1 className="mt-4 text-2xl font-black text-slate-950">Selecione os tijolinhos primeiro</h1>
-          <p className="mt-2 text-sm leading-relaxed text-slate-600">Volte ao mural, toque nos tijolinhos desejados e depois continue para o pagamento.</p>
-          <Link href="/" className="pixel-btn pixel-btn--green mt-5 flex justify-center !rounded-2xl !py-4 !text-sm">Voltar ao mural</Link>
+      <main className="min-h-screen bg-slate-50 px-4 py-6">
+        <div className="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm">
+          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-xl">🧱</div>
+          <h1 className="mt-4 text-xl font-bold tracking-tight text-slate-950">Selecione os tijolinhos primeiro</h1>
+          <p className="mt-2 text-sm leading-relaxed text-slate-500">Volte ao mural, toque nos espaços desejados e continue para gerar o PIX.</p>
+          <Link href="/" className="mt-5 flex h-11 items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800">Voltar ao mural</Link>
         </div>
       </main>
     );
@@ -333,134 +333,206 @@ export default function CompraPage() {
 
   const coordinates = selectedBlocks.slice(0, 12).map((block) => `x${block.gridX}/y${block.gridY}`).join(" • ");
   const extraCoordinates = selectedBlocks.length > 12 ? ` +${selectedBlocks.length - 12}` : "";
+  const steps: Array<{ key: CheckoutStep; label: string }> = [
+    { key: "data", label: "Dados" },
+    { key: "pix", label: "PIX" },
+    { key: "customize", label: "Personalizar" },
+  ];
+  const stepIndex = Math.max(0, steps.findIndex((item) => item.key === step));
+  const generatePixDisabled = isLoading || !acceptedTerms || (mustBeRectangle && !isRectangle) || Boolean(operationalSettings?.maintenanceMode || operationalSettings?.blockNewPurchases);
+  const displayTotalCents = pixResult?.transaction.totalPaidCents ?? totalCents;
 
   return (
-    <main className="min-h-screen bg-transparent px-4 py-6">
+    <main className="min-h-screen bg-slate-50 px-3 py-4 pb-28 sm:px-4 lg:py-6 lg:pb-6">
       <div className="mx-auto max-w-6xl">
-        <Link href="/" className="mb-5 inline-flex rounded-full bg-white px-4 py-2 text-sm font-black text-slate-950 shadow">← Voltar ao mural</Link>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <Link href="/" className="inline-flex h-9 items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:text-slate-950">← Voltar ao mural</Link>
+          <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-500 shadow-sm">Checkout seguro</span>
+        </div>
 
-        <div className="grid gap-5 lg:grid-cols-[1fr_360px] lg:items-start">
-          <section className="rounded-[2rem] bg-white p-5 shadow-xl lg:p-7">
-            <div className="inline-flex rounded-full bg-slate-100 p-1 text-xs font-black text-slate-500">
-              <span className={`rounded-full px-3 py-2 ${step === "data" ? "bg-slate-950 text-white" : ""}`}>1. Dados</span>
-              <span className={`rounded-full px-3 py-2 ${step === "pix" ? "bg-slate-950 text-white" : ""}`}>2. PIX</span>
-              <span className={`rounded-full px-3 py-2 ${step === "customize" ? "bg-slate-950 text-white" : ""}`}>3. Personalizar</span>
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 lg:p-6">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-2">
+              <div className="flex items-center justify-between gap-2">
+                {steps.map((item, index) => {
+                  const isActive = item.key === step;
+                  const isDone = index < stepIndex;
+                  return (
+                    <div key={item.key} className="flex min-w-0 flex-1 items-center gap-2">
+                      <div className={`flex h-8 min-w-0 flex-1 items-center justify-center rounded-xl px-2 text-[11px] font-semibold transition ${isActive ? "bg-slate-950 text-white shadow-sm" : isDone ? "bg-emerald-50 text-emerald-700" : "bg-white text-slate-500"}`}>
+                        <span className="mr-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-current/10 text-[10px]">{isDone ? "✓" : index + 1}</span>
+                        <span className="truncate">{item.label}</span>
+                      </div>
+                      {index < steps.length - 1 && <span className="hidden h-px w-3 bg-slate-200 sm:block" />}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {step === "data" && (
-              <div className="mt-6">
-                <p className={`text-xs font-black uppercase tracking-[0.18em] ${theme.text}`}>Checkout rápido</p>
-                <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">Garanta seu espaço agora. Personalize depois.</h1>
-                <p className="mt-3 max-w-2xl text-sm font-bold leading-relaxed text-slate-600">Preencha os dados da compra e gere o PIX. Depois do pagamento aprovado, você coloca nome público, imagem e link.</p>
+              <div className="mt-5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${theme.bg} ${theme.text}`}>Checkout rápido</span>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500">Etapa 1 de 3</span>
+                </div>
+                <h1 className="mt-3 text-xl font-bold tracking-tight text-slate-950 sm:text-2xl">Finalize sua reserva</h1>
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500">Complete os dados para gerar o PIX. Depois da aprovação, você adiciona nome público, imagem e link.</p>
 
-                {operationalSettings?.checkoutNotice && <div className="mt-5 rounded-3xl border border-yellow-200 bg-yellow-50 p-4 text-sm font-black leading-relaxed text-yellow-900">{operationalSettings.checkoutNotice}</div>}
-                {(operationalSettings?.maintenanceMode || operationalSettings?.blockNewPurchases) && <div className="mt-5 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm font-black leading-relaxed text-red-800">{operationalSettings?.maintenanceMode ? "O Mural29 está em manutenção no momento." : "Novas compras estão temporariamente bloqueadas."}</div>}
-                {errorMessage && <div className="mt-5 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm font-black leading-relaxed text-red-800">{errorMessage}</div>}
+                {operationalSettings?.checkoutNotice && <div className="mt-4 rounded-2xl border border-yellow-200 bg-yellow-50 p-3 text-sm font-medium leading-relaxed text-yellow-900">{operationalSettings.checkoutNotice}</div>}
+                {(operationalSettings?.maintenanceMode || operationalSettings?.blockNewPurchases) && <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium leading-relaxed text-red-800">{operationalSettings?.maintenanceMode ? "O Mural29 está em manutenção no momento." : "Novas compras estão temporariamente bloqueadas."}</div>}
+                {errorMessage && <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium leading-relaxed text-red-800">{errorMessage}</div>}
 
-                <div className="mt-6 grid gap-4 md:grid-cols-2">
-                  <label className="block"><span className="text-xs font-black uppercase tracking-wide text-slate-500">Nome completo</span><input value={fullName} onChange={(event) => setFullName(event.target.value)} placeholder="Seu nome completo" className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-bold outline-none focus:border-slate-950" /></label>
-                  <label className="block"><span className="text-xs font-black uppercase tracking-wide text-slate-500">E-mail</span><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="voce@email.com" className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-bold outline-none focus:border-slate-950" /></label>
-                  <label className="block"><span className="text-xs font-black uppercase tracking-wide text-slate-500">WhatsApp</span><input type="tel" value={whatsapp} onChange={(event) => setWhatsapp(formatWhatsApp(event.target.value))} placeholder="(35) 99999-9999" className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-bold outline-none focus:border-slate-950" /></label>
-                  <label className="block"><span className="text-xs font-black uppercase tracking-wide text-slate-500">CPF</span><input value={cpf} onChange={(event) => setCpf(formatCpf(event.target.value))} placeholder="000.000.000-00" className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-bold outline-none focus:border-slate-950" /></label>
+                <div className="mt-5 grid gap-3 md:grid-cols-2">
+                  <label className="block">
+                    <span className="text-xs font-semibold text-slate-600">Nome completo</span>
+                    <input value={fullName} onChange={(event) => setFullName(event.target.value)} placeholder="Seu nome completo" className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-4 focus:ring-slate-100" />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-semibold text-slate-600">E-mail</span>
+                    <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="voce@email.com" className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-4 focus:ring-slate-100" />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-semibold text-slate-600">WhatsApp</span>
+                    <input type="tel" value={whatsapp} onChange={(event) => setWhatsapp(formatWhatsApp(event.target.value))} placeholder="(35) 99999-9999" className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-4 focus:ring-slate-100" />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-semibold text-slate-600">CPF</span>
+                    <input value={cpf} onChange={(event) => setCpf(formatCpf(event.target.value))} placeholder="000.000.000-00" className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-4 focus:ring-slate-100" />
+                  </label>
                 </div>
 
-                <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-black uppercase tracking-wide text-slate-500">Depois do PIX aprovado</p>
-                  <div className="mt-3 grid gap-2 text-sm font-bold text-slate-700 sm:grid-cols-3">
-                    <p>✅ Nome público</p>
-                    <p>✅ Upload da imagem</p>
-                    <p>✅ Link público</p>
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <div className="grid gap-2 text-xs font-medium text-slate-600 sm:grid-cols-3">
+                    <p className="flex items-center gap-2"><span className="text-emerald-600">●</span> PIX via Mercado Pago</p>
+                    <p className="flex items-center gap-2"><span className="text-emerald-600">●</span> Dados privados protegidos</p>
+                    <p className="flex items-center gap-2"><span className="text-emerald-600">●</span> Personalização após pagar</p>
                   </div>
                 </div>
 
-                <label className="mt-5 flex items-start gap-3 rounded-3xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-700">
-                  <input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} className="mt-1 h-5 w-5 rounded border-slate-300" />
-                  <span>Aceito os <Link href="/termos" className="font-black text-slate-950 underline">Termos de Uso</Link> e entendo que meu espaço entra no mural após o PIX aprovado.</span>
+                <label className="mt-4 flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-sm font-medium leading-relaxed text-slate-600">
+                  <input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-slate-950" />
+                  <span>Aceito os <Link href="/termos" className="font-semibold text-slate-950 underline underline-offset-2">Termos de Uso</Link> e entendo que meu espaço entra no mural após o PIX aprovado.</span>
                 </label>
 
-                <button type="button" onClick={handleGeneratePix} disabled={isLoading || !acceptedTerms || (mustBeRectangle && !isRectangle)} className={`pixel-btn ${theme.button} mt-5 w-full !rounded-2xl !py-4 !text-sm disabled:cursor-not-allowed disabled:opacity-60`}>
-                  {isLoading ? "Gerando PIX..." : "Gerar PIX e garantir meu espaço"}
+                <button type="button" onClick={handleGeneratePix} disabled={generatePixDisabled} className="mt-4 hidden h-12 w-full items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 lg:flex">
+                  {isLoading ? "Gerando PIX..." : "Gerar PIX"}
                 </button>
               </div>
             )}
 
             {step === "pix" && pixResult && (
-              <div className="mt-6">
-                <div className="rounded-3xl border border-green-200 bg-green-50 p-4">
-                  <p className="text-xs font-black uppercase tracking-wide text-green-700">PIX criado</p>
-                  <h1 className="mt-2 text-2xl font-black text-green-950">Pague o PIX para garantir seus tijolinhos.</h1>
-                  <p className="mt-2 text-sm font-bold leading-relaxed text-green-800">Depois da aprovação, a personalização aparece na próxima etapa.</p>
+              <div className="mt-5">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                  <p className="text-xs font-semibold text-emerald-700">PIX criado</p>
+                  <h1 className="mt-1 text-xl font-bold tracking-tight text-emerald-950">Pague para confirmar sua reserva</h1>
+                  <p className="mt-1.5 text-sm leading-relaxed text-emerald-800">Use o QR Code ou copie o código. Depois toque em verificar pagamento.</p>
                 </div>
 
-                <div className="mt-5 grid gap-5 lg:grid-cols-[300px_1fr]">
-                  {pixResult.pix.qrCodeBase64 && <div className="rounded-3xl bg-white p-4 text-center shadow"><img src={getQrImageSrc(pixResult.pix.qrCodeBase64)} alt="QR Code PIX" className="mx-auto h-64 w-64 rounded-2xl" /></div>}
-                  <div>
-                    {pixResult.pix.qrCode && <div className="rounded-3xl bg-slate-50 p-4"><p className="text-xs font-black uppercase tracking-wide text-slate-500">PIX copia e cola</p><textarea readOnly value={pixResult.pix.qrCode} rows={7} className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white p-3 text-xs font-bold text-slate-700" /><button type="button" onClick={handleCopyPix} className="pixel-btn pixel-btn--dark mt-3 w-full !rounded-2xl !py-3 !text-sm">Copiar código PIX</button>{copyMessage && <p className="mt-2 text-center text-xs font-black text-green-700">{copyMessage}</p>}</div>}
-                    <button type="button" onClick={handleCheckPayment} disabled={isCheckingPayment} className="pixel-btn pixel-btn--green mt-5 w-full !rounded-2xl !py-4 !text-sm disabled:cursor-not-allowed disabled:opacity-60">{isCheckingPayment ? "Verificando..." : "Já paguei, verificar pagamento"}</button>
-                    {verifyMessage && <div className={`mt-4 rounded-3xl p-4 text-sm font-black ${paymentApproved ? "bg-emerald-50 text-emerald-800" : "bg-yellow-50 text-yellow-800"}`}>{verifyMessage}</div>}
+                <div className="mt-4 grid gap-4 lg:grid-cols-[280px_1fr]">
+                  {pixResult.pix.qrCodeBase64 && (
+                    <div className="rounded-2xl border border-slate-200 bg-white p-3 text-center shadow-sm">
+                      <img src={getQrImageSrc(pixResult.pix.qrCodeBase64)} alt="QR Code PIX" className="mx-auto h-56 w-56 rounded-xl sm:h-64 sm:w-64" />
+                      <p className="mt-2 text-xs font-medium text-slate-500">Escaneie com o app do seu banco.</p>
+                    </div>
+                  )}
+                  <div className="space-y-3">
+                    {pixResult.pix.qrCode && (
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                        <p className="text-xs font-semibold text-slate-600">PIX copia e cola</p>
+                        <textarea readOnly value={pixResult.pix.qrCode} rows={6} className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-white p-3 text-xs font-medium leading-relaxed text-slate-600 outline-none" />
+                        <button type="button" onClick={handleCopyPix} className="mt-3 flex h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-950 shadow-sm transition hover:bg-slate-50">Copiar código PIX</button>
+                        {copyMessage && <p className="mt-2 text-center text-xs font-semibold text-emerald-700">{copyMessage}</p>}
+                      </div>
+                    )}
+                    <button type="button" onClick={handleCheckPayment} disabled={isCheckingPayment} className="flex h-12 w-full items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">{isCheckingPayment ? "Verificando..." : "Já paguei, verificar pagamento"}</button>
+                    {verifyMessage && <div className={`rounded-2xl border p-3 text-sm font-medium ${paymentApproved ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-yellow-200 bg-yellow-50 text-yellow-800"}`}>{verifyMessage}</div>}
                   </div>
                 </div>
               </div>
             )}
 
             {step === "customize" && pixResult && (
-              <div className="mt-6">
-                <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5">
-                  <p className="text-xs font-black uppercase tracking-wide text-emerald-700">Pagamento confirmado</p>
-                  <h1 className="mt-2 text-2xl font-black text-emerald-950">Agora personalize seu espaço.</h1>
-                  <p className="mt-2 text-sm font-bold leading-relaxed text-emerald-800">Seu tijolinho já é seu. Coloque nome, imagem e link para aparecer bonito no Mural29.</p>
+              <div className="mt-5">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                  <p className="text-xs font-semibold text-emerald-700">Pagamento confirmado</p>
+                  <h1 className="mt-1 text-xl font-bold tracking-tight text-emerald-950">Personalize seu espaço</h1>
+                  <p className="mt-1.5 text-sm leading-relaxed text-emerald-800">Seu tijolinho já é seu. Agora coloque nome público, imagem e link.</p>
                 </div>
 
-                <div className="mt-5 grid gap-5 lg:grid-cols-[220px_1fr]">
-                  <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-center">
-                    <div className="mx-auto flex h-36 w-36 items-center justify-center overflow-hidden rounded-3xl border border-slate-200 bg-white">
-                      {imagePreview ? <img src={imagePreview} alt="Prévia" className="h-full w-full object-cover" /> : <span className="px-4 text-xs font-black text-slate-400">Prévia da imagem</span>}
+                <div className="mt-4 grid gap-4 lg:grid-cols-[200px_1fr]">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-center">
+                    <div className="mx-auto flex h-32 w-32 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                      {imagePreview ? <img src={imagePreview} alt="Prévia" className="h-full w-full object-cover" /> : <span className="px-4 text-xs font-semibold text-slate-400">Prévia da imagem</span>}
                     </div>
-                    <p className="mt-3 text-xs font-bold leading-relaxed text-slate-500">Use logo, foto ou arte simples. JPG, PNG ou WEBP.</p>
+                    <p className="mt-3 text-xs leading-relaxed text-slate-500">Use logo, foto ou arte simples. JPG, PNG ou WEBP.</p>
                   </div>
 
-                  <div className="space-y-4">
-                    <label className="block"><span className="text-xs font-black uppercase tracking-wide text-slate-500">Nome público</span><input value={publicName} onChange={(event) => setPublicName(event.target.value)} placeholder="Nome que aparece no mural" className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-bold outline-none focus:border-slate-950" /></label>
-                    <label className="block"><span className="text-xs font-black uppercase tracking-wide text-slate-500">Link público</span><input value={publicLink} onChange={(event) => setPublicLink(event.target.value)} placeholder="https://instagram.com/meuusuario" className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-bold outline-none focus:border-slate-950" /></label>
-                    <label className="block"><span className="text-xs font-black uppercase tracking-wide text-slate-500">Imagem do mural</span><input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImageFile(event.target.files?.[0] || null)} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-bold outline-none focus:border-slate-950" /></label>
-                    <button type="button" onClick={handleSavePersonalization} disabled={isSavingPersonalization || personalized} className="pixel-btn pixel-btn--green w-full !rounded-2xl !py-4 !text-sm disabled:cursor-not-allowed disabled:opacity-60">{isSavingPersonalization ? "Salvando..." : personalized ? "Personalização salva" : "Salvar e publicar no mural"}</button>
-                    {personalizationMessage && <div className={`rounded-3xl p-4 text-sm font-black ${personalized ? "bg-emerald-50 text-emerald-800" : "bg-yellow-50 text-yellow-800"}`}>{personalizationMessage}</div>}
-                    {personalized && <div className="grid gap-2 sm:grid-cols-2"><Link href="/" className="pixel-btn pixel-btn--dark justify-center !rounded-2xl !py-3 !text-xs">Ver no mural</Link>{pixResult.managementUrl && <a href={pixResult.managementUrl} className="pixel-btn pixel-btn--gold justify-center !rounded-2xl !py-3 !text-xs">Guardar link de edição</a>}</div>}
+                  <div className="space-y-3">
+                    <label className="block">
+                      <span className="text-xs font-semibold text-slate-600">Nome público</span>
+                      <input value={publicName} onChange={(event) => setPublicName(event.target.value)} placeholder="Nome que aparece no mural" className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-4 focus:ring-slate-100" />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs font-semibold text-slate-600">Link público</span>
+                      <input value={publicLink} onChange={(event) => setPublicLink(event.target.value)} placeholder="https://instagram.com/meuusuario" className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-4 focus:ring-slate-100" />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs font-semibold text-slate-600">Imagem do mural</span>
+                      <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImageFile(event.target.files?.[0] || null)} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-medium text-slate-600 outline-none transition file:mr-3 file:rounded-lg file:border-0 file:bg-slate-950 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white focus:border-slate-950 focus:ring-4 focus:ring-slate-100" />
+                    </label>
+                    <button type="button" onClick={handleSavePersonalization} disabled={isSavingPersonalization || personalized} className="flex h-12 w-full items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">{isSavingPersonalization ? "Salvando..." : personalized ? "Personalização salva" : "Salvar e publicar"}</button>
+                    {personalizationMessage && <div className={`rounded-2xl border p-3 text-sm font-medium ${personalized ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-yellow-200 bg-yellow-50 text-yellow-800"}`}>{personalizationMessage}</div>}
+                    {personalized && <div className="grid gap-2 sm:grid-cols-2"><Link href="/" className="flex h-11 items-center justify-center rounded-xl bg-slate-950 px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800">Ver no mural</Link>{pixResult.managementUrl && <a href={pixResult.managementUrl} className="flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-950 shadow-sm transition hover:bg-slate-50">Guardar link de edição</a>}</div>}
                   </div>
                 </div>
               </div>
             )}
           </section>
 
-          <aside className="rounded-[2rem] bg-white p-5 shadow-xl lg:sticky lg:top-5">
-            <div className={`rounded-3xl border ${theme.border} ${theme.bg} p-4`}>
+          <aside className="order-first rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:order-none lg:sticky lg:top-5">
+            <div className={`rounded-2xl border ${theme.border} ${theme.bg} p-4`}>
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className={`text-xs font-black uppercase tracking-wide ${theme.text}`}>Seu espaço</p>
-                  <h2 className="mt-2 text-2xl font-black text-slate-950">{getCategoryLabel(category)}</h2>
+                <div className="min-w-0">
+                  <p className={`text-xs font-semibold ${theme.text}`}>Seu espaço</p>
+                  <h2 className="mt-1 truncate text-lg font-bold tracking-tight text-slate-950">{getCategoryLabel(category)}</h2>
                 </div>
-                <span className="rounded-full bg-white/80 px-3 py-1 text-[10px] font-black uppercase text-slate-700">{theme.label}</span>
+                <span className="shrink-0 rounded-full bg-white/80 px-2.5 py-1 text-[10px] font-semibold uppercase text-slate-600 ring-1 ring-black/5">{theme.label}</span>
               </div>
-              <p className="mt-2 text-sm font-bold text-slate-600">{selectedBlocks.length} tijolinho(s) selecionado(s)</p>
-              <p className="mt-3 rounded-2xl bg-white/80 p-3 text-xs font-bold leading-relaxed text-slate-600">{coordinates}{extraCoordinates}</p>
-              {mustBeRectangle && !isRectangle && <p className="mt-3 rounded-2xl bg-yellow-100 p-3 text-xs font-black text-yellow-800">Selecione uma área retangular para a imagem ficar bem encaixada.</p>}
+              <p className="mt-2 text-sm font-medium text-slate-600">{selectedBlocks.length} tijolinho(s) selecionado(s)</p>
+              <p className="mt-3 max-h-16 overflow-hidden rounded-xl bg-white/80 p-2.5 text-[11px] font-medium leading-relaxed text-slate-500 ring-1 ring-black/5">{coordinates}{extraCoordinates}</p>
+              {mustBeRectangle && !isRectangle && <p className="mt-3 rounded-xl border border-yellow-200 bg-yellow-50 p-2.5 text-xs font-semibold text-yellow-800">Selecione uma área retangular para a imagem ficar bem encaixada.</p>}
             </div>
 
-            <div className="mt-4 space-y-3 rounded-3xl bg-slate-50 p-4">
-              <div className="flex justify-between text-sm"><span className="font-bold text-slate-600">Tijolinhos</span><span className="font-black text-slate-950">{money(subtotalCents)}</span></div>
-              {operationalFeeCents > 0 && <div className="flex justify-between text-sm"><span className="font-bold text-slate-600">Taxa operacional</span><span className="font-black text-slate-950">{money(operationalFeeCents)}</span></div>}
-              <div className="border-t border-slate-200 pt-3"><div className="flex justify-between"><span className="font-black text-slate-950">Total PIX</span><span className="text-xl font-black text-slate-950">{money(totalCents)}</span></div></div>
+            <div className="mt-3 space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+              <div className="flex justify-between text-sm"><span className="font-medium text-slate-500">Tijolinhos</span><span className="font-semibold text-slate-950">{money(subtotalCents)}</span></div>
+              {operationalFeeCents > 0 && <div className="flex justify-between text-sm"><span className="font-medium text-slate-500">Taxa operacional</span><span className="font-semibold text-slate-950">{money(operationalFeeCents)}</span></div>}
+              <div className="border-t border-slate-200 pt-2"><div className="flex items-end justify-between gap-3"><span className="font-semibold text-slate-700">Total PIX</span><span className="text-xl font-bold tracking-tight text-slate-950">{money(displayTotalCents)}</span></div></div>
             </div>
 
-            <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4 text-xs font-bold leading-relaxed text-slate-500">
-              <p className="font-black uppercase tracking-wide text-slate-700">Compra rápida</p>
-              <p className="mt-2">Primeiro você paga. Depois personaliza com nome, imagem e link.</p>
-              <p className="mt-2">PIX via Mercado Pago. Dados privados não aparecem no mural.</p>
-              <p className="mt-2">Reserva estimada: {reservationMinutes} minutos.</p>
+            <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-500">
+              <p className="font-semibold text-slate-700">Compra rápida e segura</p>
+              <p className="mt-1.5">Primeiro você paga. Depois personaliza com nome, imagem e link.</p>
+              <p className="mt-1.5">PIX via Mercado Pago. Dados privados não aparecem no mural.</p>
+              <p className="mt-1.5">Reserva estimada: {reservationMinutes} minutos.</p>
             </div>
           </aside>
         </div>
       </div>
+
+      {step === "data" && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-3 py-3 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+          <div className="mx-auto flex max-w-md items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-medium text-slate-500">Total no PIX</p>
+              <p className="truncate text-lg font-bold tracking-tight text-slate-950">{money(totalCents)}</p>
+            </div>
+            <button type="button" onClick={handleGeneratePix} disabled={generatePixDisabled} className="flex h-11 min-w-[128px] items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50">
+              {isLoading ? "Gerando..." : "Gerar PIX"}
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
