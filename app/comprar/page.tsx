@@ -25,7 +25,7 @@ export default async function ComprarPage() {
   }));
 
   return (
-    <main className="h-[100dvh] overflow-hidden bg-slate-950 pt-[112px]">
+    <main className="h-[100dvh] overflow-hidden bg-slate-950 pt-[155px]">
       <StickyHeader ranking={ranking} active="comprar" />
       <section id="mural-compra" className="relative h-full">
         <PixelMap mode="purchase" />

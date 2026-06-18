@@ -612,9 +612,9 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
         if (block.available && block.status === "AVAILABLE") continue;
         const px = block.gridX * BLOCK_SIZE;
         const py = block.gridY * BLOCK_SIZE;
-        ctx.fillStyle = block.status === "RESERVED" ? "rgba(255,255,255,0.60)" : "rgba(255,255,255,0.42)";
+        ctx.fillStyle = block.status === "RESERVED" ? "rgba(255,255,255,0.52)" : "rgba(255,255,255,0.28)";
         ctx.fillRect(px + 0.5, py + 0.5, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
-        ctx.strokeStyle = "rgba(15,23,42,0.20)";
+        ctx.strokeStyle = "rgba(255,255,255,0.42)";
         ctx.lineWidth = 0.35;
         ctx.strokeRect(px + 0.8, py + 0.8, BLOCK_SIZE - 1.6, BLOCK_SIZE - 1.6);
       }
@@ -727,6 +727,7 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
     }
 
     if (isSelected(gridX, gridY)) {
+      setSelectedSheet(null);
       setSelectionMessage("Esse tijolinho já está selecionado. Use limpar para começar de novo.");
       return;
     }
@@ -751,6 +752,7 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
       setSelectionMessage("");
     }
 
+    setSelectedSheet(null);
     setSelectedBlocks(nextBlocks as SelectedBlock[]);
   }
 
@@ -856,8 +858,14 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
 
   function handleClick(event: MouseEvent<HTMLDivElement>) {
     if (movedRef.current) return;
+
     const gridPosition = getGridPosition(event.clientX, event.clientY);
-    if (!gridPosition) return;
+    if (!gridPosition) {
+      setSelectedSheet(null);
+      return;
+    }
+
+    setSelectedSheet(null);
     selectBlock(gridPosition.x, gridPosition.y, gridPosition.type, event.clientX, event.clientY);
   }
 
@@ -880,11 +888,12 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
     const width = 292;
     const estimatedHeight = 320;
     const gap = 18;
+    const topBoundary = 166;
     const isAbove = anchorY + gap + estimatedHeight > window.innerHeight - 12;
     const left = clamp(anchorX - width / 2, 12, window.innerWidth - width - 12);
     const top = isAbove
-      ? clamp(anchorY - estimatedHeight - gap, 74, window.innerHeight - estimatedHeight - 12)
-      : clamp(anchorY + gap, 74, window.innerHeight - estimatedHeight - 12);
+      ? clamp(anchorY - estimatedHeight - gap, topBoundary, window.innerHeight - estimatedHeight - 12)
+      : clamp(anchorY + gap, topBoundary, window.innerHeight - estimatedHeight - 12);
 
     return {
       box: { left, top },
@@ -928,22 +937,6 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
       onWheel={handleWheel}
     >
       <canvas ref={canvasRef} className="block h-full w-full" />
-
-      <div
-        className="pointer-events-none absolute left-3 top-3 z-40 max-w-[300px] rounded-2xl border border-white/60 bg-white/92 px-4 py-3 text-xs font-bold leading-relaxed text-slate-700 shadow-xl backdrop-blur"
-      >
-        {isPurchaseMode ? (
-          <>
-            <p className="font-black text-slate-950">Modo compra</p>
-            <p className="mt-1">Escolha os espaços livres. Os blocos com véu branco já estão indisponíveis, mas continuam visíveis para você comprar por perto.</p>
-          </>
-        ) : (
-          <>
-            <p className="font-black text-slate-950">Mural oficial</p>
-            <p className="mt-1">Clique nos blocos para ver informações públicas. A compra fica separada para não poluir o mural.</p>
-          </>
-        )}
-      </div>
 
       <div
         className="absolute right-3 top-24 z-40 hidden flex-col gap-2 md:flex"

@@ -18,9 +18,9 @@ type RankingItem = {
 };
 
 const podiumSlots = [
-  { rank: 2, icon: "🥈", label: "2º lugar" },
-  { rank: 1, icon: "🥇", label: "1º lugar" },
-  { rank: 3, icon: "🥉", label: "3º lugar" },
+  { rank: 2, icon: "🥈", label: "2º lugar", tone: "bg-slate-100 text-slate-700 border-slate-200" },
+  { rank: 1, icon: "🥇", label: "1º lugar", tone: "bg-amber-50 text-amber-800 border-amber-200" },
+  { rank: 3, icon: "🥉", label: "3º lugar", tone: "bg-orange-50 text-orange-800 border-orange-200" },
 ] as const;
 
 function getRankItem(ranking: RankingItem[], rank: number) {
@@ -52,44 +52,36 @@ export default function HeaderMiniStats({ ranking = [] }: { ranking?: RankingIte
   const topThree = ranking.slice(0, 3);
 
   return (
-    <div className="min-w-0 flex-1 px-1 sm:px-3">
-      <div className="mx-auto max-w-2xl">
+    <div className="min-w-0 flex-1">
+      <div className="mx-auto max-w-3xl rounded-[28px] border border-slate-200 bg-slate-50/90 px-3 py-2 shadow-sm">
         <div className="flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-wide text-slate-500">
-          <p className="min-w-0 truncate">
+          <p className="min-w-0 truncate text-slate-700">
             <span>{phase.currentPhase}</span>
-            <span className="ml-1 normal-case tracking-normal text-slate-700">• {soldText}</span>
+            <span className="ml-1 normal-case tracking-normal text-slate-500">• {soldText}</span>
           </p>
-          <span className="shrink-0">{phase.progressPercent}%</span>
+          <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-700 shadow-sm">{phase.progressPercent}%</span>
         </div>
 
-        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-200">
+        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-200">
           <div
             className="h-full rounded-full bg-gradient-to-r from-orange-500 via-amber-400 to-yellow-300"
             style={{ width: `${Math.max(2, Math.min(100, phase.progressPercent))}%` }}
           />
         </div>
 
-        <p className="mt-1 hidden truncate text-[9px] font-bold text-slate-500 sm:block">{nextText}</p>
+        <p className="mt-1 truncate text-[10px] font-bold text-slate-500">{nextText}</p>
 
         {topThree.length > 0 && (
-          <div className="mt-1 hidden grid-cols-3 items-end gap-1 text-center sm:grid">
+          <div className="mt-2 grid grid-cols-3 gap-1.5">
             {podiumSlots.map((slot) => {
               const item = getRankItem(topThree, slot.rank);
-              const isLeader = slot.rank === 1;
-
               return (
-                <div
-                  key={slot.rank}
-                  className={`min-w-0 rounded-2xl px-1 ${isLeader ? "pb-1.5 pt-1" : "pb-1 pt-0.5"}`}
-                >
-                  <div className={`flex items-center justify-center gap-1 leading-none ${isLeader ? "text-[10px]" : "text-[9px]"}`}>
+                <div key={slot.rank} className={`min-w-0 rounded-2xl border px-2 py-1.5 text-center ${slot.tone}`}>
+                  <div className="flex items-center justify-center gap-1 text-[10px] leading-none">
                     <span>{slot.icon}</span>
-                    <span className="font-black text-slate-600">{slot.label}</span>
+                    <span className="font-black">{slot.label}</span>
                   </div>
-                  <p
-                    title={item?.publicName || ""}
-                    className={`mt-0.5 truncate font-black text-slate-900 ${isLeader ? "text-[10px]" : "text-[9px]"}`}
-                  >
+                  <p title={item?.publicName || ""} className="mt-1 truncate text-[10px] font-black">
                     {item?.publicName || "—"}
                   </p>
                 </div>
