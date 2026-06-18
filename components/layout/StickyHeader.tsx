@@ -22,6 +22,10 @@ export default function StickyHeader({ ranking = [] }: { ranking?: RankingItem[]
 
         <HeaderMiniStats ranking={ranking} />
 
+        <Link href="/recuperar-link" className="hidden h-10 shrink-0 items-center rounded-full border border-slate-200 bg-white px-4 text-xs font-black text-slate-800 shadow-sm transition hover:bg-slate-50 sm:inline-flex">
+          Área do Cliente
+        </Link>
+
         <details className="relative shrink-0">
           <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full bg-slate-100 text-lg shadow-sm">☰</summary>
           <nav className="absolute right-0 mt-3 w-72 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
@@ -30,6 +34,7 @@ export default function StickyHeader({ ranking = [] }: { ranking?: RankingItem[]
               <p className="mt-1 text-xs font-bold leading-relaxed text-slate-500">Compre seu tijolinho digital e ajude a construir um dos murais mais ambiciosos da internet.</p>
             </div>
             <a className="block border-b border-slate-100 px-5 py-4 text-sm font-black" href="/#mural">🧱 Comprar meu tijolinho</a>
+            <Link className="block border-b border-slate-100 px-5 py-4 text-sm font-black" href="/recuperar-link">👤 Área do Cliente</Link>
             <Link className="block border-b border-slate-100 px-5 py-4 text-sm font-black" href="/ranking">🏆 Destaques</Link>
             <Link className="block border-b border-slate-100 px-5 py-4 text-sm font-black" href="/transparencia">📊 Transparência</Link>
             <Link className="block border-b border-slate-100 px-5 py-4 text-sm font-black" href="/termos">📜 Termos de Uso</Link>
