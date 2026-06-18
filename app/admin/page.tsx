@@ -7,6 +7,7 @@ import { GRID_COLS, GRID_ROWS } from "@/lib/grid";
 import { getAreaName, siteConfig, type AreaKey } from "@/lib/site-config";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminLocked from "@/components/admin/AdminLocked";
+import AdminStatusBadge from "@/components/admin/AdminStatusBadge";
 import { getAdminAccess, muralBlockHref } from "@/lib/admin";
 import { getAdminSession } from "@/lib/admin-auth";
 import { validateImageFile } from "@/lib/content-validation";
@@ -1078,7 +1079,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
                       </div>
                     </td>
                     <td>{areaLabel(transaction.kind)}</td>
-                    <td><span className={`table-status ${transaction.status === "APPROVED" ? "success" : transaction.status === "PENDING" ? "warning" : "neutral"}`}>{transaction.status}</span></td>
+                    <td><AdminStatusBadge value={transaction.status} /></td>
                     <td>{transaction.items.length}</td>
                     <td className="font-semibold text-emerald-700">{money(transaction.totalPaidCents)}</td>
                   </tr>
@@ -1133,7 +1134,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
               <article key={placement.id} className="rounded-2xl border border-slate-200 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-black uppercase text-slate-500">{areaLabel(placement.kind)} • {placement.status} • {placement.reviewStatus}</p>{placement.blocks?.[0]?.id && <a href={muralBlockHref(placement.blocks[0].id)} className="mt-1 inline-flex rounded-full bg-orange-50 px-2 py-1 text-[10px] font-black uppercase text-orange-700">Ver no mural</a>}
+                    <p className="text-xs font-black uppercase text-slate-500">{areaLabel(placement.kind)} • <AdminStatusBadge value={placement.status} /> <AdminStatusBadge value={placement.reviewStatus} /></p>{placement.blocks?.[0]?.id && <a href={muralBlockHref(placement.blocks[0].id)} className="mt-1 inline-flex rounded-full bg-orange-50 px-2 py-1 text-[10px] font-black uppercase text-orange-700">Ver no mural</a>}
                     <h3 className="mt-1 text-lg font-black text-slate-950">{placement.title || placement.displayName}</h3>
                     <p className="mt-1 text-sm text-slate-600">{placement.placeholderReason || "Novo padrão: nome, imagem e link"}</p>
                     <p className="mt-1 text-xs font-bold text-slate-500">Imagem: {placement.imageUrl ? "sim" : "não"} • Link: {placement.redirectUrl && !placement.linkDisabled ? "ativo" : "não"}</p>
@@ -1162,7 +1163,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
               <article key={request.id} className="rounded-2xl border border-slate-200 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-black uppercase text-slate-500">{areaLabel(request.placement.kind)} • {request.status}</p>
+                    <p className="text-xs font-black uppercase text-slate-500">{areaLabel(request.placement.kind)} • <AdminStatusBadge value={request.status} /></p>
                     <h3 className="mt-1 text-lg font-black text-slate-950">{request.placement.title || request.placement.displayName || "Sem título"}</h3>
                     <p className="mt-2 text-sm font-bold text-slate-600">Motivo do comprador: {request.reason}</p>
                     <div className="mt-3 rounded-2xl bg-slate-50 p-3 text-xs font-bold leading-relaxed text-slate-600">
@@ -1230,7 +1231,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
             {openDisputesList.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma disputa aberta.</p>}
             {openDisputesList.map((dispute: any) => (
               <article key={dispute.id} className="rounded-2xl border border-red-100 bg-red-50 p-4">
-                <p className="text-xs font-black uppercase text-red-700">{dispute.status} • {dispute.transaction.user?.publicName || dispute.transaction.user?.name || "Comprador"}</p>
+                <p className="text-xs font-black uppercase text-red-700"><AdminStatusBadge value={dispute.status} /> • {dispute.transaction.user?.publicName || dispute.transaction.user?.name || "Comprador"}</p>
                 <h3 className="mt-1 text-lg font-black text-red-950">{money(dispute.transaction.totalPaidCents)}</h3>
                 <p className="mt-2 text-sm font-bold text-red-900/80">{dispute.reason}</p>
                 {dispute.internalNote && <p className="mt-1 text-xs font-bold text-red-800/70">Nota interna: {dispute.internalNote}</p>}
@@ -1260,7 +1261,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
               <article key={report.id} className="rounded-2xl border border-slate-200 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-black uppercase text-slate-500">{report.status} • tijolinho {report.block ? <a href={muralBlockHref(report.blockId)} className="text-orange-700 underline decoration-orange-200 underline-offset-4">x{report.block.gridX}/y{report.block.gridY}</a> : "sem coordenada"}</p>
+                    <p className="text-xs font-black uppercase text-slate-500"><AdminStatusBadge value={report.status} /> • tijolinho {report.block ? <a href={muralBlockHref(report.blockId)} className="text-orange-700 underline decoration-orange-200 underline-offset-4">x{report.block.gridX}/y{report.block.gridY}</a> : "sem coordenada"}</p>
                     <h3 className="mt-1 text-lg font-black text-slate-950">{report.placement?.title || report.placement?.displayName || "Tijolinho denunciado"}</h3>
                     <p className="mt-2 text-sm leading-relaxed text-slate-600">{report.reasonCode ? `${report.reasonCode} — ` : ""}{report.reason}</p>{report.message && <p className="mt-2 rounded-2xl bg-slate-50 p-3 text-xs font-bold text-slate-600">Mensagem: {report.message}</p>}
                   </div>
