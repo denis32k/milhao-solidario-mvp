@@ -27,7 +27,7 @@ function getRankItem(ranking: RankingItem[], rank: number) {
   return ranking[rank - 1] || null;
 }
 
-export default function HeaderMiniStats({ ranking = [] }: { ranking?: RankingItem[] }) {
+export default function HeaderMiniStats({ ranking = [], compactMobile = false }: { ranking?: RankingItem[]; compactMobile?: boolean }) {
   const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
@@ -53,7 +53,7 @@ export default function HeaderMiniStats({ ranking = [] }: { ranking?: RankingIte
 
   return (
     <div className="min-w-0 flex-1">
-      <div className="mx-auto w-full max-w-3xl rounded-[24px] border border-slate-200 bg-white/92 px-3 py-2 shadow-sm lg:px-3.5">
+      <div className={`mx-auto w-full rounded-[22px] border border-slate-200 bg-white shadow-sm ${compactMobile ? "max-w-none px-3 py-2" : "max-w-4xl px-4 py-2.5"}`}>
         <div className="flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-wide text-slate-500">
           <p className="min-w-0 truncate text-slate-700">
             <span>{phase.currentPhase}</span>
@@ -72,13 +72,13 @@ export default function HeaderMiniStats({ ranking = [] }: { ranking?: RankingIte
         <p className="mt-1 truncate text-[10px] font-bold text-slate-500">{nextText}</p>
 
         {topThree.length > 0 && (
-          <div className="mt-2 grid grid-cols-3 gap-1.5 lg:gap-2">
+          <div className={`mt-2 grid grid-cols-3 ${compactMobile ? "gap-1.5" : "gap-2"}`}>
             {rankingSlots.map((slot) => {
               const item = getRankItem(topThree, slot.rank);
               return (
                 <div key={slot.rank} className={`min-w-0 rounded-2xl border px-2 py-1.5 text-center ${slot.tone}`}>
                   <p className="text-[10px] font-black leading-none">{slot.label}</p>
-                  <p title={item?.publicName || ""} className="mt-1 truncate text-[10px] font-black leading-tight lg:text-[11px]">
+                  <p title={item?.publicName || ""} className={`mt-1 truncate font-black leading-tight ${compactMobile ? "text-[10px]" : "text-[11px]"}`}>
                     {item?.publicName || "—"}
                   </p>
                 </div>
