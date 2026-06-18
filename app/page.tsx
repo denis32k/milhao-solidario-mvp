@@ -1,10 +1,41 @@
 import StickyHeader from "@/components/layout/StickyHeader";
 import PixelMap from "@/components/map/PixelMap";
 import { prisma } from "@/lib/prisma";
+import { createHash } from "crypto";
+import { cookies, headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
+
+function getVisitorIpHash(headersList: Headers) {
+  const forwarded = headersList.get("x-forwarded-for") || "";
+  const realIp = headersList.get("x-real-ip") || "";
+  const ip = forwarded.split(",")[0]?.trim() || realIp || "unknown";
+  return createHash("sha256").update(ip).digest("hex");
+}
+
+async function shouldRedirectToPurchaseTutorial() {
+  try {
+    const cookieStore = await cookies();
+    if (cookieStore.get("mural29_purchase_tutorial_seen")?.value === "1") return false;
+
+    const headersList = await headers();
+    const ipHash = getVisitorIpHash(headersList);
+    const seen = await (prisma as any).consentLog.findFirst({
+      where: { ipHash, channel: "purchase_tutorial_seen" },
+      select: { id: true },
+    });
+
+    return !seen;
+  } catch {
+    return false;
+  }
+}
+
 export default async function HomePage() {
+  if (await shouldRedirectToPurchaseTutorial()) redirect("/comprar?tour=1");
+
   let users: { id: string; name: string | null; publicName: string | null; totalApprovedCents: number }[] = [];
 
   try {

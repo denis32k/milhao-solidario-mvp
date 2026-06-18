@@ -38,6 +38,7 @@ export default function StickyHeader({ ranking = [], active = "mural" }: StickyH
               </div>
               <Link className="block border-b border-slate-100 px-5 py-4 text-sm font-black" href="/">Mural oficial</Link>
               <Link className="block border-b border-slate-100 px-5 py-4 text-sm font-black text-orange-700" href="/comprar">Compre seu tijolinho</Link>
+              <Link className="block border-b border-slate-100 px-5 py-4 text-sm font-black text-blue-700" href="/comprar?tour=1&replay=1">Ver tutorial de compra</Link>
               <Link className="block border-b border-slate-100 px-5 py-4 text-sm font-black" href="/recuperar-link">Área do Cliente</Link>
               <Link className="block border-b border-slate-100 px-5 py-4 text-sm font-black" href="/ranking">Destaques</Link>
               <Link className="block border-b border-slate-100 px-5 py-4 text-sm font-black" href="/transparencia">Transparência</Link>
@@ -91,6 +92,7 @@ export default function StickyHeader({ ranking = [], active = "mural" }: StickyH
                 </div>
                 <Link className="block border-b border-slate-100 px-5 py-4 text-sm font-black" href="/">Mural oficial</Link>
                 <Link className="block border-b border-slate-100 px-5 py-4 text-sm font-black text-orange-700" href="/comprar">Compre seu tijolinho</Link>
+                <Link className="block border-b border-slate-100 px-5 py-4 text-sm font-black text-blue-700" href="/comprar?tour=1&replay=1">Ver tutorial de compra</Link>
                 <Link className="block border-b border-slate-100 px-5 py-4 text-sm font-black" href="/recuperar-link">Área do Cliente</Link>
                 <Link className="block border-b border-slate-100 px-5 py-4 text-sm font-black" href="/ranking">Destaques</Link>
                 <Link className="block border-b border-slate-100 px-5 py-4 text-sm font-black" href="/transparencia">Transparência</Link>

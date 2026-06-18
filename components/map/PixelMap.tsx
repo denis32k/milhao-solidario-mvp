@@ -309,6 +309,13 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
   const selectedFeeCents = Math.ceil(selectedSubtotalCents * (siteConfig.operationalFeePercent / 100));
   const selectedTotalCents = selectedSubtotalCents + selectedFeeCents;
 
+  const tutorialDemoBlocks = [
+    { gridX: 104, gridY: 58 },
+    { gridX: 105, gridY: 58 },
+    { gridX: 104, gridY: 59 },
+    { gridX: 105, gridY: 59 },
+  ];
+
   function getMinScale() {
     const wrapper = wrapperRef.current;
     if (!wrapper) return 1;
@@ -434,34 +441,47 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
   }, []);
 
   useEffect(() => {
-    if (!isPurchaseMode) {
+    if (!isPurchaseMode || typeof window === "undefined") {
       setTutorialVisible(false);
       return;
     }
 
-    try {
-      const skipped = localStorage.getItem("mural29:purchaseTutorialDone") === "1";
-      setTutorialVisible(!skipped);
-      setTutorialStep(0);
-    } catch {
-      setTutorialVisible(true);
-      setTutorialStep(0);
-    }
+    const params = new URLSearchParams(window.location.search);
+    const forcedTour = params.get("tour") === "1" || params.get("tutorial") === "1";
+
+    setTutorialVisible(forcedTour);
+    setTutorialStep(0);
   }, [isPurchaseMode]);
 
-  function closePurchaseTutorial() {
-    setTutorialVisible(false);
+  function markPurchaseTutorialSeen() {
     try {
       localStorage.setItem("mural29:purchaseTutorialDone", "1");
     } catch {
       // ignore
     }
+
+    fetch("/api/tutorial/seen", {
+      method: "POST",
+      keepalive: true,
+    }).catch(() => null);
+  }
+
+  function finishPurchaseTutorial() {
+    markPurchaseTutorialSeen();
+    setTutorialVisible(false);
+    window.setTimeout(() => {
+      window.location.href = "/";
+    }, 250);
+  }
+
+  function closePurchaseTutorial() {
+    finishPurchaseTutorial();
   }
 
   function advancePurchaseTutorial() {
     setTutorialStep((current) => {
       if (current >= 2) {
-        closePurchaseTutorial();
+        finishPurchaseTutorial();
         return current;
       }
       return current + 1;
@@ -515,7 +535,7 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
 
   useEffect(() => {
     drawMap();
-  }, [camera, mapBlocks, selectedBlocks, isLoadingBlocks, mode]);
+  }, [camera, mapBlocks, selectedBlocks, isLoadingBlocks, mode, tutorialVisible, tutorialStep, clockTick]);
 
   function getMapBlockAt(x: number, y: number) {
     return mapBlocks.find((block) => block.gridX === x && block.gridY === y);
@@ -649,6 +669,20 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
           ctx.lineWidth = camera.scale > 2 ? 0.28 : 0.16;
           ctx.strokeRect(px + 0.1, py + 0.1, BLOCK_SIZE - 0.2, BLOCK_SIZE - 0.2);
         }
+      }
+    }
+
+    if (tutorialVisible && tutorialStep === 1) {
+      const visibleCount = Math.min(tutorialDemoBlocks.length, Math.floor((clockTick % 8) / 2) + 1);
+      for (const [index, block] of tutorialDemoBlocks.entries()) {
+        if (index >= visibleCount) continue;
+        const px = block.gridX * BLOCK_SIZE;
+        const py = block.gridY * BLOCK_SIZE;
+        ctx.fillStyle = "rgba(245,158,11,0.65)";
+        ctx.fillRect(px + 0.7, py + 0.7, BLOCK_SIZE - 1.4, BLOCK_SIZE - 1.4);
+        ctx.strokeStyle = "rgba(120,53,15,0.95)";
+        ctx.lineWidth = 1.4;
+        ctx.strokeRect(px + 0.5, py + 0.5, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
       }
     }
 
@@ -1016,37 +1050,56 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
 
       {tutorialVisible && (
         <div
-          className="absolute inset-0 z-[998] flex items-end justify-center bg-slate-950/10 p-4 backdrop-blur-[1px]"
+          className={`absolute inset-0 z-[998] bg-slate-950/10 p-4 backdrop-blur-[1px] ${
+            tutorialStep === 0 ? "flex items-start justify-center" : tutorialStep === 1 ? "flex items-center justify-center" : "flex items-end justify-center"
+          }`}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
             event.stopPropagation();
             advancePurchaseTutorial();
           }}
         >
-          <div className="w-full max-w-sm rounded-3xl border border-white/70 bg-white p-4 text-center shadow-2xl">
-            <p className="text-[11px] font-black uppercase tracking-wide text-orange-600">Tutorial {tutorialStep + 1}/3</p>
-            <h2 className="mt-1 text-lg font-black text-slate-950">
-              {tutorialStep === 0 && "Clique em “Compre seu tijolinho”"}
-              {tutorialStep === 1 && "Toque nos espaços livres"}
-              {tutorialStep === 2 && "Aperte “Continuar”"}
-            </h2>
-            <p className="mt-2 text-sm font-bold leading-relaxed text-slate-500">
-              {tutorialStep === 0 && "Entre no modo de compra pela faixa laranja."}
-              {tutorialStep === 1 && "Escolha seu lugar no mural. Pode selecionar tijolinhos encostados."}
-              {tutorialStep === 2 && "Depois finalize o pagamento para garantir sua reserva."}
-            </p>
-            <div className="mt-4 flex items-center justify-center gap-2">
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  closePurchaseTutorial();
-                }}
-                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700"
-              >
-                Pular tutorial
-              </button>
-              <span className="rounded-full bg-slate-950 px-4 py-2 text-xs font-black text-white">Toque para avançar</span>
+          <div className="relative w-full max-w-sm rounded-3xl border border-white/70 bg-white p-4 text-center shadow-2xl">
+            {tutorialStep === 0 && <div className="absolute -top-5 left-1/2 h-10 w-10 -translate-x-1/2 rotate-45 rounded-sm bg-white shadow-lg" />}
+            {tutorialStep === 2 && <div className="absolute -bottom-5 left-1/2 h-10 w-10 -translate-x-1/2 rotate-45 rounded-sm bg-white shadow-lg" />}
+
+            <div className="relative z-10">
+              <p className="text-[11px] font-black uppercase tracking-wide text-orange-600">Tutorial {tutorialStep + 1}/3</p>
+              <h2 className="mt-1 text-lg font-black text-slate-950">
+                {tutorialStep === 0 && "Botão de compra"}
+                {tutorialStep === 1 && "Selecione seu espaço"}
+                {tutorialStep === 2 && "Continue para pagar"}
+              </h2>
+              <p className="mt-2 text-sm font-bold leading-relaxed text-slate-500">
+                {tutorialStep === 0 && "Use a faixa laranja para entrar no modo de compra."}
+                {tutorialStep === 1 && "O exemplo mostra tijolinhos vazios sendo escolhidos em formato retangular."}
+                {tutorialStep === 2 && "Depois de escolher, toque em Continuar para reservar e pagar."}
+              </p>
+
+              {tutorialStep === 1 && (
+                <div className="mx-auto mt-3 grid w-24 grid-cols-2 gap-1 rounded-2xl bg-amber-50 p-2 ring-1 ring-amber-200">
+                  {[0, 1, 2, 3].map((item) => (
+                    <span
+                      key={item}
+                      className={`h-8 rounded-lg border border-amber-300 ${item <= Math.floor((clockTick % 8) / 2) ? "bg-amber-400" : "bg-white"}`}
+                    />
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-4 flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    closePurchaseTutorial();
+                  }}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700"
+                >
+                  Pular tutorial
+                </button>
+                <span className="rounded-full bg-slate-950 px-4 py-2 text-xs font-black text-white">Toque para avançar</span>
+              </div>
             </div>
           </div>
         </div>
