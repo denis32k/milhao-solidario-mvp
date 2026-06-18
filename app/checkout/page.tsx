@@ -81,6 +81,10 @@ function blocksFormRectangle(blocks: SelectedBlock[]) {
   return (maxX - minX + 1) * (maxY - minY + 1) === blocks.length;
 }
 
+function getCategoryLabel(category: BuyableCategory) {
+  return getAreaName(category);
+}
+
 function getCategoryTheme(category: BuyableCategory) {
   if (category === "GRAND_CENTER") return { bg: "bg-fuchsia-50", border: "border-fuchsia-200", text: "text-fuchsia-800", button: "pixel-btn--dark", accent: "bg-fuchsia-600", label: "Exclusivo" };
   if (category === "GOLD") return { bg: "bg-yellow-50", border: "border-yellow-200", text: "text-yellow-800", button: "pixel-btn--gold", accent: "bg-yellow-500", label: "Luxo" };
