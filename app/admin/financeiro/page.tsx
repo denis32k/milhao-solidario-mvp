@@ -1,7 +1,7 @@
 import AdminLocked from "@/components/admin/AdminLocked";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { prisma } from "@/lib/prisma";
-import { AdminSearchParams, dateTime, getAdminAccess, money, normalizeSearch, safeListQuery, safeValueQuery, withAdminSecret } from "@/lib/admin";
+import { AdminSearchParams, dateTime, getAdminAccess, money, normalizeSearch, safeListQuery, safeValueQuery, muralBlockHref, withAdminSecret } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -174,7 +174,7 @@ export default async function AdminFinanceiroPage({ searchParams }: { searchPara
 
         <section className="mb-5 grid gap-4 lg:grid-cols-2">
           <div className="rounded-3xl bg-white p-5 shadow-xl"><p className="text-xs font-black uppercase text-slate-500">Áreas que mais venderam</p><div className="mt-4 space-y-3">{byArea.map((item: any) => <div key={item.key} className="rounded-2xl bg-slate-50 p-3"><div className="flex items-center justify-between gap-3"><p className="text-sm font-black text-slate-950">{item.name}</p><p className="text-sm font-black text-slate-950">{money(item.totalCents)}</p></div><p className="mt-1 text-xs font-bold text-slate-500">{item.approved} compra(s) aprovada(s) • {item.blocks} bloco(s) • {percent(item.totalCents, totalApprovedCents)} da receita aprovada</p></div>)}{byArea.length === 0 && <p className="text-sm font-bold text-slate-500">Sem vendas por área nesse período.</p>}</div></div>
-          <div className="rounded-3xl bg-white p-5 shadow-xl"><p className="text-xs font-black uppercase text-slate-500">Reservas perdidas/travadas</p><div className="mt-4 space-y-3">{stuckReservations.slice(0, 10).map((block: any) => <div key={block.id} className="rounded-2xl bg-red-50 p-3"><p className="text-sm font-black text-red-950">x{block.gridX}/y{block.gridY} • {block.category}</p><p className="mt-1 text-xs font-bold text-red-800">Reservado até: {dateTime(block.reservedUntil)} • Cliente: {block.owner?.name || "—"}</p></div>)}{stuckReservations.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma reserva travada agora.</p>}</div></div>
+          <div className="rounded-3xl bg-white p-5 shadow-xl"><p className="text-xs font-black uppercase text-slate-500">Reservas perdidas/travadas</p><div className="mt-4 space-y-3">{stuckReservations.slice(0, 10).map((block: any) => <div key={block.id} className="rounded-2xl bg-red-50 p-3"><p><a href={muralBlockHref(block.id)} className="text-sm font-black text-red-950 underline decoration-red-300 underline-offset-4">x{block.gridX}/y{block.gridY}</a> <span className="text-sm font-black text-red-950">• {block.category}</span></p><p className="mt-1 text-xs font-bold text-red-800">Reservado até: {dateTime(block.reservedUntil)} • Cliente: {block.owner?.name || "—"}</p></div>)}{stuckReservations.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma reserva travada agora.</p>}</div></div>
         </section>
 
         <section className="rounded-3xl bg-white p-5 shadow-xl">

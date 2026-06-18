@@ -29,6 +29,10 @@ export function withAdminSecret(path: string, secret: string) {
   return `${path}${joiner}secret=${encodeURIComponent(secret)}`;
 }
 
+export function muralBlockHref(blockId: string | null | undefined) {
+  return blockId ? `/?bloco=${encodeURIComponent(blockId)}` : "/";
+}
+
 export async function safeListQuery<T>(factory: () => Promise<T[]>): Promise<T[]> {
   try {
     return await factory();

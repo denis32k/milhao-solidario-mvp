@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import AdminLocked from "@/components/admin/AdminLocked";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminStatusBadge from "@/components/admin/AdminStatusBadge";
-import { AdminSearchParams, dateTime, getAdminAccess, safeListQuery, shortId, withAdminSecret } from "@/lib/admin";
+import { AdminSearchParams, dateTime, getAdminAccess, safeListQuery, shortId, muralBlockHref, withAdminSecret } from "@/lib/admin";
 import { getAreaName } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
@@ -47,13 +47,13 @@ export default async function AdminReservasPage({ searchParams }: { searchParams
                   const expired = block.reservedUntil && new Date(block.reservedUntil) < now;
                   return (
                     <tr key={block.id}>
-                      <td><p className="font-black text-slate-950">x{block.gridX}/y{block.gridY}</p><p className="text-[11px] font-bold text-slate-400">{shortId(block.id)}</p></td>
+                      <td><Link href={muralBlockHref(block.id)} className="font-black text-orange-700 underline decoration-orange-200 underline-offset-4 hover:text-orange-900">x{block.gridX}/y{block.gridY}</Link><p className="text-[11px] font-bold text-slate-400">{shortId(block.id)}</p></td>
                       <td className="font-bold text-slate-700">{getAreaName(block.category)}</td>
                       <td><AdminStatusBadge value={expired ? "EXPIRED" : "RESERVED"} /></td>
                       <td><p className="font-bold text-slate-800">{block.owner?.name || block.currentTransaction?.user?.name || "sem dono"}</p><p className="text-[11px] font-bold text-slate-400">{block.owner?.email || block.currentTransaction?.user?.email || ""}</p></td>
                       <td className="whitespace-nowrap font-bold text-slate-600">{dateTime(block.reservedUntil)}</td>
                       <td className="text-[11px] font-bold text-slate-500">{shortId(block.reservationToken)}</td>
-                      <td><div className="admin-row-actions"><Link href={`/bloco/${block.id}`} className="admin-row-link">Público</Link>{block.currentTransactionId && <Link href={withAdminSecret(`/admin/suporte?q=${encodeURIComponent(block.currentTransactionId)}`, secret)} className="admin-row-link">Pedido</Link>}</div></td>
+                      <td><div className="admin-row-actions"><Link href={muralBlockHref(block.id)} className="admin-row-link">Mural</Link><Link href={`/bloco/${block.id}`} className="admin-row-link">Público</Link>{block.currentTransactionId && <Link href={withAdminSecret(`/admin/suporte?q=${encodeURIComponent(block.currentTransactionId)}`, secret)} className="admin-row-link">Pedido</Link>}</div></td>
                     </tr>
                   );
                 })}

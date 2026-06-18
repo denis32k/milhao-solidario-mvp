@@ -4,7 +4,7 @@ import AdminLocked from "@/components/admin/AdminLocked";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminStatusBadge from "@/components/admin/AdminStatusBadge";
 import AdminTabs from "@/components/admin/AdminTabs";
-import { AdminSearchParams, dateTime, getAdminAccess, normalizeSearch, safeListQuery, shortId, withAdminSecret } from "@/lib/admin";
+import { AdminSearchParams, dateTime, getAdminAccess, normalizeSearch, safeListQuery, shortId, muralBlockHref, withAdminSecret } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -77,7 +77,7 @@ export default async function AdminEdicoesPage({ searchParams }: { searchParams:
                       </td>
                       <td className="max-w-[240px]"><p className="max-h-10 overflow-hidden font-bold text-slate-700">{r.reason}</p></td>
                       <td className="max-w-[220px]"><p className="max-h-10 overflow-hidden text-[11px] font-bold text-slate-500">{r.adminNote || "sem decisão"}</p></td>
-                      <td><div className="admin-row-actions">{firstBlock && <Link href={`/bloco/${firstBlock.id}`} className="admin-row-link">Público</Link>}<Link href={withAdminSecret(`/admin/suporte?q=${encodeURIComponent(r.placementId)}`, secret)} className="admin-row-link">Suporte</Link></div></td>
+                      <td><div className="admin-row-actions">{firstBlock && <Link href={muralBlockHref(firstBlock.id)} className="admin-row-link">Mural</Link>}{firstBlock && <Link href={`/bloco/${firstBlock.id}`} className="admin-row-link">Público</Link>}<Link href={withAdminSecret(`/admin/suporte?q=${encodeURIComponent(r.placementId)}`, secret)} className="admin-row-link">Suporte</Link></div></td>
                     </tr>
                   );
                 })}

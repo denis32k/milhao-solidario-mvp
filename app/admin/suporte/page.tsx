@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import AdminLocked from "@/components/admin/AdminLocked";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import { prisma } from "@/lib/prisma";
-import { AdminSearchParams, dateTime, getAdminAccess, normalizeSearch, money, safeListQuery, shortId, withAdminSecret } from "@/lib/admin";
+import { AdminSearchParams, dateTime, getAdminAccess, normalizeSearch, money, safeListQuery, shortId, muralBlockHref, withAdminSecret } from "@/lib/admin";
 import { getAdminSession } from "@/lib/admin-auth";
 import { createManagementToken, getManagementUrl, hashManagementToken } from "@/lib/customer-access";
 
@@ -224,9 +224,10 @@ export default async function AdminSuportePage({ searchParams }: { searchParams:
 
                   <div className="rounded-2xl bg-slate-50 p-3">
                     <p className="text-xs font-black uppercase text-slate-500">Blocos</p>
-                    <p className="mt-1 text-sm font-bold text-slate-700">{(transaction.items || []).slice(0, 12).map((item: any) => `x${item.gridX}/y${item.gridY}`).join(", ") || "—"}</p>
+                    <div className="mt-2 flex flex-wrap gap-1 text-sm font-bold">{(transaction.items || []).slice(0, 12).length ? (transaction.items || []).slice(0, 12).map((item: any) => <Link key={item.id || item.blockId} href={muralBlockHref(item.blockId)} className="rounded-full bg-orange-50 px-2 py-1 text-xs text-orange-700">x{item.gridX}/y{item.gridY}</Link>) : <span className="text-slate-500">—</span>}</div>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <Link href={withAdminSecret(`/admin/pedidos?q=${encodeURIComponent(transaction.id)}`, secret)} className="rounded-full bg-slate-950 px-3 py-2 text-xs font-black text-white">Abrir pedido</Link>
+                      {publicBlockId && <Link href={muralBlockHref(publicBlockId)} className="rounded-full bg-orange-50 px-3 py-2 text-xs font-black text-orange-700">Ver no mural</Link>}
                       {publicBlockId && <Link href={`/bloco/${publicBlockId}`} className="rounded-full bg-blue-50 px-3 py-2 text-xs font-black text-blue-700">Página pública</Link>}
                     </div>
                   </div>

@@ -4,7 +4,7 @@ import AdminLocked from "@/components/admin/AdminLocked";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminStatusBadge from "@/components/admin/AdminStatusBadge";
 import AdminTabs from "@/components/admin/AdminTabs";
-import { AdminSearchParams, dateTime, getAdminAccess, normalizeSearch, safeListQuery, shortId, withAdminSecret } from "@/lib/admin";
+import { AdminSearchParams, dateTime, getAdminAccess, normalizeSearch, safeListQuery, shortId, muralBlockHref, withAdminSecret } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -59,12 +59,12 @@ export default async function AdminDenunciasPage({ searchParams }: { searchParam
                   <tr key={r.id}>
                     <td className="whitespace-nowrap font-bold text-slate-600">{dateTime(r.createdAt)}</td>
                     <td><AdminStatusBadge value={r.status} /></td>
-                    <td><p className="font-black text-slate-950">x{r.block?.gridX ?? "?"}/y{r.block?.gridY ?? "?"}</p><p className="text-[11px] font-bold text-slate-400">{shortId(r.blockId)}</p></td>
+                    <td>{r.blockId ? <Link href={muralBlockHref(r.blockId)} className="font-black text-orange-700 underline decoration-orange-200 underline-offset-4 hover:text-orange-900">x{r.block?.gridX ?? "?"}/y{r.block?.gridY ?? "?"}</Link> : <p className="font-black text-slate-950">sem bloco</p>}<p className="text-[11px] font-bold text-slate-400">{shortId(r.blockId)}</p></td>
                     <td><p className="font-black text-slate-800">{r.placement?.title || r.placement?.displayName || "Bloco denunciado"}</p><p className="text-[11px] font-bold text-slate-400">{r.placement?.user?.name || ""}</p></td>
                     <td><p className="font-black text-red-700">{r.reasonCode || "OUTRO"}</p><p className="text-[11px] font-bold text-slate-500">{r.reason}</p></td>
                     <td className="max-w-[260px]"><p className="max-h-10 overflow-hidden font-bold text-slate-700">{r.message || "—"}</p></td>
                     <td><p className="font-bold text-slate-700">{r.reporterEmail || "anônimo"}</p><p className="text-[11px] font-bold text-slate-400">IP: {r.reporterIpHash ? "registrado" : "não registrado"}</p></td>
-                    <td><div className="admin-row-actions"><Link href={`/bloco/${r.blockId}`} className="admin-row-link">Público</Link>{r.placement?.transactionId && <Link href={withAdminSecret(`/admin/suporte?q=${encodeURIComponent(r.placement.transactionId)}`, secret)} className="admin-row-link">Pedido</Link>}</div></td>
+                    <td><div className="admin-row-actions">{r.blockId && <Link href={muralBlockHref(r.blockId)} className="admin-row-link">Mural</Link>}<Link href={`/bloco/${r.blockId}`} className="admin-row-link">Público</Link>{r.placement?.transactionId && <Link href={withAdminSecret(`/admin/suporte?q=${encodeURIComponent(r.placement.transactionId)}`, secret)} className="admin-row-link">Pedido</Link>}</div></td>
                   </tr>
                 ))}
                 {reports.length === 0 && <tr><td colSpan={8} className="py-8 text-center font-bold text-slate-500">Nenhuma denúncia encontrada.</td></tr>}

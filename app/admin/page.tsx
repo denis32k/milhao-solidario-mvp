@@ -7,7 +7,7 @@ import { GRID_COLS, GRID_ROWS } from "@/lib/grid";
 import { getAreaName, siteConfig, type AreaKey } from "@/lib/site-config";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminLocked from "@/components/admin/AdminLocked";
-import { getAdminAccess } from "@/lib/admin";
+import { getAdminAccess, muralBlockHref } from "@/lib/admin";
 import { getAdminSession } from "@/lib/admin-auth";
 import { validateImageFile } from "@/lib/content-validation";
 
@@ -1025,7 +1025,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
             {pendingReservationsList.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma reserva pendente.</p>}
             {pendingReservationsList.map((block: any) => (
               <article key={block.id} className="rounded-2xl bg-yellow-50 p-4">
-                <p className="text-sm font-black text-yellow-950">x{block.gridX}/y{block.gridY} • {areaLabel(block.category)}</p>
+                <p><a href={muralBlockHref(block.id)} className="text-sm font-black text-yellow-950 underline decoration-yellow-300 underline-offset-4">x{block.gridX}/y{block.gridY}</a> <span className="text-sm font-black text-yellow-950">• {areaLabel(block.category)}</span></p>
                 <p className="text-xs font-bold text-yellow-700">{block.owner?.name || "Sem comprador"} • vence {block.reservedUntil?.toLocaleString("pt-BR")}</p>
               </article>
             ))}
@@ -1040,7 +1040,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
               <article key={placement.id} className="rounded-2xl border border-slate-200 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-black uppercase text-slate-500">{areaLabel(placement.kind)} • {placement.status} • {placement.reviewStatus}</p>
+                    <p className="text-xs font-black uppercase text-slate-500">{areaLabel(placement.kind)} • {placement.status} • {placement.reviewStatus}</p>{placement.blocks?.[0]?.id && <a href={muralBlockHref(placement.blocks[0].id)} className="mt-1 inline-flex rounded-full bg-orange-50 px-2 py-1 text-[10px] font-black uppercase text-orange-700">Ver no mural</a>}
                     <h3 className="mt-1 text-lg font-black text-slate-950">{placement.title || placement.displayName}</h3>
                     <p className="mt-1 text-sm text-slate-600">{placement.placeholderReason || "Novo padrão: nome, imagem e link"}</p>
                     <p className="mt-1 text-xs font-bold text-slate-500">Imagem: {placement.imageUrl ? "sim" : "não"} • Link: {placement.redirectUrl && !placement.linkDisabled ? "ativo" : "não"}</p>
@@ -1153,7 +1153,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
               <article key={report.id} className="rounded-2xl border border-slate-200 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-black uppercase text-slate-500">{report.status} • tijolinho {report.block ? `x${report.block.gridX}/y${report.block.gridY}` : "sem coordenada"}</p>
+                    <p className="text-xs font-black uppercase text-slate-500">{report.status} • tijolinho {report.block ? <a href={muralBlockHref(report.blockId)} className="text-orange-700 underline decoration-orange-200 underline-offset-4">x{report.block.gridX}/y{report.block.gridY}</a> : "sem coordenada"}</p>
                     <h3 className="mt-1 text-lg font-black text-slate-950">{report.placement?.title || report.placement?.displayName || "Tijolinho denunciado"}</h3>
                     <p className="mt-2 text-sm leading-relaxed text-slate-600">{report.reasonCode ? `${report.reasonCode} — ` : ""}{report.reason}</p>{report.message && <p className="mt-2 rounded-2xl bg-slate-50 p-3 text-xs font-bold text-slate-600">Mensagem: {report.message}</p>}
                   </div>

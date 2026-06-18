@@ -4,7 +4,7 @@ import AdminLocked from "@/components/admin/AdminLocked";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminStatusBadge from "@/components/admin/AdminStatusBadge";
 import AdminTabs from "@/components/admin/AdminTabs";
-import { AdminSearchParams, dateTime, getAdminAccess, normalizeSearch, safeListQuery, shortId, withAdminSecret } from "@/lib/admin";
+import { AdminSearchParams, dateTime, getAdminAccess, normalizeSearch, safeListQuery, shortId, muralBlockHref, withAdminSecret } from "@/lib/admin";
 import { getAreaName } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
@@ -97,11 +97,11 @@ export default async function AdminConteudosPage({ searchParams }: { searchParam
                       <td>{p.imageUrl ? <img src={normalizeImageUrl(p.imageUrl)} alt={displayName} className="h-10 w-10 rounded-lg object-cover" /> : <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-xs font-black text-slate-400">sem</span>}</td>
                       <td><p className="font-black text-slate-950">{displayName}</p><p className="text-[11px] font-bold text-slate-400">{shortId(p.id)}</p></td>
                       <td className="max-w-[220px]"><p className="truncate text-[11px] font-bold text-slate-600">{p.redirectUrl || "—"}</p><p className="text-[11px] font-black uppercase text-slate-400">{linkLabel(p)}</p></td>
-                      <td><p className="font-bold text-slate-700">{firstBlock ? getAreaName(firstBlock.category) : getAreaName(p.kind)}</p><p className="text-[11px] font-bold text-slate-400">{firstBlock ? `x${firstBlock.gridX}/y${firstBlock.gridY}` : "sem bloco"}</p></td>
+                      <td><p className="font-bold text-slate-700">{firstBlock ? getAreaName(firstBlock.category) : getAreaName(p.kind)}</p>{firstBlock ? <Link href={muralBlockHref(firstBlock.id)} className="text-[11px] font-bold text-orange-700 underline decoration-orange-200 underline-offset-4">x{firstBlock.gridX}/y{firstBlock.gridY}</Link> : <p className="text-[11px] font-bold text-slate-400">sem bloco</p>}</td>
                       <td><p className="font-bold text-slate-800">{p.user?.name || "—"}</p><p className="text-[11px] font-bold text-slate-400">{p.user?.email || ""}</p></td>
                       <td><AdminStatusBadge value={p.reviewStatus} /></td>
                       <td><p className="text-[11px] font-black text-slate-700">{contentState(p)}</p><p className="text-[11px] font-bold text-slate-400">{dateTime(p.createdAt)}</p></td>
-                      <td><div className="admin-row-actions">{firstBlock && <Link href={`/bloco/${firstBlock.id}`} className="admin-row-link">Público</Link>}<Link href={withAdminSecret(`/admin/suporte?q=${encodeURIComponent(p.transactionId || p.id)}`, secret)} className="admin-row-link">Suporte</Link>{p.redirectUrl && <a href={p.redirectUrl} target="_blank" rel="noopener noreferrer" className="admin-row-link">Link</a>}</div></td>
+                      <td><div className="admin-row-actions">{firstBlock && <Link href={muralBlockHref(firstBlock.id)} className="admin-row-link">Mural</Link>}{firstBlock && <Link href={`/bloco/${firstBlock.id}`} className="admin-row-link">Público</Link>}<Link href={withAdminSecret(`/admin/suporte?q=${encodeURIComponent(p.transactionId || p.id)}`, secret)} className="admin-row-link">Suporte</Link>{p.redirectUrl && <a href={p.redirectUrl} target="_blank" rel="noopener noreferrer" className="admin-row-link">Link</a>}</div></td>
                     </tr>
                   );
                 })}
