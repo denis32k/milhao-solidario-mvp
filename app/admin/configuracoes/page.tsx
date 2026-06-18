@@ -41,7 +41,7 @@ async function saveOperationalSettings(formData: FormData) {
     checkoutNotice: String(formData.get("checkoutNotice") || ""),
     supportEmail: String(formData.get("supportEmail") || ""),
     supportWhatsapp: String(formData.get("supportWhatsapp") || ""),
-    reservationMinutes: numberFromForm(formData.get("reservationMinutes"), 30),
+    reservationMinutes: numberFromForm(formData.get("reservationMinutes"), 2),
     maxImageMb: numberFromForm(formData.get("maxImageMb"), 5),
     perIpLimitPerDay: numberFromForm(formData.get("perIpLimitPerDay"), 0),
     perCustomerLimitPerDay: numberFromForm(formData.get("perCustomerLimitPerDay"), 0),
@@ -109,7 +109,7 @@ export default async function AdminConfiguracoesPage({ searchParams }: { searchP
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         <label className="block"><span className="text-xs font-black uppercase text-slate-500">Aviso no checkout</span><textarea name="checkoutNotice" defaultValue={settings.checkoutNotice} rows={3} placeholder="Ex: Compras liberadas em fase inicial. Atendimento pelo WhatsApp." className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold outline-none focus:border-slate-950" /></label>
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block"><span className="text-xs font-black uppercase text-slate-500">Tempo de reserva em minutos</span><input name="reservationMinutes" type="number" min="5" max="120" defaultValue={settings.reservationMinutes} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold" /></label>
+          <label className="block"><span className="text-xs font-black uppercase text-slate-500">Tempo de reserva em minutos</span><input name="reservationMinutes" type="number" min="1" max="30" defaultValue={settings.reservationMinutes} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold" /></label>
           <label className="block"><span className="text-xs font-black uppercase text-slate-500">Imagem máxima em MB</span><input name="maxImageMb" type="number" min="1" max="20" defaultValue={settings.maxImageMb} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold" /></label>
           <label className="block"><span className="text-xs font-black uppercase text-slate-500">Limite por IP/dia</span><input name="perIpLimitPerDay" type="number" min="0" max="500" defaultValue={settings.perIpLimitPerDay} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold" /></label>
           <label className="block"><span className="text-xs font-black uppercase text-slate-500">Limite por cliente/dia</span><input name="perCustomerLimitPerDay" type="number" min="0" max="500" defaultValue={settings.perCustomerLimitPerDay} className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold" /></label>

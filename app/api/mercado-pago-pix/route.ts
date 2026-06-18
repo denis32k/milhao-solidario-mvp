@@ -210,6 +210,7 @@ export async function POST(request: Request) {
     const whatsapp = onlyDigits(String(body.whatsapp || ""));
     const cpf = onlyDigits(String(body.cpf || ""));
     const selectedBlocksInput = normalizeSelectedBlocks(body.selectedBlocks);
+    const reservationToken = safeText(body.reservationToken, 120);
     const acceptedTerms = body.acceptedTerms === true;
     const title = "Espaço comprado";
     const fillColor = "#22c55e";
@@ -269,17 +270,27 @@ export async function POST(request: Request) {
 
     const uniqueId = Date.now();
     const externalReference = `mp-pix-${uniqueId}`;
-    const reservedUntil = new Date(Date.now() + settings.reservationMinutes * 60 * 1000);
+    const fallbackReservedUntil = new Date(Date.now() + settings.reservationMinutes * 60 * 1000);
 
     const pendingData = await prisma.$transaction(async (tx: any) => {
+      const now = new Date();
       const foundBlocks = await tx.block.findMany({
         where: {
           OR: selectedBlocksInput.map((block) => ({
             gridX: block.gridX,
             gridY: block.gridY,
           })),
-          status: "AVAILABLE",
-          available: true,
+          ...(reservationToken
+            ? {
+                status: "RESERVED",
+                available: false,
+                reservationToken,
+                reservedUntil: { gt: now },
+              }
+            : {
+                status: "AVAILABLE",
+                available: true,
+              }),
           category: {
             in: ["SOLIDARITY", "PREMIUM", "GOLD", "GRAND_CENTER"],
           },
@@ -288,7 +299,7 @@ export async function POST(request: Request) {
       });
 
       if (foundBlocks.length !== selectedBlocksInput.length) {
-        throw new Error("Um ou mais tijolinhos selecionados não estão disponíveis.");
+        throw new Error(reservationToken ? "Reserva expirada. Volte ao mural e escolha novamente." : "Um ou mais tijolinhos selecionados não estão disponíveis.");
       }
 
       const categories = Array.from(new Set(foundBlocks.map((block) => block.category)));
@@ -308,6 +319,10 @@ export async function POST(request: Request) {
       const totalPaidCents = subtotalCents + operatorFeeCents;
       const creatorShareCents = Math.floor(subtotalCents / 2);
       const hospitalShareCents = subtotalCents - creatorShareCents;
+
+      const effectiveReservedUntil = reservationToken
+        ? (foundBlocks[0]?.reservedUntil || fallbackReservedUntil)
+        : fallbackReservedUntil;
 
       const managementToken = createManagementToken();
       const managementTokenHash = hashManagementToken(managementToken);
@@ -367,7 +382,7 @@ export async function POST(request: Request) {
           mpStatus: "pending",
           mpStatusDetail: "waiting_pix_payment",
 
-          expiresAt: reservedUntil,
+          expiresAt: effectiveReservedUntil,
         },
       });
 
@@ -397,7 +412,7 @@ export async function POST(request: Request) {
           ownerId: user.id,
           currentTransactionId: transaction.id,
           reservationToken: externalReference,
-          reservedUntil,
+          reservedUntil: effectiveReservedUntil,
         },
       });
 

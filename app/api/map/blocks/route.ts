@@ -14,6 +14,25 @@ function getErrorMessage(error: unknown) {
 
 export async function GET() {
   try {
+    const now = new Date();
+
+    await prisma.transaction.updateMany({
+      where: { status: "PENDING", expiresAt: { lt: now } },
+      data: { status: "EXPIRED", mpStatusDetail: "expired_local_reservation" },
+    }).catch(() => null);
+
+    await prisma.block.updateMany({
+      where: { status: "RESERVED", reservedUntil: { lt: now } },
+      data: {
+        status: "AVAILABLE",
+        available: true,
+        ownerId: null,
+        currentTransactionId: null,
+        reservationToken: null,
+        reservedUntil: null,
+      },
+    }).catch(() => null);
+
     const blocks = await prisma.block.findMany({
       where: {
         gridX: { lt: GRID_COLS },
@@ -35,6 +54,8 @@ export async function GET() {
         status: true,
         available: true,
         priceCents: true,
+        reservationToken: true,
+        reservedUntil: true,
 
         owner: {
           select: {

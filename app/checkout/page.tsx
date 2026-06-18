@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { GRID_COLS, GRID_ROWS } from "@/lib/grid";
 import { getAreaName, getAreaPriceCents, getOperationalFeeCents, siteConfig } from "@/lib/site-config";
 
@@ -104,6 +104,13 @@ function isValidPublicLink(value: string) {
   return /^https?:\/\//i.test(value.trim());
 }
 
+function formatTimer(totalSeconds: number) {
+  const safe = Math.max(0, totalSeconds);
+  const minutes = Math.floor(safe / 60);
+  const seconds = safe % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
 export default function CompraPage() {
   const [step, setStep] = useState<CheckoutStep>("data");
   const [selectedBlocks, setSelectedBlocks] = useState<SelectedBlock[]>([]);
@@ -135,6 +142,13 @@ export default function CompraPage() {
   const [isCheckoutReady, setIsCheckoutReady] = useState(false);
   const [recoveryLink, setRecoveryLink] = useState("");
   const [approvedModalOpen, setApprovedModalOpen] = useState(false);
+  const reservationRequestKeyRef = useRef("");
+  const [reservationToken, setReservationToken] = useState("");
+  const [reservedUntil, setReservedUntil] = useState("");
+  const [reservationRemainingSeconds, setReservationRemainingSeconds] = useState(0);
+  const [isReserving, setIsReserving] = useState(false);
+  const [reservationExpired, setReservationExpired] = useState(false);
+  const [reservationMessage, setReservationMessage] = useState("");
 
   useEffect(() => {
     fetch("/api/mercado-pago-pix", { cache: "no-store" })
@@ -163,6 +177,68 @@ export default function CompraPage() {
   }, []);
 
   useEffect(() => {
+    if (!isCheckoutReady || selectedBlocks.length === 0 || pixResult) return;
+
+    const key = `${category}:${selectedBlocks.map((block) => `${block.gridX}:${block.gridY}`).join(",")}`;
+    if (reservationRequestKeyRef.current === key) return;
+    reservationRequestKeyRef.current = key;
+
+    let cancelled = false;
+
+    async function reserveSelection() {
+      try {
+        setIsReserving(true);
+        setReservationMessage("");
+
+        const response = await fetch("/api/reservations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ selectedBlocks, category }),
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.message || "Não foi possível reservar.");
+
+        if (cancelled) return;
+        setReservationToken(String(data.reservationToken || ""));
+        setReservedUntil(String(data.reservedUntil || ""));
+        setReservationRemainingSeconds(Number(data.expiresInSeconds || 0));
+        setReservationExpired(false);
+        setReservationMessage(`Reservado por ${Number(data.reservationMinutes || reservationMinutes)} minuto(s).`);
+      } catch (error) {
+        if (cancelled) return;
+        setReservationExpired(true);
+        setReservationMessage(error instanceof Error ? error.message : "Não foi possível reservar.");
+      } finally {
+        if (!cancelled) setIsReserving(false);
+      }
+    }
+
+    reserveSelection();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isCheckoutReady, selectedBlocks, category, pixResult]);
+
+  useEffect(() => {
+    if (!reservedUntil || paymentApproved) return;
+
+    function updateTimer() {
+      const remaining = Math.max(0, Math.ceil((new Date(reservedUntil).getTime() - Date.now()) / 1000));
+      setReservationRemainingSeconds(remaining);
+      if (remaining <= 0) {
+        setReservationExpired(true);
+        setReservationMessage("Reserva expirada.");
+      }
+    }
+
+    updateTimer();
+    const interval = window.setInterval(updateTimer, 1000);
+    return () => window.clearInterval(interval);
+  }, [reservedUntil, paymentApproved]);
+
+  useEffect(() => {
     if (!imageFile) {
       setImagePreview("");
       return;
@@ -184,7 +260,7 @@ export default function CompraPage() {
   const totalCents = subtotalCents + operationalFeeCents;
   const theme = getCategoryTheme(category);
   const isRectangle = blocksFormRectangle(selectedBlocks);
-  const reservationMinutes = operationalSettings?.reservationMinutes || 15;
+  const reservationMinutes = operationalSettings?.reservationMinutes || 2;
   const mustBeRectangle = selectedBlocks.length > 1;
 
   function validateFastCheckout() {
@@ -195,6 +271,8 @@ export default function CompraPage() {
     if (onlyDigits(whatsapp).length < 10) return "Digite um WhatsApp válido.";
     if (onlyDigits(cpf).length !== 11) return "Digite um CPF válido com 11 números.";
     if (!acceptedTerms) return "Aceite os termos para gerar o PIX.";
+    if (isReserving) return "Reservando seu espaço...";
+    if (!reservationToken || reservationExpired) return "Reserva expirada. Volte ao mural e escolha novamente.";
     if (operationalSettings?.maintenanceMode) return "O Mural29 está em manutenção no momento.";
     if (operationalSettings?.blockNewPurchases) return "Novas compras estão temporariamente bloqueadas.";
     return "";
@@ -315,6 +393,7 @@ export default function CompraPage() {
           whatsapp: onlyDigits(whatsapp),
           cpf: onlyDigits(cpf),
           selectedBlocks,
+          reservationToken,
           acceptedTerms,
         }),
       });
@@ -440,7 +519,7 @@ export default function CompraPage() {
     { key: "customize", label: "Personalizar" },
   ];
   const stepIndex = Math.max(0, steps.findIndex((item) => item.key === step));
-  const generatePixDisabled = isLoading || !acceptedTerms || (mustBeRectangle && !isRectangle) || Boolean(operationalSettings?.maintenanceMode || operationalSettings?.blockNewPurchases);
+  const generatePixDisabled = isLoading || isReserving || reservationExpired || !reservationToken || !acceptedTerms || (mustBeRectangle && !isRectangle) || Boolean(operationalSettings?.maintenanceMode || operationalSettings?.blockNewPurchases);
   const displayTotalCents = pixResult?.transaction.totalPaidCents ?? totalCents;
 
   return (
@@ -483,6 +562,15 @@ export default function CompraPage() {
                 {operationalSettings?.checkoutNotice && <div className="mt-4 rounded-2xl border border-yellow-200 bg-yellow-50 p-3 text-sm font-medium leading-relaxed text-yellow-900">{operationalSettings.checkoutNotice}</div>}
                 {(operationalSettings?.maintenanceMode || operationalSettings?.blockNewPurchases) && <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium leading-relaxed text-red-800">{operationalSettings?.maintenanceMode ? "O Mural29 está em manutenção no momento." : "Novas compras estão temporariamente bloqueadas."}</div>}
                 {errorMessage && <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium leading-relaxed text-red-800">{errorMessage}</div>}
+
+                <div className={`mt-4 rounded-2xl border p-3 ${reservationExpired ? "border-red-200 bg-red-50 text-red-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-black uppercase tracking-wide">{isReserving ? "Reservando" : reservationExpired ? "Reserva expirada" : "Reservado"}</p>
+                    <span className="rounded-full bg-white/80 px-3 py-1 text-sm font-black shadow-sm">{isReserving ? "..." : formatTimer(reservationRemainingSeconds)}</span>
+                  </div>
+                  <p className="mt-1 text-sm font-bold leading-relaxed">{reservationExpired ? "Escolha novamente para garantir." : "Finalize o pagamento para garantir."}</p>
+                  {reservationMessage && <p className="mt-1 text-xs font-bold opacity-80">{reservationMessage}</p>}
+                </div>
 
                 <div className="mt-5 grid gap-3 md:grid-cols-2">
                   <label className="block">
@@ -528,6 +616,7 @@ export default function CompraPage() {
                   <p className="text-xs font-semibold text-emerald-700">PIX criado</p>
                   <h1 className="mt-1 text-xl font-bold tracking-tight text-emerald-950">Pague para confirmar sua reserva</h1>
                   <p className="mt-1.5 text-sm leading-relaxed text-emerald-800">Use o QR Code ou copie o código. A confirmação é verificada automaticamente a cada poucos segundos.</p>
+                  <div className="mt-3 rounded-xl bg-white/80 px-3 py-2 text-sm font-black text-emerald-900">Reserva: {formatTimer(reservationRemainingSeconds)}</div>
                 </div>
 
                 <div className="mt-4 grid gap-4 lg:grid-cols-[280px_1fr]">
@@ -618,6 +707,7 @@ export default function CompraPage() {
               <p className="mt-2 text-sm font-medium text-slate-600">{selectedBlocks.length} tijolinho(s) selecionado(s)</p>
               <p className="mt-3 max-h-16 overflow-hidden rounded-xl bg-white/80 p-2.5 text-[11px] font-medium leading-relaxed text-slate-500 ring-1 ring-black/5">{coordinates}{extraCoordinates}</p>
               {mustBeRectangle && !isRectangle && <p className="mt-3 rounded-xl border border-yellow-200 bg-yellow-50 p-2.5 text-xs font-semibold text-yellow-800">Selecione uma área retangular para a imagem ficar bem encaixada.</p>}
+              <p className={`mt-3 rounded-xl p-2.5 text-xs font-black ${reservationExpired ? "bg-red-50 text-red-700 border border-red-200" : "bg-amber-50 text-amber-800 border border-amber-200"}`}>Reserva: {isReserving ? "..." : formatTimer(reservationRemainingSeconds)}</p>
             </div>
 
             <div className="mt-3 space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">

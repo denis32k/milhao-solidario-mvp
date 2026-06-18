@@ -43,6 +43,8 @@ type ApiMapBlock = {
   status: string;
   available: boolean;
   priceCents: number;
+  reservationToken: string | null;
+  reservedUntil: string | null;
   owner: {
     id: string;
     name: string;
@@ -98,6 +100,19 @@ function money(cents: number) {
     style: "currency",
     currency: "BRL",
   }).format(cents / 100);
+}
+
+
+function getRemainingSeconds(value: string | null | undefined) {
+  if (!value) return 0;
+  return Math.max(0, Math.ceil((new Date(value).getTime() - Date.now()) / 1000));
+}
+
+function formatMapTimer(totalSeconds: number) {
+  const safe = Math.max(0, totalSeconds);
+  const minutes = Math.floor(safe / 60);
+  const seconds = safe % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 function getBlockPrice(category: BlockCategory) {
@@ -280,6 +295,7 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
   const [selectionMessage, setSelectionMessage] = useState("");
   const [isLoadingBlocks, setIsLoadingBlocks] = useState(true);
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, scale: 1 });
+  const [clockTick, setClockTick] = useState(0);
 
   const isPurchaseMode = mode === "purchase";
   const selectedCategory = selectedBlocks[0]?.category || null;
@@ -411,6 +427,11 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
   }, []);
 
   useEffect(() => {
+    const interval = window.setInterval(() => setClockTick((value) => value + 1), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
     let isAlive = true;
 
     async function loadMapBlocks() {
@@ -428,8 +449,10 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
     }
 
     loadMapBlocks();
+    const interval = window.setInterval(loadMapBlocks, 5000);
     return () => {
       isAlive = false;
+      window.clearInterval(interval);
     };
   }, []);
 
@@ -557,6 +580,19 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
         if (block && (!block.placement?.imageUrl || block.status === "RESERVED" || block.status === "BLOCKED")) {
           ctx.fillStyle = getSoldBlockOverlayColor(block);
           ctx.fillRect(px + 0.6, py + 0.6, BLOCK_SIZE - 1.2, BLOCK_SIZE - 1.2);
+        }
+
+        if (block?.status === "RESERVED") {
+          ctx.strokeStyle = "rgba(245,158,11,0.92)";
+          ctx.lineWidth = camera.scale > 2 ? 1.1 : 0.7;
+          ctx.strokeRect(px + 1, py + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
+          if (camera.scale > 2.4) {
+            ctx.fillStyle = "rgba(120,53,15,0.95)";
+            ctx.font = "bold 7px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("RES", px + BLOCK_SIZE / 2, py + BLOCK_SIZE / 2);
+          }
         }
 
         if (isSelected(x, y)) {
@@ -1072,6 +1108,7 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
         const publicLink = selectedSheet.block.placement?.redirectUrl && !selectedSheet.block.placement.linkDisabled
           ? normalizeExternalUrl(selectedSheet.block.placement.redirectUrl)
           : "";
+        const reservedRemaining = getRemainingSeconds(selectedSheet.block.reservedUntil) + clockTick * 0;
         const anchor = getCellScreenAnchor(selectedSheet.gridX, selectedSheet.gridY) || { x: window.innerWidth / 2, y: window.innerHeight / 2 };
         const bubblePosition = getBubblePosition(anchor.x, anchor.y);
 
@@ -1101,12 +1138,17 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
               </div>
               <div className="min-w-0">
                 <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-black uppercase ${bubbleTheme.badge}`}>{bubbleTheme.label}</span>
-                <h2 className="mt-2 truncate text-lg font-black leading-tight text-slate-950">{getDisplayName(selectedSheet.block)}</h2>
+                <h2 className="mt-2 truncate text-lg font-black leading-tight text-slate-950">{selectedSheet.block.status === "RESERVED" ? "Reservado" : getDisplayName(selectedSheet.block)}</h2>
                 <p className="mt-1 text-[11px] font-bold text-slate-500">{getAreaName(selectedSheet.block.category)}</p>
+                {selectedSheet.block.status === "RESERVED" && <p className="mt-1 text-[11px] font-black text-amber-700">Tempo: {formatMapTimer(reservedRemaining)}</p>}
               </div>
             </div>
 
-            {isWaitingPersonalization ? (
+            {selectedSheet.block.status === "RESERVED" ? (
+              <p className="mt-3 rounded-2xl bg-amber-50 p-3 text-xs font-bold leading-relaxed text-amber-800">
+                Este espaço está reservado por poucos minutos.
+              </p>
+            ) : isWaitingPersonalization ? (
               <p className="mt-3 rounded-2xl bg-white/70 p-3 text-xs font-bold leading-relaxed text-slate-600">
                 Espaço comprado. Aguardando personalização do comprador.
               </p>
