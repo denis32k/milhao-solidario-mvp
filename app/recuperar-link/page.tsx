@@ -64,9 +64,26 @@ function hitRecoveryRateLimit(key: string) {
   return current.count > RECOVERY_MAX_ATTEMPTS;
 }
 
-function genericErrorRedirect(email?: string) {
-  const safeEmail = email ? `&email=${encodeURIComponent(email)}` : "";
-  redirect(`/recuperar-link?error=validacao${safeEmail}`);
+function cpfMatches(transaction: any, cpfLast4: string) {
+  const candidates = [
+    transaction.checkoutCpfLast4,
+    transaction.user?.cpfLast4,
+  ];
+
+  return candidates.some((value) => onlyDigits(String(value || "")).slice(-4) === cpfLast4);
+}
+
+function whatsappMatches(transaction: any, whatsappDigits: string) {
+  const typedTail = whatsappDigits.slice(-8);
+  const storedValues = [
+    transaction.checkoutWhatsapp,
+    transaction.user?.whatsapp,
+  ].map((value) => onlyDigits(String(value || ""))).filter(Boolean);
+
+  return storedValues.some((stored) => {
+    const storedTail = stored.slice(-8);
+    return storedTail.length >= 8 && (storedTail === typedTail || stored.endsWith(typedTail) || whatsappDigits.endsWith(storedTail));
+  });
 }
 
 async function recoverManagementLink(formData: FormData) {
@@ -75,9 +92,8 @@ async function recoverManagementLink(formData: FormData) {
   const email = cleanEmail(formData.get("email"));
   const cpfLast4 = onlyDigits(String(formData.get("cpfLast4") || "")).slice(-4);
   const whatsappDigits = onlyDigits(String(formData.get("whatsapp") || ""));
-  const whatsappTail = whatsappDigits.slice(-8);
 
-  if (!email || cpfLast4.length !== 4 || whatsappTail.length < 8) {
+  if (!email || cpfLast4.length !== 4 || whatsappDigits.length < 8) {
     redirect(`/recuperar-link?error=dados&email=${encodeURIComponent(email)}`);
   }
 
@@ -87,22 +103,20 @@ async function recoverManagementLink(formData: FormData) {
     redirect(`/recuperar-link?error=muitas&email=${encodeURIComponent(email)}`);
   }
 
-  const transaction = await (prisma as any).transaction.findFirst({
+  const candidates = await (prisma as any).transaction.findMany({
     where: {
       user: { email },
       status: { in: ["APPROVED", "PENDING"] },
-      checkoutCpfLast4: cpfLast4,
-      OR: [
-        { checkoutWhatsapp: { contains: whatsappTail } },
-        { user: { whatsapp: { contains: whatsappTail } } },
-      ],
     },
     orderBy: { createdAt: "desc" },
+    take: 20,
     include: { user: true },
   });
 
+  const transaction = candidates.find((item: any) => cpfMatches(item, cpfLast4) && whatsappMatches(item, whatsappDigits));
+
   if (!transaction) {
-    genericErrorRedirect(email);
+    redirect(`/recuperar-link?error=validacao&email=${encodeURIComponent(email)}`);
   }
 
   const token = createManagementToken();
@@ -139,10 +153,10 @@ async function recoverManagementLink(formData: FormData) {
       customerId: transaction.userId,
       category: "CUSTOMER_LINK_RECOVERY",
       note: emailDelivery.ok
-        ? `Área do Cliente: link seguro recuperado com e-mail + CPF final + WhatsApp. E-mail reenviado. IP: ${ip}`
+        ? `Área do Cliente: acesso recuperado com validação completa (e-mail + CPF final + WhatsApp). E-mail enviado. IP: ${ip}`
         : providerConfigured
-          ? `Área do Cliente: dados validados, mas o e-mail do link falhou. Link não exibido por segurança e token anterior foi preservado/restaurado. Motivo: ${emailDelivery.message || "erro no provedor"}. IP: ${ip}`
-          : `Área do Cliente: link seguro recuperado com e-mail + CPF final + WhatsApp. Link exibido na tela porque RESEND_API_KEY não está configurada. IP: ${ip}`,
+          ? `Área do Cliente: dados validados, mas o e-mail do acesso falhou. Link não exibido por segurança e token anterior foi preservado/restaurado. Motivo: ${emailDelivery.message || "erro no provedor"}. IP: ${ip}`
+          : `Área do Cliente: acesso recuperado com validação completa (e-mail + CPF final + WhatsApp). Link exibido na tela porque RESEND_API_KEY não está configurada. IP: ${ip}`,
     },
   }).catch(() => null);
 
@@ -166,55 +180,74 @@ export default async function RecoverLinkPage({ searchParams }: { searchParams: 
   const sent = params.sent === "1";
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8">
-      <div className="mx-auto max-w-lg">
-        <Link href="/" className="inline-flex h-9 items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm">← Voltar ao mural</Link>
+    <main className="min-h-screen bg-[#f6f7fb] px-4 py-8">
+      <div className="mx-auto max-w-xl">
+        <Link href="/" className="inline-flex h-9 items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm">← Voltar ao Mural29</Link>
 
-        <section className="mt-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-wide text-orange-500">Mural29</p>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">Área do Cliente</h1>
-          <p className="mt-2 text-sm leading-relaxed text-slate-500">Acesse sua compra com segurança para acompanhar o pagamento, personalizar seu bloco ou recuperar seu link seguro.</p>
+        <section className="mt-5 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 bg-white px-5 py-5">
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-orange-500">Acesso seguro</p>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Área do Cliente</h1>
+            <p className="mt-2 text-sm leading-relaxed text-slate-500">
+              Consulte sua compra, acompanhe o pagamento e acesse a personalização do seu espaço no Mural29 com segurança.
+            </p>
+          </div>
 
-          {error === "dados" && <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">Informe os 3 dados usados no checkout: e-mail, 4 últimos dígitos do CPF e WhatsApp.</div>}
-          {error === "validacao" && <div className="mt-4 rounded-2xl border border-yellow-200 bg-yellow-50 p-3 text-sm font-semibold text-yellow-800">Não foi possível validar esses dados. Confira as informações usadas no checkout e tente novamente.</div>}
-          {error === "muitas" && <div className="mt-4 rounded-2xl border border-yellow-200 bg-yellow-50 p-3 text-sm font-semibold text-yellow-800">Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.</div>}
-          {error === "envio" && <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">Validamos os dados, mas não conseguimos enviar o link agora. Tente novamente em alguns minutos ou fale com o suporte.</div>}
+          <div className="p-5">
+            {error === "dados" && <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">Preencha os três dados usados no checkout: e-mail, CPF final e WhatsApp.</div>}
+            {error === "validacao" && <div className="mb-4 rounded-2xl border border-yellow-200 bg-yellow-50 p-3 text-sm font-medium text-yellow-800">Não conseguimos validar uma compra com os dados informados. Revise as informações e tente novamente.</div>}
+            {error === "muitas" && <div className="mb-4 rounded-2xl border border-yellow-200 bg-yellow-50 p-3 text-sm font-medium text-yellow-800">Por segurança, bloqueamos novas tentativas por alguns minutos. Tente novamente mais tarde.</div>}
+            {error === "envio" && <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">Validamos os dados, mas não foi possível enviar o acesso agora. Tente novamente em alguns minutos ou fale com o suporte.</div>}
 
-          {ok && sent ? (
-            <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Acesso enviado</p>
-              <h2 className="mt-1 text-lg font-bold text-emerald-950">Enviamos seu link seguro</h2>
-              <p className="mt-2 text-sm leading-relaxed text-emerald-800">O link da sua Área do Cliente foi enviado para {email || "o e-mail usado na compra"}. Confira também a caixa de spam ou promoções.</p>
-              <Link href="/" className="mt-4 flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white">Voltar ao mural</Link>
-            </div>
-          ) : link ? (
-            <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Link validado</p>
-              <h2 className="mt-1 text-lg font-bold text-emerald-950">Seu novo link seguro foi gerado</h2>
-              <p className="mt-2 text-sm leading-relaxed text-emerald-800">Copie e guarde este link. Quando o envio de e-mail estiver configurado, por segurança o link será enviado somente para o e-mail da compra.</p>
-              <div className="mt-3 rounded-xl border border-emerald-200 bg-white p-3 text-xs font-semibold break-all text-emerald-950">{link}</div>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2"><CopyTextButton text={link} label="Copiar link" copiedLabel="Copiado" /><a href={link} className="flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white">Abrir Área do Cliente</a></div>
-            </div>
-          ) : (
-            <form action={recoverManagementLink} className="mt-5 space-y-3">
-              <label className="block">
-                <span className="text-xs font-semibold text-slate-600">E-mail usado na compra</span>
-                <input name="email" type="email" required defaultValue={email} placeholder="voce@email.com" className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium outline-none focus:border-slate-950" />
-              </label>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block">
-                  <span className="text-xs font-semibold text-slate-600">4 últimos dígitos do CPF</span>
-                  <input name="cpfLast4" inputMode="numeric" maxLength={4} required placeholder="0000" className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium outline-none focus:border-slate-950" />
-                </label>
-                <label className="block">
-                  <span className="text-xs font-semibold text-slate-600">WhatsApp usado na compra</span>
-                  <input name="whatsapp" inputMode="tel" required placeholder="(35) 99999-9999" className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium outline-none focus:border-slate-950" />
-                </label>
+            {ok && sent ? (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Acesso enviado</p>
+                <h2 className="mt-1 text-lg font-semibold text-emerald-950">Enviamos seu link seguro</h2>
+                <p className="mt-2 text-sm leading-relaxed text-emerald-800">
+                  O acesso à sua Área do Cliente foi enviado para {email || "o e-mail usado na compra"}. Confira também a caixa de spam ou promoções.
+                </p>
+                <Link href="/" className="mt-4 flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white">Voltar ao mural</Link>
               </div>
-              <div className="rounded-2xl border border-blue-100 bg-blue-50 p-3 text-xs font-semibold leading-relaxed text-blue-800">Para sua segurança, exigimos os três dados informados no checkout. Não exibimos se um e-mail existe ou não.</div>
-              <button className="flex h-12 w-full items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-bold text-white">Acessar Área do Cliente</button>
-            </form>
-          )}
+            ) : link ? (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Acesso validado</p>
+                <h2 className="mt-1 text-lg font-semibold text-emerald-950">Seu link seguro foi gerado</h2>
+                <p className="mt-2 text-sm leading-relaxed text-emerald-800">
+                  Copie e guarde este link. Quando o envio de e-mail estiver configurado, por segurança o acesso será enviado somente para o e-mail da compra.
+                </p>
+                <div className="mt-3 rounded-xl border border-emerald-200 bg-white p-3 text-xs font-medium break-all text-emerald-950">{link}</div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2"><CopyTextButton text={link} label="Copiar link" copiedLabel="Copiado" /><a href={link} className="flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white">Abrir Área do Cliente</a></div>
+              </div>
+            ) : (
+              <form action={recoverManagementLink} className="space-y-3">
+                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-3 text-xs font-medium leading-relaxed text-blue-800">
+                  Para proteger sua compra, validamos os três dados informados no checkout. Não exibimos quais dados estão corretos ou incorretos.
+                </div>
+
+                <label className="block">
+                  <span className="text-xs font-semibold text-slate-600">E-mail usado na compra</span>
+                  <input name="email" type="email" required defaultValue={email} placeholder="voce@email.com" className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium outline-none focus:border-slate-950" />
+                </label>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-xs font-semibold text-slate-600">4 últimos dígitos do CPF</span>
+                    <input name="cpfLast4" inputMode="numeric" maxLength={4} required placeholder="0000" className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium outline-none focus:border-slate-950" />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-semibold text-slate-600">WhatsApp usado na compra</span>
+                    <input name="whatsapp" inputMode="tel" required placeholder="(35) 99999-9999" className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium outline-none focus:border-slate-950" />
+                  </label>
+                </div>
+
+                <button className="flex h-12 w-full items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white">Continuar com segurança</button>
+
+                <p className="text-center text-xs leading-relaxed text-slate-500">
+                  O acesso é liberado apenas quando os dados conferem com uma compra pendente ou aprovada.
+                </p>
+              </form>
+            )}
+          </div>
         </section>
       </div>
     </main>
