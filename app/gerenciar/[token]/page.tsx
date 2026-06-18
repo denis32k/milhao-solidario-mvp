@@ -49,7 +49,28 @@ function editStatusLabel(status: string | null | undefined) {
   if (status === "PENDING") return "Em análise";
   if (status === "APPROVED") return "Aprovada";
   if (status === "REJECTED") return "Rejeitada";
-  return status || "Pendente";
+  return "Em análise";
+}
+
+function summarizeCoordinates(items: any[]) {
+  if (!items.length) return "Coordenadas indisponíveis";
+  const xs = items.map((item: any) => Number(item.gridX)).filter(Number.isFinite);
+  const ys = items.map((item: any) => Number(item.gridY)).filter(Number.isFinite);
+  if (!xs.length || !ys.length) return "Coordenadas indisponíveis";
+
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+
+  if (minX === maxX && minY === maxY) return `X:${minX} · Y:${minY}`;
+  return `X:${minX}-${maxX} · Y:${minY}-${maxY}`;
+}
+
+function timelineTone(done: boolean, current = false) {
+  if (done) return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  if (current) return "border-amber-200 bg-amber-50 text-amber-800";
+  return "border-slate-200 bg-slate-50 text-slate-500";
 }
 
 function getDefaultFillColor(kind: string) {
@@ -419,123 +440,192 @@ export default async function ManageOrderPage({ params, searchParams }: ManagePa
   );
 
   const items = (transaction as any).items || [];
-  const coordinates = items.slice(0, 14).map((item: any) => `x${item.gridX}/y${item.gridY}`).join(" • ");
-  const extra = items.length > 14 ? ` +${items.length - 14}` : "";
+  const areaName = getAreaName((transaction as any).kind);
+  const coordinateSummary = summarizeCoordinates(items);
   const displayName = placement?.displayName || placement?.title || "Espaço comprado";
   const isWaitingPersonalization = displayName === "Espaço comprado";
+  const status = String((transaction as any).status || "");
+  const isPendingPayment = status === "PENDING";
+  const isPaymentConfirmed = status === "APPROVED";
+  const isPublished = Boolean(placement && !isWaitingPersonalization && isPaymentConfirmed);
+  const firstBlockId = placement?.blocks?.[0]?.id || items?.[0]?.blockId || null;
+  const publicBlockHref = firstBlockId ? `/bloco/${firstBlockId}` : "/";
+  const purchaseTitle = `Seu espaço — ${areaName} — ${coordinateSummary}`;
   const appUrl = String(process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "").replace(/\/$/, "");
   const managementUrl = getManagementUrl(token, appUrl || null);
+  const timelineSteps = [
+    { title: "Compra criada", description: dateTime((transaction as any).createdAt), done: true },
+    { title: "PIX gerado", description: "Pagamento criado com segurança", done: Boolean((transaction as any).mpPaymentId || (transaction as any).pixCopyPaste) },
+    { title: "Pagamento confirmado", description: isPaymentConfirmed ? dateTime((transaction as any).approvedAt) : "Aguardando confirmação", done: isPaymentConfirmed, current: isPendingPayment },
+    { title: "Personalização recebida", description: isWaitingPersonalization ? "Envie nome, link e imagem abaixo" : "Conteúdo recebido", done: !isWaitingPersonalization && isPaymentConfirmed, current: isPaymentConfirmed && isWaitingPersonalization },
+    { title: "Publicado no mural", description: isPublished ? "Seu espaço já está disponível" : "Será publicado após a personalização", done: isPublished },
+  ];
+
 
   return (
-    <main className="min-h-screen bg-transparent px-4 py-6">
-      <div className="mx-auto max-w-5xl">
-        <Link href="/" className="pixel-btn pixel-btn--light mb-5 !rounded-2xl !px-4 !py-2 !text-sm">← Voltar ao mural</Link>
+    <main className="saas-page px-4 py-6">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <Link href="/" className="saas-button-secondary">← Voltar ao mural</Link>
+          <Link href="/recuperar-link" className="saas-button-secondary">Área do Cliente</Link>
+        </div>
 
-        <section className="rounded-[2rem] border-2 border-slate-950 bg-[linear-gradient(135deg,#0f172a,#1e293b_55%,#f97316)] p-5 text-white shadow-xl">
-          <p className="text-xs font-black uppercase tracking-wide text-yellow-300">Área do comprador</p>
-          <h1 className="mt-2 text-3xl font-black">Gerencie seu espaço no Mural29</h1>
-          <p className="mt-2 max-w-3xl text-sm font-bold leading-relaxed text-slate-300">Aqui você acompanha o pedido e, se fechar o checkout sem querer, consegue personalizar seu espaço depois do pagamento aprovado.</p>
-        </section>
-
-        {sent && <div className="mt-5 rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-black text-emerald-800">Solicitação enviada. O conteúdo atual continua no mural enquanto a nova versão é analisada.</div>}
-        {updated && <div className="mt-5 rounded-3xl border border-blue-200 bg-blue-50 p-4 text-sm font-black text-blue-800">Status do pagamento atualizado. Se já foi aprovado, a personalização fica liberada abaixo.</div>}
-        {errorText && <div className="mt-5 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm font-black text-red-800">{errorText}</div>}
-
-        <section className="mt-5 grid gap-5 lg:grid-cols-[1fr_340px]">
-          <div className="pixel-panel p-5">
-            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Conteúdo atual</p>
-            <div className="mt-4 grid gap-5 md:grid-cols-[180px_1fr]">
-              <div className="flex h-44 w-full items-center justify-center overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 md:w-44">
-                {placement?.imageUrl ? <img src={normalizeImageUrl(placement.imageUrl)} alt={displayName} className="h-full w-full object-cover" /> : <span className="px-5 text-center text-xs font-black text-slate-400">{isWaitingPersonalization ? "Aguardando imagem" : "Sem imagem"}</span>}
-              </div>
+        <section className="saas-card overflow-hidden">
+          <div className="bg-[linear-gradient(135deg,#0f172a,#1e293b_55%,#f97316)] px-5 py-6 text-white sm:px-7">
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-200">Portal do Cliente</p>
+            <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <span className="inline-flex rounded-full bg-slate-950 px-3 py-1 text-[10px] font-black uppercase text-white">{getAreaName((transaction as any).kind)}</span>
-                <h2 className="mt-3 text-2xl font-black text-slate-950">{displayName}</h2>
-                <p className="mt-2 text-sm font-bold leading-relaxed text-slate-600">{isWaitingPersonalization ? "Seu espaço já foi comprado. Publique a primeira personalização abaixo para aparecer bonito no mural." : "Este é o conteúdo que aparece no mural agora."}</p>
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  {placement?.redirectUrl && !placement?.linkDisabled ? <a href={placement.redirectUrl} target="_blank" rel="noopener noreferrer" className="pixel-btn pixel-btn--dark justify-center !rounded-2xl !py-3 !text-xs">Abrir link público</a> : <div className="rounded-2xl bg-slate-100 py-3 text-center text-xs font-black text-slate-500">Sem link público</div>}
-                  {placement?.blocks?.[0]?.id && <Link href={`/bloco/${placement.blocks[0].id}`} className="pixel-btn pixel-btn--light justify-center !rounded-2xl !py-3 !text-xs">Ver página pública</Link>}
-                </div>
+                <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Gerencie sua compra no Mural29</h1>
+                <p className="mt-2 max-w-3xl text-sm font-semibold leading-relaxed text-slate-200">Acompanhe o pagamento, personalize seu espaço, solicite alterações e volte ao seu bloco sempre que precisar.</p>
               </div>
+              <span className="inline-flex w-fit rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-black backdrop-blur">{statusLabel(status)}</span>
             </div>
           </div>
 
-          <aside className="pixel-panel p-5">
-            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Resumo do pedido</p>
-            <div className="mt-4 space-y-3 text-sm font-bold text-slate-600">
-              <div className="flex justify-between gap-3"><span>Status</span><strong className="text-right text-slate-950">{statusLabel((transaction as any).status)}</strong></div>
-              <div className="flex justify-between gap-3"><span>Valor</span><strong className="text-slate-950">{money((transaction as any).totalPaidCents)}</strong></div>
-              <div className="flex justify-between gap-3"><span>Tijolinhos</span><strong className="text-slate-950">{items.length}</strong></div>
-              <div className="flex justify-between gap-3"><span>Criado</span><strong className="text-right text-slate-950">{dateTime((transaction as any).createdAt)}</strong></div>
-              <div className="flex justify-between gap-3"><span>Aprovado</span><strong className="text-right text-slate-950">{dateTime((transaction as any).approvedAt)}</strong></div>
+          <div className="grid gap-5 p-5 lg:grid-cols-[1fr_360px]">
+            <section className="saas-card-soft p-5">
+              <p className="saas-kicker">Resumo da compra</p>
+              <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-950">{purchaseTitle}</h2>
+              <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-500">
+                {isPublished
+                  ? "Seu espaço está publicado no mural. Você pode abrir a página pública, copiar seu acesso ou solicitar uma alteração."
+                  : isPaymentConfirmed
+                    ? "Pagamento confirmado. Complete a personalização para publicar seu espaço no mural."
+                    : "Aguardando confirmação do pagamento para liberar a personalização."}
+              </p>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Bairro</p>
+                  <p className="mt-1 text-sm font-black text-slate-950">{areaName}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Coordenadas</p>
+                  <p className="mt-1 text-sm font-black text-slate-950">{coordinateSummary}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Blocos</p>
+                  <p className="mt-1 text-sm font-black text-slate-950">{items.length}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Valor</p>
+                  <p className="mt-1 text-sm font-black text-slate-950">{money((transaction as any).totalPaidCents)}</p>
+                </div>
+              </div>
+            </section>
+
+            <aside className="saas-card-soft p-5">
+              <p className="saas-kicker">Ações rápidas</p>
+              <div className="mt-4 grid gap-2">
+                <Link href={publicBlockHref} className="saas-button-primary">Ver meu espaço no mural</Link>
+                <CopyTextButton text={managementUrl} label="Copiar meu acesso" copiedLabel="Acesso copiado" />
+                <Link href={managementUrl} className="saas-button-secondary">Abrir este acesso</Link>
+              </div>
+              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs font-semibold leading-relaxed text-slate-500">Guarde este acesso. Ele permite voltar para acompanhar a compra, personalizar ou solicitar alterações.</div>
+            </aside>
+          </div>
+        </section>
+
+        {sent && <div className="mt-5 rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-800">Solicitação enviada. O conteúdo atual continua no mural enquanto a nova versão é analisada.</div>}
+        {updated && <div className="mt-5 rounded-3xl border border-blue-200 bg-blue-50 p-4 text-sm font-bold text-blue-800">Pagamento atualizado. Quando confirmado, a personalização fica liberada automaticamente.</div>}
+        {errorText && <div className="mt-5 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-800">{errorText}</div>}
+
+        <section className="mt-5 grid gap-5 lg:grid-cols-[1fr_380px]">
+          <section className="saas-card-soft p-5">
+            <p className="saas-kicker">Conteúdo atual</p>
+            <div className="mt-4 grid gap-5 md:grid-cols-[190px_1fr]">
+              <div className="flex h-48 w-full items-center justify-center overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 md:w-48">
+                {placement?.imageUrl ? <img src={normalizeImageUrl(placement.imageUrl)} alt={displayName} className="h-full w-full object-cover" /> : <span className="px-5 text-center text-xs font-bold text-slate-400">{isWaitingPersonalization ? "Aguardando imagem" : "Sem imagem"}</span>}
+              </div>
+              <div>
+                <span className="saas-status">{areaName}</span>
+                <h2 className="mt-3 text-2xl font-black text-slate-950">{displayName}</h2>
+                <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-500">{isWaitingPersonalization ? "Sua compra está confirmada. Envie a primeira personalização para aparecer no mural." : "Este é o conteúdo publicado atualmente no mural."}</p>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {placement?.redirectUrl && !placement?.linkDisabled ? <a href={placement.redirectUrl} target="_blank" rel="noopener noreferrer" className="saas-button-primary">Abrir link público</a> : <div className="saas-button-secondary text-slate-500">Sem link público</div>}
+                  {firstBlockId && <Link href={publicBlockHref} className="saas-button-secondary">Ver página pública</Link>}
+                </div>
+              </div>
             </div>
-            <p className="mt-4 rounded-2xl bg-slate-50 p-3 text-xs font-bold leading-relaxed text-slate-500">{coordinates}{extra}</p>
-            <div className="mt-3 grid gap-2">
-              <CopyTextButton text={managementUrl} label="Copiar link seguro" copiedLabel="Link copiado" />
-              <Link href={managementUrl} className="flex h-11 items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-bold text-white shadow-sm">Abrir este link</Link>
+          </section>
+
+          <aside className="saas-card-soft p-5">
+            <p className="saas-kicker">Linha do tempo</p>
+            <div className="mt-4 space-y-3">
+              {timelineSteps.map((step, index) => (
+                <div key={step.title} className={`rounded-2xl border p-3 ${timelineTone(step.done, step.current)}`}>
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-black shadow-sm">{step.done ? "✓" : index + 1}</span>
+                    <div>
+                      <p className="text-sm font-black">{step.title}</p>
+                      <p className="mt-0.5 text-xs font-semibold opacity-80">{step.description}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </aside>
         </section>
 
-        {(transaction as any).status === "PENDING" && (
-          <section className="pixel-panel mt-5 p-5">
-            <p className="text-xs font-black uppercase tracking-wide text-yellow-600">Pagamento pendente</p>
+        {isPendingPayment && (
+          <section className="saas-card-soft mt-5 p-5">
+            <p className="saas-kicker">Pagamento</p>
             <h2 className="mt-1 text-xl font-black text-slate-950">Já pagou o PIX?</h2>
-            <p className="mt-2 text-sm font-bold leading-relaxed text-slate-500">Se você saiu do checkout, toque abaixo para atualizar o status. Quando o pagamento for aprovado, a personalização será liberada aqui.</p>
+            <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-500">Atualize a compra para confirmar o pagamento. Assim que o Mercado Pago confirmar, a personalização será liberada.</p>
             <form action={refreshPaymentStatus} className="mt-4">
               <input type="hidden" name="token" value={token} />
-              <button className="pixel-btn pixel-btn--green w-full !rounded-2xl !py-4 !text-sm">Atualizar pagamento</button>
+              <button className="saas-button-success w-full">Atualizar pagamento</button>
             </form>
           </section>
         )}
 
-        {isWaitingPersonalization && (transaction as any).status === "APPROVED" ? (
-          <section className="pixel-panel mt-5 p-5">
-            <p className="text-xs font-black uppercase tracking-wide text-emerald-600">Primeira personalização</p>
+        {isWaitingPersonalization && isPaymentConfirmed ? (
+          <section className="saas-card-soft mt-5 p-5">
+            <p className="saas-kicker">Primeira personalização</p>
             <h2 className="mt-1 text-xl font-black text-slate-950">Publicar meu espaço no mural</h2>
-            <p className="mt-2 text-sm font-bold leading-relaxed text-slate-500">Use este formulário caso tenha pago e fechado a tela do checkout. Ao salvar, você vai direto para o mural mostrando o espaço comprado.</p>
+            <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-500">Envie o nome público, link e imagem. Depois de salvar, você poderá abrir seu espaço no mural.</p>
 
             <form action={publishInitialPersonalization} className="mt-5 grid gap-4 lg:grid-cols-2">
               <input type="hidden" name="token" value={token} />
-              <label className="block"><span className="text-xs font-black uppercase tracking-wide text-slate-500">Nome público</span><input name="displayName" placeholder="Nome que aparece no mural" className="pixel-input mt-2" required /></label>
-              <label className="block"><span className="text-xs font-black uppercase tracking-wide text-slate-500">Link público</span><input name="redirectUrl" placeholder="https://instagram.com/meuusuario" className="pixel-input mt-2" /></label>
-              <label className="block lg:col-span-2"><span className="text-xs font-black uppercase tracking-wide text-slate-500">Imagem do mural</span><input name="image" type="file" accept="image/png,image/jpeg,image/webp" className="pixel-input mt-2 bg-white" /></label>
-              <button className="pixel-btn pixel-btn--green w-full !rounded-2xl !py-4 !text-sm lg:col-span-2">Salvar e abrir no mural</button>
+              <label className="block"><span className="text-xs font-bold text-slate-600">Nome público</span><input name="displayName" placeholder="Nome que aparece no mural" className="saas-input mt-2" required /></label>
+              <label className="block"><span className="text-xs font-bold text-slate-600">Link público</span><input name="redirectUrl" placeholder="https://instagram.com/meuusuario" className="saas-input mt-2" /></label>
+              <label className="block lg:col-span-2"><span className="text-xs font-bold text-slate-600">Imagem do mural</span><input name="image" type="file" accept="image/png,image/jpeg,image/webp" className="saas-input mt-2 py-3" /></label>
+              <button className="saas-button-success w-full lg:col-span-2">Salvar e abrir no mural</button>
             </form>
           </section>
         ) : (
-          (transaction as any).status !== "PENDING" && (
-          <section className="pixel-panel mt-5 p-5">
-            <p className="text-xs font-black uppercase tracking-wide text-orange-600">Solicitar alteração</p>
-            <h2 className="mt-1 text-xl font-black text-slate-950">Trocar nome, link ou imagem</h2>
-            <p className="mt-2 text-sm font-bold leading-relaxed text-slate-500">Edições futuras precisam de motivo e aprovação do admin. O conteúdo atual continua publicado até a aprovação.</p>
+          !isPendingPayment && (
+          <section className="saas-card-soft mt-5 p-5">
+            <p className="saas-kicker">Solicitar alteração</p>
+            <h2 className="mt-1 text-xl font-black text-slate-950">Alterar nome, link ou imagem</h2>
+            <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-500">Seu conteúdo atual continua publicado enquanto a nova versão é analisada pela administração.</p>
 
             <form action={requestEdit} className="mt-5 grid gap-4 lg:grid-cols-2">
               <input type="hidden" name="token" value={token} />
-              <label className="block"><span className="text-xs font-black uppercase tracking-wide text-slate-500">Novo nome público</span><input name="displayName" placeholder="Nome que aparece no mural" className="pixel-input mt-2" /></label>
-              <label className="block"><span className="text-xs font-black uppercase tracking-wide text-slate-500">Novo link público</span><input name="redirectUrl" placeholder="https://instagram.com/meuusuario" className="pixel-input mt-2" /></label>
-              <label className="block lg:col-span-2"><span className="text-xs font-black uppercase tracking-wide text-slate-500">Nova imagem</span><input name="image" type="file" accept="image/png,image/jpeg,image/webp" className="pixel-input mt-2 bg-white" /></label>
-              <label className="block lg:col-span-2"><span className="text-xs font-black uppercase tracking-wide text-slate-500">Motivo da alteração</span><textarea name="reason" rows={4} placeholder="Explique rapidamente por que deseja alterar o conteúdo" className="pixel-input mt-2 min-h-[120px] resize-none" required /></label>
-              <button className="pixel-btn pixel-btn--green w-full !rounded-2xl !py-4 !text-sm lg:col-span-2">Enviar para análise</button>
+              <label className="block"><span className="text-xs font-bold text-slate-600">Novo nome público</span><input name="displayName" placeholder="Nome que aparece no mural" className="saas-input mt-2" /></label>
+              <label className="block"><span className="text-xs font-bold text-slate-600">Novo link público</span><input name="redirectUrl" placeholder="https://instagram.com/meuusuario" className="saas-input mt-2" /></label>
+              <label className="block lg:col-span-2"><span className="text-xs font-bold text-slate-600">Nova imagem</span><input name="image" type="file" accept="image/png,image/jpeg,image/webp" className="saas-input mt-2 py-3" /></label>
+              <label className="block lg:col-span-2"><span className="text-xs font-bold text-slate-600">Motivo da alteração</span><textarea name="reason" rows={4} placeholder="Explique rapidamente por que deseja alterar o conteúdo" className="saas-input mt-2 min-h-[120px] resize-none py-3" required /></label>
+              <button className="saas-button-success w-full lg:col-span-2">Enviar para análise</button>
             </form>
           </section>
           )
         )}
 
-        <section className="pixel-panel mt-5 p-5">
-          <p className="text-xs font-black uppercase tracking-wide text-slate-500">Histórico de alterações</p>
+        <section className="saas-card-soft mt-5 p-5">
+          <p className="saas-kicker">Histórico de alterações</p>
           <div className="mt-4 space-y-3">
-            {(editRequests as any[]).length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma alteração solicitada ainda.</p>}
+            {(editRequests as any[]).length === 0 && <p className="text-sm font-semibold text-slate-500">Nenhuma alteração solicitada ainda.</p>}
             {(editRequests as any[]).map((request: any) => (
-              <article key={request.id} className="rounded-2xl bg-slate-50 p-3">
-                <p className="text-xs font-black uppercase text-slate-500">{editStatusLabel(request.status)} • {dateTime(request.createdAt)}</p>
-                <p className="mt-1 text-sm font-bold text-slate-700">{request.reason}</p>
-                <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-black uppercase text-slate-500">
+              <article key={request.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-bold text-slate-500">{editStatusLabel(request.status)} • {dateTime(request.createdAt)}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-700">{request.reason}</p>
+                <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold text-slate-500">
                   {request.requestedDisplayName && <span className="rounded-full bg-white px-2 py-1">Nome</span>}
                   {request.requestedRedirectUrl && <span className="rounded-full bg-white px-2 py-1">Link</span>}
                   {request.requestedImageUrl && <span className="rounded-full bg-white px-2 py-1">Imagem</span>}
                 </div>
-                {request.adminNote && <p className="mt-2 text-xs font-bold text-slate-500">Resposta admin: {request.adminNote}</p>}
+                {request.adminNote && <p className="mt-2 text-xs font-semibold text-slate-500">Resposta do suporte: {request.adminNote}</p>}
               </article>
             ))}
           </div>
@@ -543,4 +633,5 @@ export default async function ManageOrderPage({ params, searchParams }: ManagePa
       </div>
     </main>
   );
+
 }
