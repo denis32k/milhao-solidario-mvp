@@ -78,6 +78,9 @@ export async function sendCustomerAreaLinksEmail({
   links: Array<{
     managementUrl: string;
     transactionId: string;
+    purchaseLabel?: string | null;
+    areaName?: string | null;
+    coordinates?: string | null;
     status?: string | null;
     createdAt?: Date | string | null;
     totalPaidCents?: number | null;
@@ -108,13 +111,14 @@ export async function sendCustomerAreaLinksEmail({
   };
 
   const textItems = safeLinks.map((item, index) => {
-    return `${index + 1}. Pedido ${item.transactionId}\nStatus: ${item.status || "—"}\nData: ${dateText(item.createdAt)}\nValor: ${money(item.totalPaidCents)}\nLink: ${item.managementUrl}`;
+    return `${index + 1}. ${item.purchaseLabel || `Compra #${index + 1}`}\nPedido: ${item.transactionId}\nStatus: ${item.status || "—"}\nData: ${dateText(item.createdAt)}\nValor: ${money(item.totalPaidCents)}\nLink: ${item.managementUrl}`;
   }).join("\n\n");
 
   const htmlItems = safeLinks.map((item, index) => `
     <div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px;margin:12px 0;background:#ffffff">
       <p style="margin:0 0 6px;font-size:12px;color:#6b7280;font-weight:bold;text-transform:uppercase">Compra ${index + 1}</p>
-      <p style="margin:0 0 4px;font-size:14px;color:#111827"><strong>Pedido:</strong> ${item.transactionId}</p>
+      <p style="margin:0 0 4px;font-size:16px;color:#111827"><strong>${item.purchaseLabel || `Compra #${index + 1}`}</strong></p>
+      <p style="margin:0 0 4px;font-size:13px;color:#374151"><strong>Pedido:</strong> ${item.transactionId}</p>
       <p style="margin:0 0 4px;font-size:13px;color:#374151"><strong>Status:</strong> ${item.status || "—"}</p>
       <p style="margin:0 0 4px;font-size:13px;color:#374151"><strong>Data:</strong> ${dateText(item.createdAt)}</p>
       <p style="margin:0 0 12px;font-size:13px;color:#374151"><strong>Valor:</strong> ${money(item.totalPaidCents)}</p>

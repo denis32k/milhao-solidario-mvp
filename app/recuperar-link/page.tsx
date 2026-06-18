@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { createManagementToken, getManagementUrl, hashManagementToken } from "@/lib/customer-access";
 import { sendCustomerAreaLinksEmail } from "@/lib/customer-notifications";
+import { getAreaName, type AreaKey } from "@/lib/site-config";
 import CopyTextButton from "@/components/CopyTextButton";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +22,10 @@ type RecoveredLink = {
   createdAt: string;
   totalPaidCents: number;
   managementUrl: string;
+  purchaseLabel: string;
+  areaName: string;
+  coordinates: string;
+  blockCount: number;
 };
 
 declare global {
@@ -95,6 +100,42 @@ function whatsappMatches(transaction: any, whatsappDigits: string) {
   });
 }
 
+function isAreaKey(value: string): value is AreaKey {
+  return value === "SOLIDARITY" || value === "PREMIUM" || value === "GOLD" || value === "GRAND_CENTER";
+}
+
+function getTransactionAreaName(transaction: any) {
+  const category = String(transaction.items?.[0]?.category || "");
+  return isAreaKey(category) ? getAreaName(category) : "Área do mural";
+}
+
+function getTransactionCoordinates(transaction: any) {
+  const items = Array.isArray(transaction.items) ? transaction.items : [];
+  if (items.length === 0) return "coordenadas indisponíveis";
+
+  const xs = items.map((item: any) => Number(item.gridX)).filter(Number.isFinite);
+  const ys = items.map((item: any) => Number(item.gridY)).filter(Number.isFinite);
+  if (xs.length === 0 || ys.length === 0) return "coordenadas indisponíveis";
+
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+
+  if (minX === maxX && minY === maxY) return `X:${minX} · Y:${minY}`;
+  return `X:${minX}-${maxX} · Y:${minY}-${maxY}`;
+}
+
+function getBlockCount(transaction: any) {
+  return Array.isArray(transaction.items) ? transaction.items.length : 0;
+}
+
+function buildPurchaseLabel(index: number, transaction: any) {
+  const areaName = getTransactionAreaName(transaction);
+  const coordinates = getTransactionCoordinates(transaction);
+  return `Compra #${index + 1} — ${areaName} — ${coordinates}`;
+}
+
 function encodeRecoveredLinks(links: RecoveredLink[]) {
   return Buffer.from(JSON.stringify(links), "utf8").toString("base64url");
 }
@@ -146,7 +187,10 @@ async function recoverManagementLink(formData: FormData) {
     },
     orderBy: { createdAt: "desc" },
     take: 50,
-    include: { user: true },
+    include: {
+      user: true,
+      items: { orderBy: [{ gridY: "asc" }, { gridX: "asc" }] },
+    },
   });
 
   const matches = candidates
@@ -164,7 +208,7 @@ async function recoverManagementLink(formData: FormData) {
     managementTokenCreatedAt: transaction.managementTokenCreatedAt || null,
   }));
 
-  for (const transaction of matches) {
+  for (const [index, transaction] of matches.entries()) {
     const token = createManagementToken();
     await (prisma as any).transaction.update({
       where: { id: transaction.id },
@@ -174,12 +218,19 @@ async function recoverManagementLink(formData: FormData) {
       },
     });
 
+    const areaName = getTransactionAreaName(transaction);
+    const coordinates = getTransactionCoordinates(transaction);
+
     recoveredLinks.push({
       id: transaction.id,
       status: String(transaction.status || "—"),
       createdAt: new Date(transaction.createdAt).toISOString(),
       totalPaidCents: Number(transaction.totalPaidCents || 0),
       managementUrl: getManagementUrl(token, getCleanAppUrl()),
+      purchaseLabel: buildPurchaseLabel(index, transaction),
+      areaName,
+      coordinates,
+      blockCount: getBlockCount(transaction),
     });
   }
 
@@ -190,6 +241,9 @@ async function recoverManagementLink(formData: FormData) {
     links: recoveredLinks.map((item) => ({
       managementUrl: item.managementUrl,
       transactionId: item.id,
+      purchaseLabel: item.purchaseLabel,
+      areaName: item.areaName,
+      coordinates: item.coordinates,
       status: item.status,
       createdAt: item.createdAt,
       totalPaidCents: item.totalPaidCents,
@@ -215,10 +269,10 @@ async function recoverManagementLink(formData: FormData) {
         customerId: transaction.userId,
         category: "CUSTOMER_LINK_RECOVERY",
         note: emailDelivery.ok
-          ? `Área do Cliente: acesso recuperado com validação completa. Foram localizadas ${matches.length} compra(s) para os mesmos dados. E-mail enviado com a lista de acessos. IP: ${ip}`
+          ? `Área do Cliente: acesso recuperado com validação completa. Foram localizadas ${matches.length} compra(s), ordenadas da mais recente para a mais antiga. E-mail enviado com bairro e coordenadas. IP: ${ip}`
           : providerConfigured
             ? `Área do Cliente: dados validados, mas o envio da lista de acessos falhou. Links não exibidos por segurança e tokens anteriores foram preservados/restaurados. Motivo: ${emailDelivery.message || "erro no provedor"}. IP: ${ip}`
-            : `Área do Cliente: acesso recuperado com validação completa. Foram localizadas ${matches.length} compra(s). Links exibidos na tela porque RESEND_API_KEY não está configurada. IP: ${ip}`,
+            : `Área do Cliente: acesso recuperado com validação completa. Foram localizadas ${matches.length} compra(s), ordenadas da mais recente para a mais antiga. Links exibidos na tela porque RESEND_API_KEY não está configurada. IP: ${ip}`,
       },
     }).catch(() => null)
   )));
@@ -244,84 +298,88 @@ export default async function RecoverLinkPage({ searchParams }: { searchParams: 
   const count = Number(params.count || recoveredLinks.length || 0);
 
   return (
-    <main className="min-h-screen bg-[#f6f7fb] px-4 py-8">
-      <div className="mx-auto max-w-xl">
-        <Link href="/" className="inline-flex h-9 items-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm">← Voltar ao Mural29</Link>
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#fff7ed_0,#f8fafc_34%,#eef2ff_100%)] px-4 py-8">
+      <div className="mx-auto max-w-2xl">
+        <div className="flex items-center justify-between gap-3">
+          <Link href="/" className="inline-flex h-10 items-center rounded-full border border-slate-200 bg-white/90 px-4 text-xs font-semibold text-slate-700 shadow-sm backdrop-blur">← Voltar ao Mural29</Link>
+          <span className="hidden rounded-full border border-orange-100 bg-orange-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-orange-600 sm:inline-flex">Área do Cliente</span>
+        </div>
 
-        <section className="mt-5 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 bg-white px-5 py-5">
-            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-orange-500">Acesso seguro</p>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Área do Cliente</h1>
-            <p className="mt-2 text-sm leading-relaxed text-slate-500">
-              Consulte suas compras, acompanhe pagamentos e acesse a personalização dos seus espaços no Mural29 com segurança.
+        <section className="mt-5 overflow-hidden rounded-[32px] border border-white/70 bg-white/90 shadow-[0_24px_80px_rgba(15,23,42,0.10)] backdrop-blur">
+          <div className="border-b border-slate-100 bg-white/80 px-6 py-6">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-orange-500">Acesso seguro</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Área do Cliente</h1>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-500">
+              Consulte suas compras, acompanhe pagamentos e acesse a personalização dos seus espaços no Mural29.
             </p>
           </div>
 
-          <div className="p-5">
+          <div className="p-5 sm:p-6">
             {error === "dados" && <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">Preencha os três dados usados no checkout: e-mail, CPF final e WhatsApp.</div>}
             {error === "validacao" && <div className="mb-4 rounded-2xl border border-yellow-200 bg-yellow-50 p-3 text-sm font-medium text-yellow-800">Não conseguimos validar uma compra com os dados informados. Revise as informações e tente novamente.</div>}
             {error === "muitas" && <div className="mb-4 rounded-2xl border border-yellow-200 bg-yellow-50 p-3 text-sm font-medium text-yellow-800">Por segurança, bloqueamos novas tentativas por alguns minutos. Tente novamente mais tarde.</div>}
             {error === "envio" && <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">Validamos os dados, mas não foi possível enviar os acessos agora. Tente novamente em alguns minutos ou fale com o suporte.</div>}
 
             {ok && sent ? (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+              <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5">
                 <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Acesso enviado</p>
-                <h2 className="mt-1 text-lg font-semibold text-emerald-950">{count > 1 ? "Enviamos seus links seguros" : "Enviamos seu link seguro"}</h2>
+                <h2 className="mt-1 text-xl font-semibold text-emerald-950">{count > 1 ? "Enviamos seus links seguros" : "Enviamos seu link seguro"}</h2>
                 <p className="mt-2 text-sm leading-relaxed text-emerald-800">
-                  Encontramos {count || 1} compra(s) vinculada(s) aos dados informados. O acesso foi enviado para {email || "o e-mail usado na compra"}. Confira também a caixa de spam ou promoções.
+                  Encontramos {count || 1} compra(s) vinculada(s) aos dados informados. O acesso foi enviado para {email || "o e-mail usado na compra"}, com as compras em ordem da mais recente para a mais antiga.
                 </p>
                 <Link href="/" className="mt-4 flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white">Voltar ao mural</Link>
               </div>
             ) : recoveredLinks.length > 0 ? (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+              <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-4 sm:p-5">
                 <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Acesso validado</p>
-                <h2 className="mt-1 text-lg font-semibold text-emerald-950">{recoveredLinks.length > 1 ? "Encontramos suas compras" : "Seu link seguro foi gerado"}</h2>
+                <h2 className="mt-1 text-xl font-semibold text-emerald-950">{recoveredLinks.length > 1 ? "Encontramos suas compras" : "Seu link seguro foi gerado"}</h2>
                 <p className="mt-2 text-sm leading-relaxed text-emerald-800">
                   {recoveredLinks.length > 1
-                    ? "Encontramos mais de uma compra com esses dados. Copie ou abra o acesso correspondente."
+                    ? "As compras aparecem da mais recente para a mais antiga. Abra o acesso correspondente ao espaço que deseja gerenciar."
                     : "Copie e guarde este link. Quando o envio de e-mail estiver configurado, o acesso será enviado somente para o e-mail da compra."}
                 </p>
                 <div className="mt-4 space-y-3">
-                  {recoveredLinks.map((item, index) => (
-                    <article key={item.id} className="rounded-2xl border border-emerald-200 bg-white p-3">
-                      <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Compra {index + 1}</p>
-                      <div className="mt-1 grid gap-1 text-xs font-medium text-slate-600 sm:grid-cols-3">
-                        <span>Status: {item.status}</span>
-                        <span>{dateTime(item.createdAt)}</span>
-                        <span>{money(item.totalPaidCents)}</span>
+                  {recoveredLinks.map((item) => (
+                    <article key={item.id} className="rounded-3xl border border-emerald-200 bg-white p-4 shadow-sm">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="text-sm font-bold text-slate-950">{item.purchaseLabel}</p>
+                          <p className="mt-1 text-xs font-medium text-slate-500">{item.blockCount} bloco(s) • {dateTime(item.createdAt)} • {money(item.totalPaidCents)}</p>
+                        </div>
+                        <span className="w-fit rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-600">{item.status}</span>
                       </div>
-                      <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50/60 p-2 text-[11px] font-medium break-all text-emerald-950">{item.managementUrl}</div>
+                      <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-3 text-[11px] font-medium break-all text-emerald-950">{item.managementUrl}</div>
                       <div className="mt-3 grid gap-2 sm:grid-cols-2"><CopyTextButton text={item.managementUrl} label="Copiar link" copiedLabel="Copiado" /><a href={item.managementUrl} className="flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white">Abrir esta compra</a></div>
                     </article>
                   ))}
                 </div>
               </div>
             ) : (
-              <form action={recoverManagementLink} className="space-y-3">
-                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-3 text-xs font-medium leading-relaxed text-blue-800">
+              <form action={recoverManagementLink} className="space-y-4">
+                <div className="rounded-3xl border border-blue-100 bg-blue-50 p-4 text-xs font-medium leading-relaxed text-blue-800">
                   Para proteger sua compra, validamos os três dados informados no checkout. Não exibimos quais dados estão corretos ou incorretos.
                 </div>
 
                 <label className="block">
                   <span className="text-xs font-semibold text-slate-600">E-mail usado na compra</span>
-                  <input name="email" type="email" required defaultValue={email} placeholder="voce@email.com" className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium outline-none focus:border-slate-950" />
+                  <input name="email" type="email" required defaultValue={email} placeholder="voce@email.com" className="mt-1.5 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium shadow-sm outline-none transition focus:border-slate-950" />
                 </label>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
                     <span className="text-xs font-semibold text-slate-600">4 últimos dígitos do CPF</span>
-                    <input name="cpfLast4" inputMode="numeric" maxLength={4} required placeholder="0000" className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium outline-none focus:border-slate-950" />
+                    <input name="cpfLast4" inputMode="numeric" maxLength={4} required placeholder="0000" className="mt-1.5 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium shadow-sm outline-none transition focus:border-slate-950" />
                   </label>
                   <label className="block">
                     <span className="text-xs font-semibold text-slate-600">WhatsApp usado na compra</span>
-                    <input name="whatsapp" inputMode="tel" required placeholder="(35) 99999-9999" className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium outline-none focus:border-slate-950" />
+                    <input name="whatsapp" inputMode="tel" required placeholder="(35) 99999-9999" className="mt-1.5 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium shadow-sm outline-none transition focus:border-slate-950" />
                   </label>
                 </div>
 
-                <button className="flex h-12 w-full items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white">Continuar com segurança</button>
+                <button className="flex h-12 w-full items-center justify-center rounded-2xl bg-slate-950 px-4 text-sm font-semibold text-white shadow-lg shadow-slate-950/10 transition hover:-translate-y-0.5">Continuar com segurança</button>
 
                 <p className="text-center text-xs leading-relaxed text-slate-500">
-                  O acesso é liberado apenas quando os dados conferem com uma compra pendente ou aprovada.
+                  Se houver mais de uma compra com os mesmos dados, mostraremos todas em ordem da mais recente para a mais antiga.
                 </p>
               </form>
             )}
