@@ -8,7 +8,7 @@ import { getAreaName, siteConfig, type AreaKey } from "@/lib/site-config";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminLocked from "@/components/admin/AdminLocked";
 import AdminStatusBadge from "@/components/admin/AdminStatusBadge";
-import { getAdminAccess, muralBlockHref } from "@/lib/admin";
+import { getAdminAccess, muralBlockHref, withAdminSecret } from "@/lib/admin";
 import { getAdminSession } from "@/lib/admin-auth";
 import { validateImageFile } from "@/lib/content-validation";
 
@@ -838,6 +838,80 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
     problematicPaymentsCount > 0 ? `${problematicPaymentsCount} pagamento(s) com status problemático` : null,
   ].filter(Boolean);
 
+  const unreviewedPlacementsList = premiumPlacementsList.filter((placement: any) => placement.reviewStatus === "PUBLISHED_NOT_REVIEWED").slice(0, 4);
+  const openReportsList = reportsList.filter((report: any) => report.status === "OPEN" || report.status === "REVIEWING").slice(0, 4);
+  const pendingTransactionsList = latestTransactionsList.filter((transaction: any) => transaction.status === "PENDING").slice(0, 4);
+  const expiredReservationsList = pendingReservationsList.filter((block: any) => block.reservedUntil && new Date(block.reservedUntil) < now).slice(0, 4);
+
+  const operationCards = [
+    {
+      title: "Pagamentos aguardando",
+      count: pendingPaymentsCount,
+      description: "PIX criados que ainda não confirmaram no sistema.",
+      href: withAdminSecret("/admin/pagamentos?status=PENDING", secret),
+      tone: pendingPaymentsCount ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-800",
+    },
+    {
+      title: "Sem revisão",
+      count: unreviewedContentCount,
+      description: "Conteúdos publicados automaticamente que ainda precisam de conferência.",
+      href: withAdminSecret("/admin/conteudos?review=PUBLISHED_NOT_REVIEWED", secret),
+      tone: unreviewedContentCount ? "border-orange-200 bg-orange-50 text-orange-800" : "border-emerald-200 bg-emerald-50 text-emerald-800",
+    },
+    {
+      title: "Edições pendentes",
+      count: pendingEditRequestsList.length,
+      description: "Solicitações de alteração aguardando aprovação ou recusa.",
+      href: withAdminSecret("/admin/edicoes?status=PENDING", secret),
+      tone: pendingEditRequestsList.length ? "border-blue-200 bg-blue-50 text-blue-800" : "border-emerald-200 bg-emerald-50 text-emerald-800",
+    },
+    {
+      title: "Denúncias abertas",
+      count: openReports,
+      description: "Denúncias públicas que precisam de triagem.",
+      href: withAdminSecret("/admin/denuncias?status=OPEN", secret),
+      tone: openReports ? "border-rose-200 bg-rose-50 text-rose-800" : "border-emerald-200 bg-emerald-50 text-emerald-800",
+    },
+  ];
+
+  const attentionRows = [
+    ...pendingTransactionsList.map((transaction: any) => ({
+      key: `payment-${transaction.id}`,
+      title: "Pagamento aguardando confirmação",
+      description: `${transaction.user?.name || "Cliente"} • ${money(transaction.totalPaidCents)} • ${areaLabel(transaction.kind)}`,
+      href: withAdminSecret(`/admin/pagamentos?q=${encodeURIComponent(transaction.mpPaymentId || transaction.id)}`, secret),
+      label: "Ver pagamento",
+    })),
+    ...unreviewedPlacementsList.map((placement: any) => ({
+      key: `placement-${placement.id}`,
+      title: "Conteúdo publicado sem revisão",
+      description: `${placement.displayName || placement.title || "Espaço publicado"} • ${placement.user?.name || "Cliente"} • ${areaLabel(placement.kind)}`,
+      href: withAdminSecret("/admin/conteudos?review=PUBLISHED_NOT_REVIEWED", secret),
+      label: "Revisar",
+    })),
+    ...pendingEditRequestsList.slice(0, 4).map((request: any) => ({
+      key: `edit-${request.id}`,
+      title: "Edição pendente",
+      description: `${request.placement?.displayName || request.placement?.title || "Espaço"} • ${request.user?.name || request.placement?.user?.name || "Cliente"}`,
+      href: withAdminSecret("/admin/edicoes?status=PENDING", secret),
+      label: "Analisar",
+    })),
+    ...openReportsList.map((report: any) => ({
+      key: `report-${report.id}`,
+      title: "Denúncia aberta",
+      description: `${report.reason || "Denúncia"} • ${report.placement?.displayName || report.placement?.title || "Bloco denunciado"}`,
+      href: withAdminSecret("/admin/denuncias?status=OPEN", secret),
+      label: "Ver denúncia",
+    })),
+    ...expiredReservationsList.map((block: any) => ({
+      key: `reservation-${block.id}`,
+      title: "Reserva expirada",
+      description: `Bloco x${block.gridX}/y${block.gridY} • venceu ${dateTime(block.reservedUntil)}`,
+      href: withAdminSecret("/admin/reservas", secret),
+      label: "Ver reserva",
+    })),
+  ].slice(0, 10);
+
   return (
     <main className="admin-saas-main min-h-screen px-3 py-4 lg:px-5">
       <div className="mx-auto max-w-5xl">
@@ -952,6 +1026,51 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
               </div>
             </section>
           </div>
+        </section>
+
+        <section className="mb-6 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+          <section className="admin-table-card overflow-hidden">
+            <div className="admin-table-header">
+              <div>
+                <p className="admin-page-kicker">Central de operação</p>
+                <h2>Atenção necessária</h2>
+              </div>
+              <Link href={withAdminSecret("/admin/suporte", secret)} className="admin-row-link">Abrir suporte</Link>
+            </div>
+            <div className="grid gap-3 p-4 sm:grid-cols-2">
+              {operationCards.map((card) => (
+                <Link key={card.title} href={card.href} className={`rounded-2xl border p-4 transition hover:-translate-y-0.5 ${card.tone}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-xs font-black uppercase tracking-wide">{card.title}</p>
+                    <strong className="text-xl font-black">{card.count}</strong>
+                  </div>
+                  <p className="mt-2 text-xs font-bold leading-relaxed opacity-80">{card.description}</p>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          <section className="admin-table-card overflow-hidden">
+            <div className="admin-table-header">
+              <div>
+                <p className="admin-page-kicker">Fila prática</p>
+                <h2>O que resolver agora</h2>
+              </div>
+              <Link href={withAdminSecret("/admin/diagnostico", secret)} className="admin-row-link">Diagnóstico</Link>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {attentionRows.length === 0 && <div className="p-4 text-sm font-bold text-slate-500">Nenhuma pendência crítica no momento.</div>}
+              {attentionRows.map((item) => (
+                <article key={item.key} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-black text-slate-950">{item.title}</p>
+                    <p className="mt-1 text-xs font-bold leading-relaxed text-slate-500">{item.description}</p>
+                  </div>
+                  <Link href={item.href} className="inline-flex h-9 shrink-0 items-center justify-center rounded-xl bg-slate-950 px-3 text-xs font-black text-white">{item.label}</Link>
+                </article>
+              ))}
+            </div>
+          </section>
         </section>
 
         <section className="mb-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">

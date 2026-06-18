@@ -8,6 +8,8 @@ import { AdminSearchParams, dateTime, getAdminAccess, normalizeSearch, money, sa
 import { getAdminSession } from "@/lib/admin-auth";
 import { createManagementToken, getManagementUrl, hashManagementToken } from "@/lib/customer-access";
 import { sendManagementLinkEmail } from "@/lib/customer-notifications";
+import { statusLabel, statusTone } from "@/lib/status-labels";
+import { getAreaName, type AreaKey } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
 
@@ -122,10 +124,15 @@ async function regenerateManagementLink(formData: FormData) {
   redirect(`/admin/suporte?${params.toString()}`);
 }
 
+function areaLabel(value: string | null | undefined) {
+  if (value === "SOLIDARITY" || value === "PREMIUM" || value === "GOLD" || value === "GRAND_CENTER") {
+    return getAreaName(value as AreaKey);
+  }
+  return "Área do mural";
+}
+
 function statusPill(status: string | null | undefined) {
-  const value = status || "—";
-  const color = value === "APPROVED" ? "bg-emerald-50 text-emerald-700" : value === "PENDING" ? "bg-yellow-50 text-yellow-700" : value === "CANCELLED" || value === "REJECTED" ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-700";
-  return <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${color}`}>{value}</span>;
+  return <span className={`rounded-full border px-3 py-1 text-[10px] font-black normal-case ${statusTone(status)}`}>{statusLabel(status)}</span>;
 }
 
 export default async function AdminSuportePage({ searchParams }: { searchParams: AdminSearchParams }) {
@@ -213,7 +220,7 @@ export default async function AdminSuportePage({ searchParams }: { searchParams:
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       {statusPill(transaction.status)}
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase text-slate-600">{transaction.kind}</span>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black text-slate-600">{areaLabel(transaction.kind)}</span>
                       {transaction.isTest && <span className="rounded-full bg-purple-50 px-3 py-1 text-[10px] font-black uppercase text-purple-700">Teste</span>}
                     </div>
                     <h2 className="mt-2 text-xl font-black text-slate-950">{transaction.user?.name || transaction.placementTitle || "Cliente"}</h2>
