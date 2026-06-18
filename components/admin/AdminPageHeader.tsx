@@ -21,13 +21,12 @@ export default function AdminPageHeader({
       <section className="admin-page-heading">
         <div className="admin-page-heading-grid">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Central operacional</p>
+            <p className="admin-page-kicker">Painel operacional</p>
             <h1>{title}</h1>
             <p>{description}</p>
           </div>
           <div className="admin-page-heading-badges">
-            <span className="admin-page-badge">Painel SaaS</span>
-            <span className="admin-page-badge muted">Fluxo em tempo real</span>
+            <span className="admin-page-badge">Tempo real</span>
             <span className="admin-page-badge muted">Operação segura</span>
           </div>
         </div>
