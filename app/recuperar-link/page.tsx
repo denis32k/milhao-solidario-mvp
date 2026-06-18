@@ -179,6 +179,10 @@ function getRecoveredTitle(item: RecoveredLink, index: number) {
   return `Compra #${index + 1}`;
 }
 
+function hasCompletePurchaseDetails(item: RecoveredLink) {
+  return Boolean(item.purchaseLabel && item.purchaseLabel.includes("—") && item.areaName && item.coordinates);
+}
+
 async function recoverManagementLink(formData: FormData) {
   "use server";
 
@@ -352,8 +356,14 @@ export default async function RecoverLinkPage({ searchParams }: { searchParams: 
                 <p className="mt-2 text-sm leading-relaxed text-emerald-800">
                   {recoveredLinks.length > 1
                     ? "As compras aparecem da mais recente para a mais antiga. Abra o acesso correspondente ao espaço que deseja gerenciar."
-                    : "Copie e guarde este link. Quando o envio de e-mail estiver configurado, o acesso será enviado somente para o e-mail da compra."}
+                    : "Copie e guarde este acesso. Quando o envio de e-mail estiver configurado, o acesso será enviado somente para o e-mail da compra."}
                 </p>
+                {recoveredLinks.some((item) => !hasCompletePurchaseDetails(item)) && (
+                  <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold leading-relaxed text-amber-800">
+                    Esta consulta foi gerada por uma versão anterior da Área do Cliente. Para exibir bairro e coordenadas, faça uma nova consulta limpa pelo formulário.
+                    <Link href="/recuperar-link" className="ml-1 underline">Refazer consulta</Link>
+                  </div>
+                )}
                 <div className="mt-4 space-y-3">
                   {recoveredLinks.map((item, index) => (
                     <article key={item.id} className="rounded-3xl border border-emerald-200 bg-white p-4 shadow-sm">
@@ -362,7 +372,7 @@ export default async function RecoverLinkPage({ searchParams }: { searchParams: 
                           <p className="text-sm font-bold text-slate-950">{getRecoveredTitle(item, index)}</p>
                           <p className="mt-1 text-xs font-medium text-slate-500">{item.blockCount} bloco(s) • {dateTime(item.createdAt)} • {money(item.totalPaidCents)}</p>
                         </div>
-                        <span className="w-fit rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-600">{item.status}</span>
+                        <span className="w-fit rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-600">{transactionStatusLabel(item.status)}</span>
                       </div>
                       <div className="mt-3 grid gap-2 sm:grid-cols-2"><CopyTextButton text={item.managementUrl} label="Copiar acesso" copiedLabel="Acesso copiado" /><a href={item.managementUrl} className="flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white">Abrir esta compra</a></div>
                     </article>
