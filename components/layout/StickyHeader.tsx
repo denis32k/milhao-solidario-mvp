@@ -16,9 +16,9 @@ export default function StickyHeader({ ranking = [], active = "mural" }: StickyH
   const isPurchase = active === "comprar";
 
   return (
-    <header className="fixed left-0 top-0 z-50 w-full border-b border-slate-200 bg-white shadow-sm">
+    <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white shadow-sm">
       <div className="lg:hidden">
-        <div className="relative flex h-12 items-center justify-center px-3">
+        <div className="relative flex h-11 items-center justify-center px-3">
           <Link href="/" className="flex items-center justify-center" aria-label="Abrir mural oficial">
             <img
               src="/logo-mural-29-transparent.png"
@@ -28,7 +28,7 @@ export default function StickyHeader({ ranking = [], active = "mural" }: StickyH
           </Link>
 
           <details className="absolute right-3 top-1/2 -translate-y-1/2">
-            <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg text-slate-800 shadow-sm transition hover:bg-slate-50">☰</summary>
+            <summary className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg text-slate-800 shadow-sm transition hover:bg-slate-50">☰</summary>
             <nav className="absolute right-0 mt-3 w-[19rem] max-w-[calc(100vw-24px)] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
               <div className="border-b border-slate-100 px-5 py-4">
                 <p className="text-xs font-black uppercase tracking-wide text-orange-600">Mural29</p>
@@ -48,22 +48,26 @@ export default function StickyHeader({ ranking = [], active = "mural" }: StickyH
           </details>
         </div>
 
-        <div className="px-3 pb-2">
+        <div className="px-3 pb-1.5">
           <HeaderMiniStats ranking={ranking} compactMobile />
         </div>
       </div>
 
       <div className="hidden lg:block">
-        <div className="relative flex h-14 items-center justify-center px-6">
-          <Link href="/" className="flex items-center justify-center" aria-label="Abrir mural oficial">
+        <div className="flex items-center gap-4 px-6 py-2">
+          <Link href="/" className="flex shrink-0 items-center justify-center pr-1" aria-label="Abrir mural oficial">
             <img
               src="/logo-mural-29-transparent.png"
               alt="Mural29"
-              className="h-10 w-auto max-w-[184px] object-contain"
+              className="h-11 w-auto max-w-[198px] object-contain"
             />
           </Link>
 
-          <div className="absolute right-6 top-1/2 flex -translate-y-1/2 items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <HeaderMiniStats ranking={ranking} />
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
             <Link
               href="/"
               className={`inline-flex h-9 items-center rounded-full border px-4 text-xs font-black transition ${!isPurchase ? "border-slate-900 bg-slate-900 text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
@@ -97,15 +101,11 @@ export default function StickyHeader({ ranking = [], active = "mural" }: StickyH
             </details>
           </div>
         </div>
-
-        <div className="px-6 pb-2">
-          <HeaderMiniStats ranking={ranking} />
-        </div>
       </div>
 
       <Link
         href="/comprar"
-        className={`flex h-7 w-full items-center justify-center border-t border-slate-100 px-4 text-center text-[12px] font-black tracking-wide text-white transition ${isPurchase ? "bg-gradient-to-r from-orange-500 to-amber-500" : "bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 hover:brightness-105"}`}
+        className={`flex h-6 w-full items-center justify-center border-t border-slate-100 px-4 text-center text-[12px] font-black tracking-wide text-white transition ${isPurchase ? "bg-gradient-to-r from-orange-500 to-amber-500" : "bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 hover:brightness-105"}`}
       >
         <span className="truncate">Compre seu tijolinho</span>
       </Link>

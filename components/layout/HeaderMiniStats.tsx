@@ -53,7 +53,7 @@ export default function HeaderMiniStats({ ranking = [], compactMobile = false }:
 
   return (
     <div className="min-w-0 flex-1">
-      <div className={`mx-auto w-full rounded-[22px] border border-slate-200 bg-white shadow-sm ${compactMobile ? "max-w-none px-3 py-2" : "max-w-4xl px-4 py-2.5"}`}>
+      <div className={`mx-auto w-full rounded-[20px] border border-slate-200 bg-white shadow-sm ${compactMobile ? "max-w-none px-3 py-1.5" : "max-w-none px-4 py-2"}`}>
         <div className="flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-wide text-slate-500">
           <p className="min-w-0 truncate text-slate-700">
             <span>{phase.currentPhase}</span>
@@ -62,7 +62,7 @@ export default function HeaderMiniStats({ ranking = [], compactMobile = false }:
           <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-700">{phase.progressPercent}%</span>
         </div>
 
-        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100">
+        <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
           <div
             className="h-full rounded-full bg-gradient-to-r from-orange-500 via-amber-400 to-yellow-300"
             style={{ width: `${Math.max(2, Math.min(100, phase.progressPercent))}%` }}
@@ -72,11 +72,11 @@ export default function HeaderMiniStats({ ranking = [], compactMobile = false }:
         <p className="mt-1 truncate text-[10px] font-bold text-slate-500">{nextText}</p>
 
         {topThree.length > 0 && (
-          <div className={`mt-2 grid grid-cols-3 ${compactMobile ? "gap-1.5" : "gap-2"}`}>
+          <div className={`mt-1.5 grid grid-cols-3 ${compactMobile ? "gap-1.5" : "gap-2"}`}>
             {rankingSlots.map((slot) => {
               const item = getRankItem(topThree, slot.rank);
               return (
-                <div key={slot.rank} className={`min-w-0 rounded-2xl border px-2 py-1.5 text-center ${slot.tone}`}>
+                <div key={slot.rank} className={`min-w-0 rounded-2xl border px-2 py-1 text-center ${slot.tone}`}>
                   <p className="text-[10px] font-black leading-none">{slot.label}</p>
                   <p title={item?.publicName || ""} className={`mt-1 truncate font-black leading-tight ${compactMobile ? "text-[10px]" : "text-[11px]"}`}>
                     {item?.publicName || "—"}
