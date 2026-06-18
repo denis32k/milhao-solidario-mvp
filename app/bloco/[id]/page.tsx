@@ -28,6 +28,40 @@ function normalizeExternalUrl(url: string | null | undefined) {
   return `https://${url}`;
 }
 
+function statusLabel(status: string | null | undefined) {
+  if (status === "SOLD") return "Publicado";
+  if (status === "RESERVED") return "Reservado";
+  if (status === "BLOCKED") return "Bloqueado";
+  if (status === "AVAILABLE") return "Disponível";
+  return status || "Status não informado";
+}
+
+function getRankTheme(rank: number | null, category: string) {
+  if (rank === 1) return { label: "🥇 1º lugar", box: "border-yellow-300 bg-gradient-to-br from-yellow-50 via-white to-amber-100", badge: "bg-yellow-400 text-yellow-950" };
+  if (rank === 2) return { label: "🥈 2º lugar", box: "border-slate-300 bg-gradient-to-br from-slate-50 via-white to-slate-200", badge: "bg-slate-300 text-slate-950" };
+  if (rank === 3) return { label: "🥉 3º lugar", box: "border-orange-300 bg-gradient-to-br from-orange-50 via-white to-orange-100", badge: "bg-orange-300 text-orange-950" };
+  if (rank && rank >= 4 && rank <= 10) return { label: "VIP Top 10", box: "border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-white", badge: "bg-fuchsia-600 text-white" };
+  if (category === "GRAND_CENTER") return { label: "Tom Delfim", box: "border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-white", badge: "bg-fuchsia-600 text-white" };
+  if (category === "GOLD") return { label: "Leblon", box: "border-yellow-200 bg-gradient-to-br from-yellow-50 via-white to-white", badge: "bg-yellow-400 text-yellow-950" };
+  if (category === "PREMIUM") return { label: "Ipanema", box: "border-orange-200 bg-gradient-to-br from-orange-50 via-white to-white", badge: "bg-orange-500 text-white" };
+  return { label: "Mural29", box: "border-slate-200 bg-white", badge: "bg-slate-950 text-white" };
+}
+
+async function getOwnerRank(ownerId: string | null | undefined) {
+  if (!ownerId) return null;
+  const topOwners = await safeValueQuery<Array<{ id: string }>>(() =>
+    prisma.user.findMany({
+      where: { totalApprovedCents: { gt: 0 } },
+      select: { id: true },
+      orderBy: { totalApprovedCents: "desc" },
+      take: 10,
+    }),
+    []
+  );
+  const index = topOwners.findIndex((owner) => owner.id === ownerId);
+  return index >= 0 ? index + 1 : null;
+}
+
 async function getIpHash() {
   const h = await headers();
   const forwarded = h.get("x-forwarded-for") || "";
@@ -92,10 +126,10 @@ export default async function PublicBlockPage({ params, searchParams }: BlockPag
   if (!block) {
     return (
       <main className="min-h-screen bg-transparent px-4 py-8">
-        <div className="mx-auto max-w-md rounded-3xl bg-white p-6 text-center shadow-xl">
+        <div className="pixel-panel mx-auto max-w-md p-6 text-center">
           <div className="text-5xl">🧱</div>
-          <h1 className="mt-4 text-2xl font-black text-slate-950">Bloco não encontrado</h1>
-          <p className="mt-2 text-sm font-bold text-slate-500">Esse tijolinho não existe ou não está disponível para visualização.</p>
+          <h1 className="mt-4 text-2xl font-black text-slate-950">Tijolinho não encontrado</h1>
+          <p className="mt-2 text-sm font-bold text-slate-500">Esse espaço não existe ou não está disponível para visualização.</p>
           <Link href="/" className="pixel-btn pixel-btn--dark mt-5 flex justify-center !rounded-2xl !py-4 !text-sm">Voltar ao mural</Link>
         </div>
       </main>
@@ -103,71 +137,63 @@ export default async function PublicBlockPage({ params, searchParams }: BlockPag
   }
 
   const placement = (block as any).placement;
+  const rank = await getOwnerRank((block as any).ownerId || (block as any).owner?.id);
+  const theme = getRankTheme(rank, (block as any).category);
   const hidden = !placement || placement.status !== "ACTIVE" || placement.reviewStatus === "HIDDEN_BY_ADMIN";
   const imageBlocked = placement?.status === "IMAGE_BLOCKED" || placement?.placeholderReason;
+  const displayName = placement?.displayName || placement?.title || (block as any).owner?.publicName || "Espaço comprado";
+  const isWaitingPersonalization = displayName === "Espaço comprado";
   const reported = query.reported === "1";
   const error = query.error;
 
   return (
     <main className="min-h-screen bg-transparent px-4 py-6">
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-4xl">
         <Link href="/" className="pixel-btn pixel-btn--light mb-5 !rounded-2xl !px-4 !py-2 !text-sm">← Voltar ao mural</Link>
 
-        <section className="rounded-[2rem] border-2 border-slate-950 bg-[linear-gradient(135deg,#0f172a,#1e293b_55%,#f97316)] p-5 text-white shadow-xl">
-          <p className="text-xs font-black uppercase tracking-wide text-yellow-300">Tijolinho digital</p>
-          <h1 className="mt-2 text-3xl font-black">{hidden ? "Conteúdo em análise" : placement.title || placement.displayName || "Bloco publicado"}</h1>
-          <p className="mt-2 text-sm font-bold text-slate-300">{getAreaName((block as any).category)} • Coordenada x{(block as any).gridX}/y{(block as any).gridY}</p>
-        </section>
-
-        <section className="pixel-panel mt-5 p-5">
-          {hidden ? (
-            <div className="rounded-3xl bg-yellow-50 p-5 text-center">
-              <div className="text-4xl">👀</div>
-              <h2 className="mt-3 text-xl font-black text-yellow-950">Conteúdo em análise</h2>
-              <p className="mt-2 text-sm font-bold leading-relaxed text-yellow-800">Este bloco está oculto, bloqueado ou ainda sem conteúdo público liberado.</p>
+        <section className={`rounded-[2rem] border-2 p-5 shadow-xl ${theme.box}`}>
+          <div className="flex flex-col gap-5 md:flex-row md:items-center">
+            <div className="flex h-44 w-full items-center justify-center overflow-hidden rounded-[2rem] border border-white/80 bg-white shadow md:h-48 md:w-48">
+              {!hidden && placement?.imageUrl && !imageBlocked ? <img src={placement.imageUrl} alt={displayName} className="h-full w-full object-cover" /> : <span className="px-6 text-center text-4xl">🧱</span>}
             </div>
-          ) : (
-            <div className="grid gap-5 md:grid-cols-[160px_1fr]">
-              <div className="flex h-40 w-40 items-center justify-center overflow-hidden rounded-3xl bg-transparent">
-                {placement.imageUrl && !imageBlocked ? <img src={placement.imageUrl} alt="Conteúdo do bloco" className="h-full w-full object-cover" /> : <span className="px-4 text-center text-xs font-black text-slate-400">{imageBlocked ? "Imagem bloqueada" : "Sem imagem"}</span>}
-              </div>
-              <div>
-                <p className="text-xs font-black uppercase text-slate-500">Publicado no Mural29</p>
-                <h2 className="mt-1 text-2xl font-black text-slate-950">{placement.displayName || placement.title || "Sem nome público"}</h2>
-                <p className="mt-2 rounded-2xl bg-slate-50 p-3 text-sm font-bold leading-relaxed text-slate-600">{placement.description || "Sem descrição."}</p>
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  {placement.redirectUrl && !placement.linkDisabled ? (
-                    <a href={normalizeExternalUrl(placement.redirectUrl)} target="_blank" rel="noopener noreferrer" className="pixel-btn pixel-btn--dark justify-center !rounded-2xl !py-3 !text-xs">Abrir link</a>
-                  ) : (
-                    <div className="rounded-2xl bg-transparent py-3 text-center text-xs font-black text-slate-500">Link indisponível</div>
-                  )}
-                  <a href="#denunciar" className="pixel-btn pixel-btn--red justify-center !rounded-2xl !py-3 !text-xs">Denunciar este tijolinho</a>
-                </div>
+            <div className="min-w-0 flex-1">
+              <span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-black uppercase ${theme.badge}`}>{theme.label}</span>
+              <h1 className="mt-3 text-3xl font-black leading-tight text-slate-950">{hidden ? "Conteúdo em análise" : displayName}</h1>
+              <p className="mt-2 text-sm font-bold text-slate-600">{getAreaName((block as any).category)} • Coordenada x{(block as any).gridX}/y{(block as any).gridY}</p>
+              {isWaitingPersonalization && !hidden && <p className="mt-3 rounded-2xl bg-white/70 p-3 text-sm font-bold leading-relaxed text-slate-600">Espaço comprado. Aguardando personalização do comprador.</p>}
+              {hidden && <p className="mt-3 rounded-2xl bg-yellow-50 p-3 text-sm font-bold leading-relaxed text-yellow-800">Este conteúdo está oculto, bloqueado ou ainda em análise.</p>}
+              <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                {!hidden && placement?.redirectUrl && !placement?.linkDisabled ? (
+                  <a href={normalizeExternalUrl(placement.redirectUrl)} target="_blank" rel="noopener noreferrer" className="pixel-btn pixel-btn--dark justify-center !rounded-2xl !py-3 !text-xs">Abrir link</a>
+                ) : (
+                  <div className="rounded-2xl bg-white/70 py-3 text-center text-xs font-black text-slate-500">Link indisponível</div>
+                )}
+                <a href="#denunciar" className="pixel-btn pixel-btn--red justify-center !rounded-2xl !py-3 !text-xs">Denunciar</a>
               </div>
             </div>
-          )}
+          </div>
         </section>
 
         <section className="mt-5 grid gap-4 md:grid-cols-3">
-          <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black uppercase text-slate-500">Área</p><p className="mt-1 text-lg font-black text-slate-950">{getAreaName((block as any).category)}</p></div>
-          <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black uppercase text-slate-500">Status</p><p className="mt-1 text-lg font-black text-slate-950">{(block as any).status}</p></div>
-          <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black uppercase text-slate-500">Valor</p><p className="mt-1 text-lg font-black text-slate-950">{money((block as any).priceCents)}</p></div>
+          <div className="pixel-card p-4"><p className="text-xs font-black uppercase text-slate-500">Área</p><p className="mt-1 text-lg font-black text-slate-950">{getAreaName((block as any).category)}</p></div>
+          <div className="pixel-card p-4"><p className="text-xs font-black uppercase text-slate-500">Status</p><p className="mt-1 text-lg font-black text-slate-950">{statusLabel((block as any).status)}</p></div>
+          <div className="pixel-card p-4"><p className="text-xs font-black uppercase text-slate-500">Valor</p><p className="mt-1 text-lg font-black text-slate-950">{money((block as any).priceCents)}</p></div>
         </section>
 
         <section id="denunciar" className="pixel-panel mt-5 p-5">
           <p className="text-xs font-black uppercase tracking-wide text-red-600">Denúncia pública</p>
           <h2 className="mt-1 text-xl font-black text-slate-950">Denunciar este tijolinho</h2>
-          <p className="mt-2 text-sm font-bold leading-relaxed text-slate-500">Use este canal para imagem imprópria, link suspeito, golpe, uso indevido de marca ou conteúdo ofensivo. A denúncia vai para análise no admin.</p>
+          <p className="mt-2 text-sm font-bold leading-relaxed text-slate-500">Use este canal para imagem imprópria, link suspeito, golpe, uso indevido de marca ou conteúdo ofensivo.</p>
 
           {reported && <div className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm font-black text-emerald-800">Denúncia enviada. Obrigado por ajudar a manter o mural seguro.</div>}
           {error && <div className="mt-4 rounded-2xl bg-red-50 p-3 text-sm font-black text-red-800">Não foi possível enviar a denúncia. Confira o motivo e tente novamente.</div>}
 
-          <form action={submitReport} className="mt-5 space-y-3">
+          <form action={submitReport} className="mt-5 grid gap-3 md:grid-cols-2">
             <input type="hidden" name="blockId" value={(block as any).id} />
-            <select name="reasonCode" className="pixel-input">
+            <select name="reasonCode" className="pixel-input md:col-span-2">
               {Object.entries(reasonLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
-            <textarea name="message" rows={4} placeholder="Explique rapidamente o problema encontrado" className="pixel-input min-h-[120px] resize-none" />
+            <textarea name="message" rows={4} placeholder="Explique rapidamente o problema encontrado" className="pixel-input min-h-[120px] resize-none md:col-span-2" />
             <input name="reporterEmail" type="email" placeholder="Seu e-mail opcional" className="pixel-input" />
             <button className="pixel-btn pixel-btn--red w-full !rounded-2xl !py-4 !text-sm">Enviar denúncia</button>
           </form>
