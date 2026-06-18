@@ -253,7 +253,7 @@ export default function CompraPage() {
       if (isApproved) {
         setPaymentApproved(true);
         setApprovedModalOpen(true);
-        setVerifyMessage("Pagamento aprovado. Seu link seguro já está pronto.");
+        setVerifyMessage("Pagamento confirmado. Seu link seguro já está pronto.");
         return true;
       }
 

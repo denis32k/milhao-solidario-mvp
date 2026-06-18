@@ -163,6 +163,22 @@ function dateTime(value: string) {
   }
 }
 
+function transactionStatusLabel(status: string | null | undefined) {
+  if (status === "APPROVED") return "Pagamento confirmado";
+  if (status === "PENDING") return "Aguardando pagamento";
+  if (status === "REJECTED") return "Pagamento não aprovado";
+  if (status === "CANCELLED" || status === "CANCELED") return "Compra cancelada";
+  if (status === "EXPIRED") return "Reserva expirada";
+  if (status === "REFUNDED") return "Reembolso processado";
+  return "Em acompanhamento";
+}
+
+function getRecoveredTitle(item: RecoveredLink, index: number) {
+  if (item.purchaseLabel && item.purchaseLabel.includes("—")) return item.purchaseLabel;
+  if (item.areaName && item.coordinates) return `Compra #${index + 1} — ${item.areaName} — ${item.coordinates}`;
+  return `Compra #${index + 1}`;
+}
+
 async function recoverManagementLink(formData: FormData) {
   "use server";
 
@@ -223,7 +239,7 @@ async function recoverManagementLink(formData: FormData) {
 
     recoveredLinks.push({
       id: transaction.id,
-      status: String(transaction.status || "—"),
+      status: transactionStatusLabel(String(transaction.status || "")),
       createdAt: new Date(transaction.createdAt).toISOString(),
       totalPaidCents: Number(transaction.totalPaidCents || 0),
       managementUrl: getManagementUrl(token, getCleanAppUrl()),
@@ -339,17 +355,16 @@ export default async function RecoverLinkPage({ searchParams }: { searchParams: 
                     : "Copie e guarde este link. Quando o envio de e-mail estiver configurado, o acesso será enviado somente para o e-mail da compra."}
                 </p>
                 <div className="mt-4 space-y-3">
-                  {recoveredLinks.map((item) => (
+                  {recoveredLinks.map((item, index) => (
                     <article key={item.id} className="rounded-3xl border border-emerald-200 bg-white p-4 shadow-sm">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                          <p className="text-sm font-bold text-slate-950">{item.purchaseLabel}</p>
+                          <p className="text-sm font-bold text-slate-950">{getRecoveredTitle(item, index)}</p>
                           <p className="mt-1 text-xs font-medium text-slate-500">{item.blockCount} bloco(s) • {dateTime(item.createdAt)} • {money(item.totalPaidCents)}</p>
                         </div>
-                        <span className="w-fit rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-600">{item.status}</span>
+                        <span className="w-fit rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-600">{item.status}</span>
                       </div>
-                      <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-3 text-[11px] font-medium break-all text-emerald-950">{item.managementUrl}</div>
-                      <div className="mt-3 grid gap-2 sm:grid-cols-2"><CopyTextButton text={item.managementUrl} label="Copiar link" copiedLabel="Copiado" /><a href={item.managementUrl} className="flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white">Abrir esta compra</a></div>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2"><CopyTextButton text={item.managementUrl} label="Copiar acesso" copiedLabel="Acesso copiado" /><a href={item.managementUrl} className="flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white">Abrir esta compra</a></div>
                     </article>
                   ))}
                 </div>

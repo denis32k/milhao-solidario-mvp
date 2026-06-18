@@ -36,13 +36,13 @@ function safeText(value: FormDataEntryValue | null, maxLength: number) {
 }
 
 function statusLabel(status: string | null | undefined) {
-  if (status === "APPROVED") return "Pagamento aprovado";
-  if (status === "PENDING") return "Aguardando PIX";
-  if (status === "REJECTED") return "Pagamento recusado";
-  if (status === "CANCELLED") return "Cancelado";
-  if (status === "EXPIRED") return "Expirado";
-  if (status === "REFUNDED") return "Reembolsado";
-  return status || "Status não informado";
+  if (status === "APPROVED") return "Pagamento confirmado";
+  if (status === "PENDING") return "Aguardando pagamento";
+  if (status === "REJECTED") return "Pagamento não aprovado";
+  if (status === "CANCELLED" || status === "CANCELED") return "Compra cancelada";
+  if (status === "EXPIRED") return "Reserva expirada";
+  if (status === "REFUNDED") return "Reembolso processado";
+  return "Em acompanhamento";
 }
 
 function editStatusLabel(status: string | null | undefined) {

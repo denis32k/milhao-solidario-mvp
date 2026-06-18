@@ -1,21 +1,21 @@
 const statusText: Record<string, string> = {
-  APPROVED: "Aprovado",
-  PENDING: "Pendente",
-  REJECTED: "Recusado",
+  APPROVED: "Pagamento confirmado",
+  PENDING: "Aguardando pagamento",
+  REJECTED: "Pagamento não aprovado",
   CANCELLED: "Cancelado",
   CANCELED: "Cancelado",
-  EXPIRED: "Expirado",
-  REFUNDED: "Reembolsado",
-  SOLD: "Vendido",
+  EXPIRED: "Reserva expirada",
+  REFUNDED: "Reembolso processado",
+  SOLD: "Publicado",
   RESERVED: "Reservado",
   AVAILABLE: "Disponível",
-  LOCKED: "Travado",
+  LOCKED: "Bloqueado",
   BLOCKED: "Bloqueado",
   ACTIVE: "Publicado",
   IMAGE_BLOCKED: "Imagem bloqueada",
   LINK_BLOCKED: "Link bloqueado",
-  PUBLISHED_NOT_REVIEWED: "Sem revisão",
-  CHANGES_REQUESTED: "Com restrição",
+  PUBLISHED_NOT_REVIEWED: "Publicado — aguardando revisão",
+  CHANGES_REQUESTED: "Ajuste solicitado",
   HIDDEN_BY_ADMIN: "Oculto",
   OPEN: "Aberta",
   REVIEWING: "Em análise",
@@ -38,5 +38,5 @@ function tone(value: string) {
 
 export default function AdminStatusBadge({ value }: { value: string | null | undefined }) {
   const raw = String(value || "UNKNOWN");
-  return <span className={`inline-flex whitespace-nowrap rounded-full border px-2 py-1 text-[11px] font-black ${tone(raw)}`}>{statusText[raw] || raw}</span>;
+  return <span className={`inline-flex whitespace-nowrap rounded-full border px-2 py-1 text-[11px] font-black ${tone(raw)}`}>{statusText[raw] || "Não informado"}</span>;
 }
