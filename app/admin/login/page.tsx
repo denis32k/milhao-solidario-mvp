@@ -71,26 +71,27 @@ export default async function AdminLoginPage({ searchParams }: { searchParams: P
   const nextPath = getSafeNextPath(params.next);
 
   return (
-    <main className="min-h-screen px-4 py-8">
-      <div className="pixel-panel mx-auto max-w-md p-6">
-        <div className="text-center text-5xl">🔐</div>
-        <h1 className="mt-4 text-center text-2xl font-black text-slate-950">Entrar na central Mural29</h1>
-        <p className="mt-2 text-center text-sm font-bold leading-relaxed text-slate-500">Use seu acesso administrativo. O primeiro dono pode ser criado com ADMIN_EMAIL + ADMIN_PASSWORD.</p>
+    <main className="admin-auth-shell">
+      <div className="admin-auth-card">
+        <div className="admin-auth-mark">29</div>
+        <p className="admin-auth-kicker">Backoffice Mural29</p>
+        <h1 className="admin-auth-title">Entrar na central administrativa</h1>
+        <p className="admin-auth-description">Use seu acesso administrativo. O primeiro dono pode ser criado com ADMIN_EMAIL + ADMIN_PASSWORD.</p>
 
-        {error && <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-3 text-center text-sm font-black text-red-700">{error}</div>}
+        {error && <div className="admin-auth-alert">{error}</div>}
 
         <form action={loginAdmin} className="mt-5 space-y-3">
           <input type="hidden" name="next" value={nextPath} />
-          <input name="email" type="email" required autoComplete="username" placeholder="E-mail do admin" className="pixel-input" />
-          <input name="password" type="password" required autoComplete="current-password" placeholder="Senha" className="pixel-input" />
-          <button type="submit" className="pixel-btn pixel-btn--dark w-full !rounded-2xl !py-4 !text-sm">Entrar</button>
+          <input name="email" type="email" required autoComplete="username" placeholder="E-mail do admin" className="admin-auth-input" />
+          <input name="password" type="password" required autoComplete="current-password" placeholder="Senha" className="admin-auth-input" />
+          <button type="submit" className="admin-auth-button">Entrar no painel</button>
         </form>
 
-        <div className="mt-4 rounded-2xl bg-yellow-50 p-3 text-xs font-bold leading-relaxed text-yellow-900">
+        <div className="admin-auth-note">
           Fallback emergencial: se usar <strong>/admin?secret=SUA_SENHA</strong>, o acesso antigo continua funcionando.
         </div>
 
-        <Link href="/" className="pixel-btn pixel-btn--ghost mt-4 flex w-full !rounded-2xl !py-4 !text-sm">Voltar ao mural</Link>
+        <Link href="/" className="admin-auth-link">Voltar ao mural</Link>
       </div>
     </main>
   );

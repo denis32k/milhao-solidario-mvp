@@ -44,7 +44,9 @@ export default function AdminSidebar({ secret, active }: { secret: string; activ
           </span>
         </Link>
 
-        <div className="mt-4 space-y-1">
+        <div className="mt-5">
+          <p className="admin-sidebar-label">Operação</p>
+          <div className="mt-2 space-y-1">
           {primaryItems.map((item) => {
             const selected = isActive(item, active);
             return (
@@ -55,9 +57,10 @@ export default function AdminSidebar({ secret, active }: { secret: string; activ
             );
           })}
         </div>
+        </div>
 
         <div className="mt-5 border-t border-slate-200 pt-4">
-          <p className="px-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Atalhos</p>
+          <p className="admin-sidebar-label px-3">Atalhos</p>
           <div className="mt-2 grid grid-cols-2 gap-1.5">
             {secondaryItems.map((item) => (
               <Link key={item.key} href={withAdminSecret(item.href, secret)} className={`admin-mini-link ${active === item.key ? "is-active" : ""}`}>
@@ -67,8 +70,12 @@ export default function AdminSidebar({ secret, active }: { secret: string; activ
           </div>
         </div>
 
-        <div className="mt-auto rounded-2xl border border-orange-100 bg-orange-50 p-3 text-[11px] font-bold leading-relaxed text-orange-900">
-          Grid travado. Alterações aqui são só operação, conteúdo e administração.
+        <div className="admin-sidebar-note mt-auto">
+          <span className="admin-sidebar-note-dot" />
+          <div>
+            <strong>Grid travado</strong>
+            <p>Alterações aqui são só operação, conteúdo e administração.</p>
+          </div>
         </div>
       </div>
     </aside>

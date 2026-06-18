@@ -26,19 +26,19 @@ const items = [
 
 export default function AdminNav({ secret, active }: { secret: string; active: string }) {
   return (
-    <nav className="pixel-panel mb-6 overflow-x-auto p-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <nav className="admin-section-nav mb-6 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <div className="flex min-w-max gap-2 text-xs font-black text-slate-700">
         {items.map(([key, href, label]) => (
           <Link
             key={key}
             href={withAdminSecret(href, secret)}
-            className={`pixel-btn !rounded-2xl !px-4 !py-2 !text-xs ${active === key ? "pixel-btn--dark" : "pixel-btn--ghost"}`}
+            className={`admin-section-link ${active === key ? "is-active" : ""}`}
           >
             {label}
           </Link>
         ))}
         {!secret && (
-          <Link href="/admin/logout" className="pixel-btn pixel-btn--red !rounded-2xl !px-4 !py-2 !text-xs">Sair</Link>
+          <Link href="/admin/logout" className="admin-section-link danger">Sair</Link>
         )}
       </div>
     </nav>
