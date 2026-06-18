@@ -25,7 +25,7 @@ export default async function HomePage() {
   }));
 
   return (
-    <main className="h-[100dvh] overflow-hidden bg-slate-950 pt-[155px]">
+    <main className="h-[100dvh] overflow-hidden bg-[#f6f7fb] pt-[128px]">
       <StickyHeader ranking={ranking} active="mural" />
       <section id="mural" className="relative h-full">
         <PixelMap mode="official" />
