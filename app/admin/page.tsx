@@ -838,10 +838,21 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
     problematicPaymentsCount > 0 ? `${problematicPaymentsCount} pagamento(s) com status problemático` : null,
   ].filter(Boolean);
 
-  const unreviewedPlacementsList = premiumPlacementsList.filter((placement: any) => placement.reviewStatus === "PUBLISHED_NOT_REVIEWED").slice(0, 4);
-  const openReportsList = reportsList.filter((report: any) => report.status === "OPEN" || report.status === "REVIEWING").slice(0, 4);
-  const pendingTransactionsList = latestTransactionsList.filter((transaction: any) => transaction.status === "PENDING").slice(0, 4);
-  const expiredReservationsList = pendingReservationsList.filter((block: any) => block.reservedUntil && new Date(block.reservedUntil) < now).slice(0, 4);
+  const unreviewedPlacementsList = premiumPlacementsList
+    .filter((placement: any) => placement.reviewStatus === "PUBLISHED_NOT_REVIEWED")
+    .slice(0, 4);
+
+  const openReportsList = reportsList
+    .filter((report: any) => report.status === "OPEN" || report.status === "REVIEWING")
+    .slice(0, 4);
+
+  const pendingTransactionsList = latestTransactionsList
+    .filter((transaction: any) => transaction.status === "PENDING")
+    .slice(0, 4);
+
+  const expiredReservationsList = pendingReservationsList
+    .filter((block: any) => block.reservedUntil && new Date(block.reservedUntil) < now)
+    .slice(0, 4);
 
   const operationCards = [
     {
