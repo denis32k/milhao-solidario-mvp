@@ -86,7 +86,7 @@ export default async function AdminLinksBloqueadosPage({ searchParams }: { searc
   const access = await getAdminAccess(params);
   const secret = access.secret;
 
-  if (!access.authorized) return <AdminLocked />;
+  if (!access.authorized) return <AdminLocked nextPath="/admin/links-bloqueados" />;
 
   const [domains, logs] = await Promise.all([
     safeListQuery(() => (prisma as any).blockedDomain.findMany({

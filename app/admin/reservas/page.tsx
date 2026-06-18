@@ -12,7 +12,7 @@ export default async function AdminReservasPage({ searchParams }: { searchParams
   const params = await searchParams;
   const access = await getAdminAccess(params);
   const secret = access.secret;
-  if (!access.authorized) return <AdminLocked />;
+  if (!access.authorized) return <AdminLocked nextPath="/admin/reservas" />;
 
   const now = new Date();
   const reservations = await safeListQuery(() =>

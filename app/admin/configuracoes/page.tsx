@@ -74,7 +74,7 @@ export default async function AdminConfiguracoesPage({ searchParams }: { searchP
   const params = await searchParams;
   const access = await getAdminAccess(params);
   const secret = access.secret;
-  if (!access.authorized) return <AdminLocked />;
+  if (!access.authorized) return <AdminLocked nextPath="/admin/configuracoes" />;
 
   const [settings, settingRows] = await Promise.all([
     getOperationalSettings(),

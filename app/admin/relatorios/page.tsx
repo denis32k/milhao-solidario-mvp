@@ -9,7 +9,7 @@ export default async function AdminRelatoriosPage({ searchParams }: { searchPara
   const params = await searchParams;
   const access = await getAdminAccess(params);
   const secret = access.secret;
-  if (!access.authorized) return <AdminLocked />;
+  if (!access.authorized) return <AdminLocked nextPath="/admin/relatorios" />;
 
   const [approvedTotal, byArea, exportLogs] = await Promise.all([
     safeValueQuery(() => (prisma as any).transaction.aggregate({ where: { status: "APPROVED", isTest: false }, _sum: { totalPaidCents: true }, _count: true }), { _sum: { totalPaidCents: 0 }, _count: 0 } as any),

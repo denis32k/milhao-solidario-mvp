@@ -9,7 +9,7 @@ export default async function AdminUsuariosPage({ searchParams }: { searchParams
   const params = await searchParams;
   const access = await getAdminAccess(params);
   const secret = access.secret;
-  if (!access.authorized) return <AdminLocked />;
+  if (!access.authorized) return <AdminLocked nextPath="/admin/usuarios" />;
 
   const [admins, sessions, attempts] = await Promise.all([
     safeListQuery(() => (prisma as any).user.findMany({ where: { role: { in: ["OWNER", "ADMIN", "FINANCE", "MODERATOR", "SUPPORT", "DEV"] } }, orderBy: { createdAt: "desc" }, take: 50 })),

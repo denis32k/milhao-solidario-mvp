@@ -21,7 +21,7 @@ export default async function AdminPagamentosPage({ searchParams }: { searchPara
   const params = await searchParams;
   const access = await getAdminAccess(params);
   const secret = access.secret;
-  if (!access.authorized) return <AdminLocked />;
+  if (!access.authorized) return <AdminLocked nextPath="/admin/pagamentos" />;
 
   const q = normalizeSearch(params.q);
   const status = normalizeSearch(params.status) || "ALL";

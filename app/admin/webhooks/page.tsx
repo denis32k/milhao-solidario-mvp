@@ -17,7 +17,7 @@ export default async function AdminWebhooksPage({ searchParams }: { searchParams
   const params = await searchParams;
   const access = await getAdminAccess(params);
   const secret = access.secret;
-  if (!access.authorized) return <AdminLocked />;
+  if (!access.authorized) return <AdminLocked nextPath="/admin/webhooks" />;
 
   const q = normalizeSearch(params.q);
   const state = normalizeSearch(params.state) || "ALL";

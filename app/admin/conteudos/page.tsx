@@ -20,7 +20,7 @@ export default async function AdminConteudosPage({ searchParams }: { searchParam
   const params = await searchParams;
   const access = await getAdminAccess(params);
   const secret = access.secret;
-  if (!access.authorized) return <AdminLocked />;
+  if (!access.authorized) return <AdminLocked nextPath="/admin/conteudos" />;
 
   const review = normalizeSearch(params.review) || "ALL";
   const q = normalizeSearch(params.q);

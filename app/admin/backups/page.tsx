@@ -27,7 +27,7 @@ export default async function AdminBackupsPage({ searchParams }: { searchParams:
   const params = await searchParams;
   const access = await getAdminAccess(params);
   const secret = access.secret;
-  if (!access.authorized) return <AdminLocked />;
+  if (!access.authorized) return <AdminLocked nextPath="/admin/backups" />;
   const backups = await safeListQuery(() => (prisma as any).backupRecord.findMany({ orderBy: { createdAt: "desc" }, take: 60 }));
   return <main className="admin-saas-main min-h-screen px-3 py-4 lg:px-5"><div className="mx-auto max-w-6xl"><AdminPageHeader secret={secret} active="backups" title="Backups e recuperação" description="Controle operacional de backups, exportações manuais e lembretes de restauração." />
     <section className="mb-6 rounded-3xl border border-yellow-200 bg-yellow-50 p-5 shadow-xl"><h2 className="text-xl font-black text-yellow-950">Backup real fica no servidor</h2><p className="mt-2 text-sm font-bold leading-relaxed text-yellow-900">Esta tela registra status e facilita exportações CSV. O backup automático do PostgreSQL e uploads deve ser configurado no EasyPanel/servidor, com teste de restauração.</p></section>

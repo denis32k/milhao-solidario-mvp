@@ -7,6 +7,16 @@ const SESSION_HOURS = 8;
 
 export type AdminRole = "OWNER" | "ADMIN" | "FINANCE" | "MODERATOR" | "SUPPORT" | "DEV";
 
+function shouldUseSecureAdminCookie() {
+  const explicit = String(process.env.ADMIN_COOKIE_SECURE || "").trim().toLowerCase();
+  if (explicit === "true") return true;
+  if (explicit === "false") return false;
+
+  // Em muitos deploys com proxy/EasyPanel o app roda internamente em HTTP.
+  // Deixar false por padrão evita login que "entra" e perde a sessão ao trocar de página.
+  return false;
+}
+
 export function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
@@ -103,7 +113,7 @@ export async function createAdminSession(user: any) {
   cookieStore.set(ADMIN_SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldUseSecureAdminCookie(),
     path: "/",
     maxAge: SESSION_HOURS * 60 * 60,
   });
@@ -122,7 +132,7 @@ export async function clearAdminSession() {
   cookieStore.set(ADMIN_SESSION_COOKIE, "", {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldUseSecureAdminCookie(),
     path: "/",
     maxAge: 0,
   });

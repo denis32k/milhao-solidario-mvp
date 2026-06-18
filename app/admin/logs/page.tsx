@@ -9,7 +9,7 @@ export default async function AdminLogsPage({ searchParams }: { searchParams: Ad
   const params = await searchParams;
   const access = await getAdminAccess(params);
   const secret = access.secret;
-  if (!access.authorized) return <AdminLocked />;
+  if (!access.authorized) return <AdminLocked nextPath="/admin/logs" />;
 
   const type = normalizeSearch(params.type);
   const where: any = {};

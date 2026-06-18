@@ -29,7 +29,7 @@ export default async function AdminLgpdPage({ searchParams }: { searchParams: Ad
   const params = await searchParams;
   const access = await getAdminAccess(params);
   const secret = access.secret;
-  if (!access.authorized) return <AdminLocked />;
+  if (!access.authorized) return <AdminLocked nextPath="/admin/lgpd" />;
   const q = normalizeSearch(params.q);
   const userWhere: any = q ? { OR: [{ email: { contains: q, mode: "insensitive" } }, { name: { contains: q, mode: "insensitive" } }, { whatsapp: { contains: q, mode: "insensitive" } }] } : {};
   const [users, consents, requests] = await Promise.all([

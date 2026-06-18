@@ -44,7 +44,7 @@ export default async function AdminFinanceiroPage({ searchParams }: { searchPara
   const access = await getAdminAccess(params);
   const secret = access.secret;
 
-  if (!access.authorized) return <AdminLocked />;
+  if (!access.authorized) return <AdminLocked nextPath="/admin/financeiro" />;
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);

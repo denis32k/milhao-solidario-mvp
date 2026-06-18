@@ -10,7 +10,7 @@ export default async function AdminTestesPage({ searchParams }: { searchParams: 
   const params = await searchParams;
   const access = await getAdminAccess(params);
   const secret = access.secret;
-  if (!access.authorized) return <AdminLocked />;
+  if (!access.authorized) return <AdminLocked nextPath="/admin/testes" />;
   const tests = await safeListQuery(() => (prisma as any).placement.findMany({ where: { isTest: true }, orderBy: { createdAt: "desc" }, take: 80, include: { user: true, transaction: true, blocks: { take: 8 } } }));
   return <main className="admin-saas-main min-h-screen px-3 py-4 lg:px-5"><div className="mx-auto max-w-6xl"><AdminPageHeader secret={secret} active="testes" title="Área de testes" description="Dados de teste/dev isolados de venda real. Teste não deve entrar no ranking nem no mapa público." />
     <div className="mb-5 rounded-3xl border border-purple-200 bg-purple-50 p-5 shadow-xl"><h2 className="text-xl font-black text-purple-950">Criar ou limpar testes</h2><p className="mt-2 text-sm font-bold text-purple-800">Os formulários completos de gerar área teste continuam no dashboard principal para evitar duplicação de ação sensível.</p><Link href={withAdminSecret("/admin#testes", secret)} className="mt-4 inline-flex rounded-2xl bg-purple-700 px-4 py-3 text-xs font-black text-white">Abrir controles de teste</Link></div>

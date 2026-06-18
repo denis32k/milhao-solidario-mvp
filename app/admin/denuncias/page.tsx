@@ -23,7 +23,7 @@ export default async function AdminDenunciasPage({ searchParams }: { searchParam
   const params = await searchParams;
   const access = await getAdminAccess(params);
   const secret = access.secret;
-  if (!access.authorized) return <AdminLocked />;
+  if (!access.authorized) return <AdminLocked nextPath="/admin/denuncias" />;
 
   const status = normalizeSearch(params.status) || "ALL";
   const where: any = {};

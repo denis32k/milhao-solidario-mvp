@@ -5,11 +5,20 @@ import { createAdminSession, findOrBootstrapAdmin, recordLoginAttempt, verifyAdm
 
 export const dynamic = "force-dynamic";
 
+function getSafeNextPath(value: FormDataEntryValue | string | string[] | undefined | null) {
+  const raw = Array.isArray(value) ? value[0] : String(value || "");
+  if (!raw.startsWith("/admin")) return "/admin";
+  if (raw.startsWith("//")) return "/admin";
+  if (raw.startsWith("/admin/login")) return "/admin";
+  return raw;
+}
+
 async function loginAdmin(formData: FormData) {
   "use server";
 
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const password = String(formData.get("password") || "");
+  const nextPath = getSafeNextPath(formData.get("next"));
 
   if (!email || !password) {
     redirect("/admin/login?error=missing");
@@ -44,7 +53,7 @@ async function loginAdmin(formData: FormData) {
 
   await recordLoginAttempt({ email, success: true, reason: "Login aprovado.", userId: user.id });
   await createAdminSession(user);
-  redirect("/admin");
+  redirect(nextPath);
 }
 
 function errorMessage(error: string | string[] | undefined) {
@@ -59,6 +68,7 @@ function errorMessage(error: string | string[] | undefined) {
 export default async function AdminLoginPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
   const error = errorMessage(params.error);
+  const nextPath = getSafeNextPath(params.next);
 
   return (
     <main className="min-h-screen px-4 py-8">
@@ -70,6 +80,7 @@ export default async function AdminLoginPage({ searchParams }: { searchParams: P
         {error && <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-3 text-center text-sm font-black text-red-700">{error}</div>}
 
         <form action={loginAdmin} className="mt-5 space-y-3">
+          <input type="hidden" name="next" value={nextPath} />
           <input name="email" type="email" required autoComplete="username" placeholder="E-mail do admin" className="pixel-input" />
           <input name="password" type="password" required autoComplete="current-password" placeholder="Senha" className="pixel-input" />
           <button type="submit" className="pixel-btn pixel-btn--dark w-full !rounded-2xl !py-4 !text-sm">Entrar</button>

@@ -660,7 +660,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
   const secret = access.secret;
   const authorized = access.authorized;
 
-  if (!authorized) return <AdminLocked />;
+  if (!authorized) return <AdminLocked nextPath="/admin" />;
 
   const [
     latestTransactions,

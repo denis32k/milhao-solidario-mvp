@@ -11,7 +11,7 @@ export default async function AdminClientesPage({ searchParams }: { searchParams
   const params = await searchParams;
   const access = await getAdminAccess(params);
   const secret = access.secret;
-  if (!access.authorized) return <AdminLocked />;
+  if (!access.authorized) return <AdminLocked nextPath="/admin/clientes" />;
 
   const q = normalizeSearch(params.q);
   const status = normalizeSearch(params.status) || "ALL";

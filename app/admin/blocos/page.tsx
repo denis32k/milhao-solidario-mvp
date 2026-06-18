@@ -22,7 +22,7 @@ export default async function AdminBlocosPage({ searchParams }: { searchParams: 
   const params = await searchParams;
   const access = await getAdminAccess(params);
   const secret = access.secret;
-  if (!access.authorized) return <AdminLocked />;
+  if (!access.authorized) return <AdminLocked nextPath="/admin/blocos" />;
 
   const status = normalizeSearch(params.status) || "ALL";
   const area = normalizeSearch(params.area) || "ALL";
