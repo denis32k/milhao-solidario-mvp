@@ -1211,3 +1211,226 @@ body:has(.admin-saas-main), body:has(.admin-auth-shell){
 .table-status.neutral{background:#f8fafc;border-color:#e5e7eb;color:#64748b;}
 .admin-table-card table tbody td{font-size:13px;color:#334155;vertical-align:middle;}
 .admin-table-card table tbody td:first-child{color:#0f172a;}
+
+/* Fase 24 — visual mais próximo de Nuvemshop */
+body:has(.admin-saas-main), body:has(.admin-auth-shell){
+  background:#f4f6fb !important;
+}
+.admin-saas-main{
+  background:#f4f6fb !important;
+  padding-top:108px !important;
+}
+@media (min-width:1024px){
+  .admin-saas-main{
+    padding-left:284px !important;
+    padding-top:72px !important;
+    padding-right:18px !important;
+    padding-bottom:18px !important;
+  }
+}
+.admin-saas-main > div{max-width:1440px !important;}
+.admin-sidebar{
+  width:266px !important;
+  padding:10px 10px 12px !important;
+  background:#f7f9fc !important;
+  border-right:1px solid #e4eaf2 !important;
+}
+.admin-brand{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 10px 12px !important;
+}
+.admin-brand-logo{
+  display:flex;align-items:center;justify-content:center;
+  height:40px;width:40px;border-radius:12px;
+  background:#fff;border:1px solid #e5e7eb;
+}
+.admin-brand strong{font-size:18px !important;line-height:1 !important;color:#0f172a !important;}
+.admin-brand small{font-size:10px !important;text-transform:uppercase;color:#94a3b8 !important;letter-spacing:.06em !important;}
+.admin-sidebar-label{
+  font-size:12px !important;
+  color:#8a94a6 !important;
+  font-weight:700 !important;
+}
+.admin-side-link{
+  display:flex;align-items:center;gap:10px;
+  min-height:40px !important;
+  padding:9px 11px !important;
+  border-radius:12px !important;
+  color:#334155 !important;
+  font-size:14px !important;
+  font-weight:600 !important;
+}
+.admin-side-link:hover{
+  background:#eef4ff !important;border-color:transparent !important;color:#2563eb !important;
+}
+.admin-side-link.is-active{
+  background:#e8f0ff !important;color:#1d4ed8 !important;border-color:transparent !important;
+}
+.admin-side-icon{
+  display:inline-flex;align-items:center;justify-content:center;
+  height:24px !important;width:24px !important;border-radius:8px !important;
+  background:transparent !important;color:#64748b !important;
+}
+.admin-side-link.is-active .admin-side-icon{background:#dbeafe !important;color:#1d4ed8 !important;}
+.admin-side-link:hover .admin-side-icon{color:#2563eb !important;background:#dbeafe !important;}
+.admin-mini-link{
+  min-height:34px;
+  border-radius:10px !important;
+  border:1px solid #e2e8f0 !important;
+  background:#fff !important;
+  font-size:11px !important;
+  color:#64748b !important;
+}
+.admin-mini-link.is-active,.admin-mini-link:hover{background:#eef4ff !important;border-color:#bfdbfe !important;color:#1d4ed8 !important;}
+.admin-sidebar-note{border-radius:14px !important;border:1px solid #e5e7eb !important;padding:14px !important;}
+.admin-sidebar-note strong{font-size:12px !important;}
+.admin-sidebar-note p{font-size:11px !important;}
+.admin-topbar{
+  height:60px !important;
+  background:#fff !important;
+  border-bottom:1px solid #e4eaf2 !important;
+}
+@media (min-width:1024px){.admin-topbar{left:266px !important;padding:0 18px !important;}}
+.admin-top-search{
+  max-width:620px !important;
+  height:42px !important;
+  background:#fff !important;
+  border:1px solid #dbe2ea !important;
+  border-radius:12px !important;
+  overflow:hidden;
+}
+.admin-top-search-icon{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:38px;color:#94a3b8;flex:0 0 38px;
+}
+.admin-top-search input{padding:10px 10px 10px 0 !important;height:40px !important;border:0 !important;background:transparent !important;}
+.admin-top-search button{height:40px !important;padding:0 14px !important;background:#2563eb !important;color:#fff !important;border-left:0 !important;}
+.admin-top-action,.admin-top-user,.admin-top-badge{
+  height:36px !important;border-radius:10px !important;padding:0 12px !important;font-size:12px !important;
+}
+.admin-top-user{background:#f8fafc !important;border-color:#e2e8f0 !important;color:#334155 !important;}
+.admin-top-badge{background:#eef4ff !important;border-color:#bfdbfe !important;color:#1d4ed8 !important;}
+.admin-mobile-nav{top:60px !important;background:#fff !important;}
+.admin-mobile-link{min-height:32px !important;padding:0 12px !important;font-size:11px !important;border-radius:999px !important;}
+.admin-page-heading{
+  padding:14px 16px !important;
+  border-radius:16px !important;
+  margin-bottom:12px !important;
+}
+.admin-page-heading h1{font-size:22px !important;}
+.admin-page-heading p:last-child{font-size:12px !important;line-height:1.45 !important;}
+.admin-page-heading-badges{gap:8px !important;}
+.admin-page-badge{min-height:28px !important;padding:0 10px !important;}
+.admin-section-nav{padding:8px !important;border-radius:14px !important;}
+.admin-section-link{min-height:32px !important;font-size:11px !important;padding:0 10px !important;}
+
+/* Cards gerais das páginas internas */
+.admin-saas-main .rounded-3xl.bg-white.p-5.shadow-xl,
+.admin-saas-main .rounded-3xl.bg-white.p-4.shadow-xl,
+.admin-saas-main .rounded-3xl.bg-white.shadow-xl,
+.admin-saas-main .rounded-3xl.bg-white.p-5.shadow,
+.admin-saas-main .rounded-3xl.bg-white.p-4.shadow,
+.admin-saas-main section.rounded-3xl.bg-white,
+.admin-saas-main aside.rounded-3xl.bg-white,
+.admin-saas-main article.rounded-3xl.bg-white{
+  border:1px solid #e5e7eb !important;
+  border-radius:16px !important;
+  background:#fff !important;
+  box-shadow:none !important;
+}
+.admin-saas-main .rounded-3xl.border.border-emerald-200.bg-emerald-50,
+.admin-saas-main .rounded-3xl.border.border-yellow-200.bg-yellow-50,
+.admin-saas-main .rounded-3xl.border.border-blue-200.bg-blue-50,
+.admin-saas-main .rounded-3xl.border.border-fuchsia-200.bg-fuchsia-50,
+.admin-saas-main .rounded-3xl.border.border-red-200.bg-red-50{
+  border-radius:16px !important;
+  box-shadow:none !important;
+}
+.admin-saas-main .rounded-2xl.bg-slate-50,
+.admin-saas-main .rounded-2xl.border.border-slate-200,
+.admin-saas-main .rounded-2xl.border.border-red-100.bg-red-50,
+.admin-saas-main .rounded-2xl.bg-yellow-50,
+.admin-saas-main .rounded-2xl.bg-red-50,
+.admin-saas-main .rounded-2xl.bg-green-50,
+.admin-saas-main .rounded-2xl.bg-orange-50,
+.admin-saas-main .rounded-2xl.bg-slate-100{
+  border-radius:12px !important;
+}
+
+/* Formulários */
+.admin-saas-main form.rounded-3xl,
+.admin-saas-main .rounded-3xl form,
+.admin-saas-main form[class*='grid gap-3 rounded-3xl'],
+.admin-saas-main form[class*='grid gap-2 rounded-3xl']{
+  border-radius:16px !important;
+}
+.admin-saas-main input,
+.admin-saas-main select,
+.admin-saas-main textarea,
+.admin-saas-main button,
+.admin-saas-main a[class*='rounded-2xl'],
+.admin-saas-main a[class*='rounded-full']{
+  transition:none !important;
+}
+.admin-saas-main input,
+.admin-saas-main select,
+.admin-saas-main textarea{
+  min-height:38px !important;
+  border:1px solid #dbe2ea !important;
+  border-radius:10px !important;
+  background:#fff !important;
+  color:#0f172a !important;
+  font-size:13px !important;
+  font-weight:500 !important;
+  box-shadow:none !important;
+}
+.admin-saas-main textarea{min-height:96px !important;padding-top:12px !important;}
+.admin-saas-main button,
+.admin-saas-main a.rounded-2xl.bg-slate-950,
+.admin-saas-main a.rounded-full.bg-slate-950,
+.admin-saas-main a.rounded-2xl.bg-emerald-600,
+.admin-saas-main a.rounded-2xl.bg-yellow-500,
+.admin-saas-main a.rounded-2xl.bg-blue-600,
+.admin-saas-main a.rounded-2xl.bg-fuchsia-600{
+  border-radius:10px !important;
+}
+.admin-saas-main button[class*='bg-slate-950'],
+.admin-saas-main a[class*='bg-slate-950']{
+  background:#2563eb !important;
+  color:#fff !important;
+}
+.admin-saas-main button[class*='bg-red-'],
+.admin-saas-main a[class*='bg-red-']{border-radius:10px !important;}
+.admin-saas-main button[class*='bg-green-600']{background:#059669 !important;}
+.admin-saas-main button[class*='bg-yellow-500']{background:#f59e0b !important;color:#fff !important;}
+.admin-saas-main button[class*='bg-blue-600']{background:#2563eb !important;}
+.admin-saas-main button[class*='bg-fuchsia-600']{background:#9333ea !important;}
+
+/* Dashboard mais compacto */
+.dashboard-metrics-grid{gap:12px !important;}
+.dashboard-metric-card{padding:16px !important;border-radius:16px !important;}
+.dashboard-metric-icon{height:38px !important;width:38px !important;flex-basis:38px !important;border-radius:12px !important;}
+.dashboard-metric-value{font-size:24px !important;}
+.dashboard-mini-grid{gap:10px !important;}
+.dashboard-mini-card{padding:12px 14px !important;border-radius:14px !important;}
+.dashboard-mini-card strong{font-size:22px !important;}
+.dashboard-stat-row{border-radius:12px !important;}
+.dashboard-area-row{border-radius:12px !important;}
+
+/* Tabelas */
+.admin-table-card{border-radius:16px !important;overflow:hidden !important;}
+.admin-table-header{padding:14px 16px !important;}
+.admin-table-header h2{font-size:18px !important;font-weight:700 !important;color:#0f172a !important;}
+.admin-table-card table thead th{padding:10px 12px !important;font-size:11px !important;background:#f8fafc !important;color:#64748b !important;}
+.admin-table-card table tbody td{padding:12px !important;border-bottom:1px solid #edf2f7 !important;}
+.admin-table-card table tbody tr:last-child td{border-bottom:0 !important;}
+.admin-table-card table tbody tr:hover{background:#fafcff !important;}
+.table-status{min-height:26px !important;padding:0 9px !important;font-size:10px !important;letter-spacing:.01em !important;}
+.admin-row-link{min-height:28px !important;padding:5px 10px !important;font-size:11px !important;}
+
+/* Títulos e blocos comuns */
+.admin-saas-main h2.text-xl,
+.admin-saas-main h2.text-xl.font-black{font-size:18px !important;line-height:1.25 !important;font-weight:700 !important;}
+.admin-saas-main p.text-xs.font-black.uppercase{letter-spacing:.02em !important;text-transform:none !important;}
+.admin-saas-main .shadow,
+.admin-saas-main .shadow-xl{box-shadow:none !important;}
