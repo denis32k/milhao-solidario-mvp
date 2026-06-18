@@ -90,6 +90,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, message: "A personalização fica liberada após o pagamento aprovado." }, { status: 409 });
     }
 
+    const blockIds = transaction.items.map((item: any) => item.blockId).filter(Boolean);
+    const primaryBlockId = blockIds[0] || transaction.items[0]?.blockId || null;
     const minX = Math.min(...transaction.items.map((item: any) => item.gridX));
     const maxX = Math.max(...transaction.items.map((item: any) => item.gridX));
     const minY = Math.min(...transaction.items.map((item: any) => item.gridY));
@@ -155,8 +157,21 @@ export async function POST(request: Request) {
       });
 
       await tx.block.updateMany({
-        where: { currentTransactionId: transaction.id },
-        data: { placementId: placement.id },
+        where: {
+          OR: [
+            { currentTransactionId: transaction.id },
+            ...(blockIds.length ? [{ id: { in: blockIds } }] : []),
+          ],
+        },
+        data: {
+          status: "SOLD",
+          available: false,
+          ownerId: transaction.userId,
+          currentTransactionId: transaction.id,
+          placementId: placement.id,
+          reservationToken: null,
+          reservedUntil: null,
+        },
       });
 
       return { transaction: updatedTransaction, placement };
@@ -166,6 +181,10 @@ export async function POST(request: Request) {
       ok: true,
       message: "Personalização salva. Seu espaço já aparece no Mural29.",
       placement: { id: result.placement.id, displayName: result.placement.displayName, imageUrl: result.placement.imageUrl, redirectUrl: result.placement.redirectUrl },
+      primaryBlockId,
+      blockIds,
+      muralPath: primaryBlockId ? `/?bloco=${encodeURIComponent(primaryBlockId)}&publicado=1` : "/",
+      managementPath: `/gerenciar/${encodeURIComponent(managementToken)}`,
     });
   } catch (error) {
     return NextResponse.json({ ok: false, message: "Erro ao salvar personalização.", error: getErrorMessage(error) }, { status: 500 });

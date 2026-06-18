@@ -26,6 +26,7 @@ type PixResult = {
   pix: { qrCode: string | null; qrCodeBase64: string | null; ticketUrl: string | null };
   transaction: { id: string; subtotalCents?: number; operatorFeeCents?: number; totalPaidCents: number };
   blocks: Array<{ id: string; gridX: number; gridY: number; category: string; priceCents: number }>;
+  block?: { id: string; gridX: number; gridY: number };
   managementPath?: string;
   managementUrl?: string;
 };
@@ -126,10 +127,13 @@ export default function CompraPage() {
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
   const [pixResult, setPixResult] = useState<PixResult | null>(null);
   const [copyMessage, setCopyMessage] = useState("");
+  const [managementCopyMessage, setManagementCopyMessage] = useState("");
   const [verifyMessage, setVerifyMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [paymentApproved, setPaymentApproved] = useState(false);
   const [operationalSettings, setOperationalSettings] = useState<OperationalClientSettings | null>(null);
+  const [isCheckoutReady, setIsCheckoutReady] = useState(false);
+  const [recoveryLink, setRecoveryLink] = useState("");
 
   useEffect(() => {
     fetch("/api/mercado-pago-pix", { cache: "no-store" })
@@ -138,6 +142,12 @@ export default function CompraPage() {
         if (data?.settings) setOperationalSettings(data.settings);
       })
       .catch(() => null);
+
+    try {
+      setRecoveryLink(localStorage.getItem("mural29:lastManagementUrl") || "");
+    } catch {
+      setRecoveryLink("");
+    }
   }, []);
 
   useEffect(() => {
@@ -148,6 +158,7 @@ export default function CompraPage() {
     else if (categoryParam === "GOLD") setCategory("GOLD");
     else if (categoryParam === "PREMIUM") setCategory("PREMIUM");
     else setCategory("SOLIDARITY");
+    setIsCheckoutReady(true);
   }, []);
 
   useEffect(() => {
@@ -188,6 +199,95 @@ export default function CompraPage() {
     return "";
   }
 
+
+  function getManagementHref(result: PixResult | null = pixResult) {
+    const raw = result?.managementUrl || result?.managementPath || "";
+    if (!raw) return "";
+    if (/^https?:\/\//i.test(raw)) return raw;
+    if (typeof window === "undefined") return raw;
+    return `${window.location.origin}${raw.startsWith("/") ? raw : `/${raw}`}`;
+  }
+
+  function rememberManagementLink(result: PixResult) {
+    const href = getManagementHref(result);
+    if (!href) return;
+    try {
+      localStorage.setItem("mural29:lastManagementUrl", href);
+      localStorage.setItem("mural29:lastTransactionId", result.transaction.id);
+      setRecoveryLink(href);
+    } catch {
+      // Se o navegador bloquear localStorage, o link ainda aparece na tela para copiar.
+    }
+  }
+
+  async function handleCopyManagementLink() {
+    const href = getManagementHref();
+    if (!href) return;
+    try {
+      await navigator.clipboard.writeText(href);
+      setManagementCopyMessage("Link salvo/copiado. Se sair da tela, volte por ele para personalizar.");
+    } catch {
+      setManagementCopyMessage("Não consegui copiar automaticamente. Toque e segure no link para copiar.");
+    }
+  }
+
+  async function checkPaymentApproval(silent = false) {
+    if (!pixResult?.payment.id) {
+      if (!silent) setVerifyMessage("Gere o PIX primeiro.");
+      return false;
+    }
+
+    try {
+      if (!silent) setIsCheckingPayment(true);
+      if (!silent) setVerifyMessage("");
+
+      const response = await fetch(`/api/mercado-pago-pix/webhook?type=payment&data.id=${encodeURIComponent(String(pixResult.payment.id))}`, { method: "GET", cache: "no-store" });
+      const data = await response.json();
+      const result = data.result || {};
+      const nestedResult = result.result || {};
+      const mercadoPagoStatus = String(result.mercadoPagoStatus || nestedResult.mercadoPagoStatus || "").toLowerCase();
+      const transactionStatus = String(result.transactionStatus || nestedResult.transactionStatus || "").toUpperCase();
+      const isApproved = mercadoPagoStatus === "approved" || transactionStatus === "APPROVED";
+
+      if (isApproved) {
+        setPaymentApproved(true);
+        setStep("customize");
+        setVerifyMessage("Pagamento aprovado. Agora personalize seu espaço.");
+        return true;
+      }
+
+      if (!silent) setVerifyMessage("Pagamento ainda não aprovado. Aguarde alguns segundos e tente novamente.");
+      return false;
+    } catch (error) {
+      if (!silent) {
+        setPaymentApproved(false);
+        setVerifyMessage(error instanceof Error ? error.message : "Erro inesperado ao verificar pagamento.");
+      }
+      return false;
+    } finally {
+      if (!silent) setIsCheckingPayment(false);
+    }
+  }
+
+  useEffect(() => {
+    if (step !== "pix" || paymentApproved || !pixResult?.payment.id) return;
+
+    let cancelled = false;
+    const run = async () => {
+      if (cancelled) return;
+      await checkPaymentApproval(true);
+    };
+
+    const firstCheck = window.setTimeout(run, 2500);
+    const interval = window.setInterval(run, 4500);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(firstCheck);
+      window.clearInterval(interval);
+    };
+  }, [step, paymentApproved, pixResult?.payment.id]);
+
   async function handleGeneratePix() {
     try {
       setErrorMessage("");
@@ -220,7 +320,10 @@ export default function CompraPage() {
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error(data.message || data.error || "Erro ao criar PIX no Mercado Pago.");
 
-      setPixResult({ payment: data.payment, pix: data.pix, transaction: data.transaction, blocks: data.blocks, managementPath: data.managementPath, managementUrl: data.managementUrl });
+      const nextResult: PixResult = { payment: data.payment, pix: data.pix, transaction: data.transaction, blocks: data.blocks || [], block: data.block, managementPath: data.managementPath, managementUrl: data.managementUrl };
+      setPixResult(nextResult);
+      rememberManagementLink(nextResult);
+      setManagementCopyMessage("");
       setStep("pix");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Erro inesperado ao gerar PIX.");
@@ -240,37 +343,7 @@ export default function CompraPage() {
   }
 
   async function handleCheckPayment() {
-    try {
-      if (!pixResult?.payment.id) {
-        setVerifyMessage("Gere o PIX primeiro.");
-        return;
-      }
-
-      setIsCheckingPayment(true);
-      setVerifyMessage("");
-
-      const response = await fetch(`/api/mercado-pago-pix/webhook?type=payment&data.id=${encodeURIComponent(String(pixResult.payment.id))}`, { method: "GET", cache: "no-store" });
-      const data = await response.json();
-      const result = data.result || {};
-      const nestedResult = result.result || {};
-      const mercadoPagoStatus = String(result.mercadoPagoStatus || nestedResult.mercadoPagoStatus || "").toLowerCase();
-      const transactionStatus = String(result.transactionStatus || nestedResult.transactionStatus || "").toUpperCase();
-      const isApproved = mercadoPagoStatus === "approved" || transactionStatus === "APPROVED";
-
-      if (isApproved) {
-        setPaymentApproved(true);
-        setStep("customize");
-        setVerifyMessage("Pagamento aprovado. Agora personalize seu espaço.");
-        return;
-      }
-
-      setVerifyMessage("Pagamento ainda não aprovado. Aguarde alguns segundos e tente novamente.");
-    } catch (error) {
-      setPaymentApproved(false);
-      setVerifyMessage(error instanceof Error ? error.message : "Erro inesperado ao verificar pagamento.");
-    } finally {
-      setIsCheckingPayment(false);
-    }
+    await checkPaymentApproval(false);
   }
 
   async function uploadPersonalImage() {
@@ -310,12 +383,28 @@ export default function CompraPage() {
       if (!response.ok || !data.ok) throw new Error(data.message || data.error || "Erro ao salvar personalização.");
 
       setPersonalized(true);
-      setPersonalizationMessage("Personalização salva. Seu espaço já aparece no Mural29.");
+      setPersonalizationMessage("Personalização salva. Vamos abrir o mural no espaço comprado.");
+
+      const primaryBlockId = data.primaryBlockId || pixResult.block?.id || pixResult.blocks?.[0]?.id;
+      const muralPath = data.muralPath || (primaryBlockId ? `/?bloco=${encodeURIComponent(primaryBlockId)}&publicado=1` : "/");
+      window.setTimeout(() => {
+        window.location.href = muralPath;
+      }, 700);
     } catch (error) {
       setPersonalizationMessage(error instanceof Error ? error.message : "Erro inesperado ao salvar personalização.");
     } finally {
       setIsSavingPersonalization(false);
     }
+  }
+
+  if (!isCheckoutReady) {
+    return (
+      <main className="min-h-screen bg-slate-50 px-4 py-6">
+        <div className="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm">
+          <p className="text-sm font-medium text-slate-500">Carregando checkout...</p>
+        </div>
+      </main>
+    );
   }
 
   if (selectedBlocks.length === 0) {
@@ -325,7 +414,11 @@ export default function CompraPage() {
           <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-xl">🧱</div>
           <h1 className="mt-4 text-xl font-bold tracking-tight text-slate-950">Selecione os tijolinhos primeiro</h1>
           <p className="mt-2 text-sm leading-relaxed text-slate-500">Volte ao mural, toque nos espaços desejados e continue para gerar o PIX.</p>
-          <Link href="/" className="mt-5 flex h-11 items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800">Voltar ao mural</Link>
+          <div className="mt-5 grid gap-2">
+            <Link href="/" className="flex h-11 items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800">Voltar ao mural</Link>
+            {recoveryLink && <a href={recoveryLink} className="flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-950 shadow-sm transition hover:bg-slate-50">Continuar compra anterior</a>}
+          </div>
+          {recoveryLink && <p className="mt-3 text-xs leading-relaxed text-slate-500">Encontramos um link salvo neste aparelho. Ele permite voltar para personalizar depois do pagamento aprovado.</p>}
         </div>
       </main>
     );
@@ -426,7 +519,7 @@ export default function CompraPage() {
                 <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                   <p className="text-xs font-semibold text-emerald-700">PIX criado</p>
                   <h1 className="mt-1 text-xl font-bold tracking-tight text-emerald-950">Pague para confirmar sua reserva</h1>
-                  <p className="mt-1.5 text-sm leading-relaxed text-emerald-800">Use o QR Code ou copie o código. Depois toque em verificar pagamento.</p>
+                  <p className="mt-1.5 text-sm leading-relaxed text-emerald-800">Use o QR Code ou copie o código. A confirmação é verificada automaticamente a cada poucos segundos.</p>
                 </div>
 
                 <div className="mt-4 grid gap-4 lg:grid-cols-[280px_1fr]">
@@ -445,6 +538,21 @@ export default function CompraPage() {
                         {copyMessage && <p className="mt-2 text-center text-xs font-semibold text-emerald-700">{copyMessage}</p>}
                       </div>
                     )}
+                    {getManagementHref() && (
+                      <div className="rounded-2xl border border-blue-200 bg-blue-50 p-3">
+                        <p className="text-xs font-semibold text-blue-900">Link seguro da compra</p>
+                        <p className="mt-1 text-xs leading-relaxed text-blue-800">Se fechar esta tela sem querer, volte por este link para acompanhar o pagamento e personalizar depois.</p>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          <a href={getManagementHref()} className="flex h-10 items-center justify-center rounded-xl bg-white px-3 text-xs font-semibold text-blue-900 shadow-sm ring-1 ring-blue-200">Abrir área do comprador</a>
+                          <button type="button" onClick={handleCopyManagementLink} className="flex h-10 items-center justify-center rounded-xl bg-blue-600 px-3 text-xs font-semibold text-white shadow-sm">Copiar link</button>
+                        </div>
+                        {managementCopyMessage && <p className="mt-2 text-xs font-semibold text-blue-900">{managementCopyMessage}</p>}
+                      </div>
+                    )}
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-3 text-xs font-medium leading-relaxed text-slate-500">
+                      Verificação automática ativa. Se o Mercado Pago demorar, você também pode tocar no botão abaixo.
+                    </div>
                     <button type="button" onClick={handleCheckPayment} disabled={isCheckingPayment} className="flex h-12 w-full items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">{isCheckingPayment ? "Verificando..." : "Já paguei, verificar pagamento"}</button>
                     {verifyMessage && <div className={`rounded-2xl border p-3 text-sm font-medium ${paymentApproved ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-yellow-200 bg-yellow-50 text-yellow-800"}`}>{verifyMessage}</div>}
                   </div>

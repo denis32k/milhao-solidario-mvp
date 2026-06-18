@@ -259,6 +259,7 @@ export default function PixelMap() {
   const movedRef = useRef(false);
   const lastPointerRef = useRef({ x: 0, y: 0 });
   const pinchStartRef = useRef<PinchStart | null>(null);
+  const focusedBlockFromUrlRef = useRef(false);
 
   const [selectedSheet, setSelectedSheet] = useState<SelectedSheet>(null);
   const [mapBlocks, setMapBlocks] = useState<ApiMapBlock[]>([]);
@@ -333,6 +334,32 @@ export default function PixelMap() {
   }
 
 
+  function focusPurchasedBlock(block: ApiMapBlock) {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    const rect = wrapper.getBoundingClientRect();
+    const minScale = getMinScale();
+    const nextScale = clamp(Math.max(minScale * 2.8, 1.15), minScale, MAX_SCALE);
+    const centerX = ((block.placement?.originX ?? block.gridX) + Math.max(1, block.placement?.widthBlocks || 1) / 2) * BLOCK_SIZE;
+    const centerY = ((block.placement?.originY ?? block.gridY) + Math.max(1, block.placement?.heightBlocks || 1) / 2) * BLOCK_SIZE;
+
+    setCamera(
+      clampCamera({
+        x: rect.width / 2 - centerX * nextScale,
+        y: rect.height / 2 - centerY * nextScale,
+        scale: nextScale,
+      })
+    );
+
+    setSelectedSheet({
+      type: "sold",
+      block,
+      anchorX: rect.left + rect.width / 2,
+      anchorY: rect.top + rect.height / 2,
+    });
+  }
+
   function zoomFromScreenPoint(screenX: number, screenY: number, factor: number) {
     const nextScale = clamp(camera.scale * factor, getMinScale(), MAX_SCALE);
     const worldX = (screenX - camera.x) / camera.scale;
@@ -385,6 +412,21 @@ export default function PixelMap() {
       isAlive = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (focusedBlockFromUrlRef.current || isLoadingBlocks || mapBlocks.length === 0) return;
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const blockId = params.get("bloco") || params.get("block") || params.get("blockId");
+    if (!blockId) return;
+
+    const block = mapBlocks.find((item) => item.id === blockId);
+    if (!block) return;
+
+    focusedBlockFromUrlRef.current = true;
+    window.setTimeout(() => focusPurchasedBlock(block), 120);
+  }, [mapBlocks, isLoadingBlocks]);
 
   useEffect(() => {
     drawMap();
