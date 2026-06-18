@@ -52,8 +52,8 @@ export default function HeaderMiniStats({ ranking = [] }: { ranking?: RankingIte
   const topThree = ranking.slice(0, 3);
 
   return (
-    <div className="min-w-0 flex-1 px-2 sm:px-4">
-      <div className="mx-auto max-w-3xl">
+    <div className="min-w-0 flex-1 px-1 sm:px-3">
+      <div className="mx-auto max-w-2xl">
         <div className="flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-wide text-slate-500">
           <p className="min-w-0 truncate">
             <span>{phase.currentPhase}</span>
@@ -69,10 +69,10 @@ export default function HeaderMiniStats({ ranking = [] }: { ranking?: RankingIte
           />
         </div>
 
-        <p className="mt-1 truncate text-[9px] font-bold text-slate-500">{nextText}</p>
+        <p className="mt-1 hidden truncate text-[9px] font-bold text-slate-500 sm:block">{nextText}</p>
 
         {topThree.length > 0 && (
-          <div className="mt-1.5 grid grid-cols-3 items-end gap-1 text-center">
+          <div className="mt-1 hidden grid-cols-3 items-end gap-1 text-center sm:grid">
             {podiumSlots.map((slot) => {
               const item = getRankItem(topThree, slot.rank);
               const isLeader = slot.rank === 1;

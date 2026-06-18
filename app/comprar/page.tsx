@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export default async function HomePage() {
+export default async function ComprarPage() {
   let users: { id: string; name: string | null; publicName: string | null; totalApprovedCents: number }[] = [];
 
   try {
@@ -26,9 +26,9 @@ export default async function HomePage() {
 
   return (
     <main className="h-[100dvh] overflow-hidden bg-slate-950 pt-[112px]">
-      <StickyHeader ranking={ranking} active="mural" />
-      <section id="mural" className="relative h-full">
-        <PixelMap mode="official" />
+      <StickyHeader ranking={ranking} active="comprar" />
+      <section id="mural-compra" className="relative h-full">
+        <PixelMap mode="purchase" />
       </section>
     </main>
   );

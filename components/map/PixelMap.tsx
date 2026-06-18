@@ -69,9 +69,13 @@ type ApiMapBlock = {
   } | null;
 };
 
+type PixelMapMode = "official" | "purchase";
+
 type SelectedSheet =
   | null
-  | { type: "sold"; block: ApiMapBlock; gridX: number; gridY: number };
+  | { type: "sold"; block: ApiMapBlock; gridX: number; gridY: number }
+  | { type: "available"; gridX: number; gridY: number; category: BuyableCategory; priceCents: number };
+
 
 type PointerPoint = {
   x: number;
@@ -258,7 +262,7 @@ function drawImageCover(
   ctx.restore();
 }
 
-export default function PixelMap() {
+export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
 
@@ -277,6 +281,7 @@ export default function PixelMap() {
   const [isLoadingBlocks, setIsLoadingBlocks] = useState(true);
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, scale: 1 });
 
+  const isPurchaseMode = mode === "purchase";
   const selectedCategory = selectedBlocks[0]?.category || null;
   const selectedNeedsRectangle = selectedBlocks.length > 1;
   const selectedIsRectangle = blocksFormRectangle(selectedBlocks);
@@ -447,7 +452,7 @@ export default function PixelMap() {
 
   useEffect(() => {
     drawMap();
-  }, [camera, mapBlocks, selectedBlocks, isLoadingBlocks]);
+  }, [camera, mapBlocks, selectedBlocks, isLoadingBlocks, mode]);
 
   function getMapBlockAt(x: number, y: number) {
     return mapBlocks.find((block) => block.gridX === x && block.gridY === y);
@@ -602,6 +607,19 @@ export default function PixelMap() {
 
     }
 
+    if (isPurchaseMode) {
+      for (const block of mapBlocks) {
+        if (block.available && block.status === "AVAILABLE") continue;
+        const px = block.gridX * BLOCK_SIZE;
+        const py = block.gridY * BLOCK_SIZE;
+        ctx.fillStyle = block.status === "RESERVED" ? "rgba(255,255,255,0.60)" : "rgba(255,255,255,0.42)";
+        ctx.fillRect(px + 0.5, py + 0.5, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
+        ctx.strokeStyle = "rgba(15,23,42,0.20)";
+        ctx.lineWidth = 0.35;
+        ctx.strokeRect(px + 0.8, py + 0.8, BLOCK_SIZE - 1.6, BLOCK_SIZE - 1.6);
+      }
+    }
+
     // redesenha as divisões no final para ficarem sempre exatamente visíveis entre as duas linhas douradas.
     ctx.strokeStyle = "rgba(255,214,10,0.82)";
     ctx.lineWidth = 1;
@@ -691,8 +709,20 @@ export default function PixelMap() {
   function selectBlock(gridX: number, gridY: number, category: BlockCategory, clientX: number, clientY: number) {
 
     const soldBlock = getMapBlockAt(gridX, gridY);
-    if (soldBlock) {
+    if (soldBlock && (!soldBlock.available || soldBlock.status !== "AVAILABLE")) {
       setSelectedSheet({ type: "sold", block: soldBlock, gridX, gridY });
+      if (isPurchaseMode) setSelectionMessage("Esse tijolinho já está indisponível. Escolha um espaço livre ao lado.");
+      return;
+    }
+
+    if (!isPurchaseMode) {
+      setSelectedSheet({
+        type: "available",
+        gridX,
+        gridY,
+        category: category as BuyableCategory,
+        priceCents: getBlockPrice(category),
+      });
       return;
     }
 
@@ -900,6 +930,22 @@ export default function PixelMap() {
       <canvas ref={canvasRef} className="block h-full w-full" />
 
       <div
+        className="pointer-events-none absolute left-3 top-3 z-40 max-w-[300px] rounded-2xl border border-white/60 bg-white/92 px-4 py-3 text-xs font-bold leading-relaxed text-slate-700 shadow-xl backdrop-blur"
+      >
+        {isPurchaseMode ? (
+          <>
+            <p className="font-black text-slate-950">Modo compra</p>
+            <p className="mt-1">Escolha os espaços livres. Os blocos com véu branco já estão indisponíveis, mas continuam visíveis para você comprar por perto.</p>
+          </>
+        ) : (
+          <>
+            <p className="font-black text-slate-950">Mural oficial</p>
+            <p className="mt-1">Clique nos blocos para ver informações públicas. A compra fica separada para não poluir o mural.</p>
+          </>
+        )}
+      </div>
+
+      <div
         className="absolute right-3 top-24 z-40 hidden flex-col gap-2 md:flex"
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => event.stopPropagation()}
@@ -930,7 +976,7 @@ export default function PixelMap() {
         </button>
       </div>
 
-      {selectedBlocks.length > 0 && (
+      {isPurchaseMode && selectedBlocks.length > 0 && (
         <div
           className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/98 p-3 shadow-2xl backdrop-blur"
           onPointerDown={(event) => event.stopPropagation()}
@@ -995,6 +1041,36 @@ export default function PixelMap() {
         </div>
       )}
 
+      {selectedSheet?.type === "available" && (() => {
+        const anchor = getCellScreenAnchor(selectedSheet.gridX, selectedSheet.gridY) || { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+        const bubblePosition = getBubblePosition(anchor.x, anchor.y);
+
+        return (
+          <div
+            className="fixed z-[999] w-[292px] rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl"
+            style={bubblePosition.box}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={`absolute h-4 w-4 rotate-45 border border-inherit bg-inherit ${bubblePosition.isAbove ? "-bottom-2" : "-top-2"}`} style={{ left: bubblePosition.arrowLeft }} />
+            <button
+              type="button"
+              onClick={() => setSelectedSheet(null)}
+              className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-sm font-black text-slate-700"
+            >
+              ×
+            </button>
+
+            <span className="inline-flex rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-black uppercase text-emerald-700">Espaço livre</span>
+            <h2 className="mt-3 text-lg font-black leading-tight text-slate-950">{getAreaName(selectedSheet.category)}</h2>
+            <p className="mt-1 text-xs font-bold text-slate-500">Coordenada x{selectedSheet.gridX}/y{selectedSheet.gridY}</p>
+            <p className="mt-3 rounded-2xl bg-slate-50 p-3 text-xs font-bold leading-relaxed text-slate-600">
+              Este espaço ainda está livre. No mural oficial ele aparece apenas como informação pública. Para comprar, acesse a página “Compre seu tijolinho” no cabeçalho.
+            </p>
+          </div>
+        );
+      })()}
+
       {selectedSheet?.type === "sold" && (() => {
         const rank = getOwnerRank(selectedSheet.block, mapBlocks);
         const bubbleTheme = getBubbleTheme(selectedSheet.block, rank);
@@ -1057,6 +1133,12 @@ export default function PixelMap() {
                   <p className="mt-1 text-sm font-medium text-slate-400">Sem link público</p>
                 )}
               </div>
+            )}
+
+            {isPurchaseMode && (
+              <p className="mt-3 rounded-2xl bg-white/70 p-3 text-xs font-bold leading-relaxed text-slate-600">
+                Indisponível para compra. Você ainda consegue ver quem está aqui para escolher um espaço livre ao lado.
+              </p>
             )}
 
             <div className="mt-4 flex items-center justify-between gap-3">
