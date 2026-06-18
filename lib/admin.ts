@@ -30,7 +30,7 @@ export function withAdminSecret(path: string, secret: string) {
 }
 
 export function muralBlockHref(blockId: string | null | undefined) {
-  return blockId ? `/?bloco=${encodeURIComponent(blockId)}` : "/";
+  return blockId ? `/?bloco=${encodeURIComponent(blockId)}&foco=celula` : "/";
 }
 
 export async function safeListQuery<T>(factory: () => Promise<T[]>): Promise<T[]> {

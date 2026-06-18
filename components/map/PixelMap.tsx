@@ -343,15 +343,21 @@ export default function PixelMap() {
   }
 
 
-  function focusPurchasedBlock(block: ApiMapBlock) {
+  function focusPurchasedBlock(block: ApiMapBlock, mode: "placement" | "cell" = "placement") {
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
 
     const rect = wrapper.getBoundingClientRect();
     const minScale = getMinScale();
-    const nextScale = clamp(Math.max(minScale * 2.8, 1.15), minScale, MAX_SCALE);
-    const centerX = ((block.placement?.originX ?? block.gridX) + Math.max(1, block.placement?.widthBlocks || 1) / 2) * BLOCK_SIZE;
-    const centerY = ((block.placement?.originY ?? block.gridY) + Math.max(1, block.placement?.heightBlocks || 1) / 2) * BLOCK_SIZE;
+    const nextScale = mode === "cell"
+      ? clamp(Math.max(minScale * 4.2, 2.1), minScale, MAX_SCALE)
+      : clamp(Math.max(minScale * 2.8, 1.15), minScale, MAX_SCALE);
+    const centerX = mode === "cell"
+      ? (block.gridX + 0.5) * BLOCK_SIZE
+      : ((block.placement?.originX ?? block.gridX) + Math.max(1, block.placement?.widthBlocks || 1) / 2) * BLOCK_SIZE;
+    const centerY = mode === "cell"
+      ? (block.gridY + 0.5) * BLOCK_SIZE
+      : ((block.placement?.originY ?? block.gridY) + Math.max(1, block.placement?.heightBlocks || 1) / 2) * BLOCK_SIZE;
 
     setCamera(
       clampCamera({
@@ -433,8 +439,10 @@ export default function PixelMap() {
     const block = mapBlocks.find((item) => item.id === blockId);
     if (!block) return;
 
+    const focusMode = params.get("foco") === "celula" || params.get("focus") === "cell" ? "cell" : "placement";
+
     focusedBlockFromUrlRef.current = true;
-    window.setTimeout(() => focusPurchasedBlock(block), 120);
+    window.setTimeout(() => focusPurchasedBlock(block, focusMode), 120);
   }, [mapBlocks, isLoadingBlocks]);
 
   useEffect(() => {
