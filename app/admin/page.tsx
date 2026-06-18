@@ -8,7 +8,7 @@ import { getAreaName, siteConfig, type AreaKey } from "@/lib/site-config";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminLocked from "@/components/admin/AdminLocked";
 import AdminStatusBadge from "@/components/admin/AdminStatusBadge";
-import { getAdminAccess, muralBlockHref, withAdminSecret } from "@/lib/admin";
+import { dateTime, getAdminAccess, muralBlockHref, withAdminSecret } from "@/lib/admin";
 import { getAdminSession } from "@/lib/admin-auth";
 import { validateImageFile } from "@/lib/content-validation";
 
