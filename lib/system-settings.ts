@@ -68,7 +68,19 @@ export function normalizeOperationalSettings(value: any): OperationalSettings {
 export async function getOperationalSettings(): Promise<OperationalSettings> {
   try {
     const setting = await (prisma as any).systemSetting.findUnique({ where: { key: "operational" } });
-    return normalizeOperationalSettings(setting?.value || DEFAULT_OPERATIONAL_SETTINGS);
+    const normalized = normalizeOperationalSettings(setting?.value || DEFAULT_OPERATIONAL_SETTINGS);
+
+    if (setting && (setting.value as any)?.reservationMinutes !== normalized.reservationMinutes) {
+      await (prisma as any).systemSetting.update({
+        where: { key: "operational" },
+        data: {
+          value: normalized,
+          description: "Configurações operacionais do Mural29. Reserva normalizada para 2 minutos.",
+        },
+      }).catch(() => null);
+    }
+
+    return normalized;
   } catch {
     return DEFAULT_OPERATIONAL_SETTINGS;
   }

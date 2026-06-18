@@ -72,6 +72,17 @@ export async function POST(request: Request) {
     }
 
     const now = new Date();
+    const maxReservationUntil = new Date(now.getTime() + 2 * 60 * 1000);
+
+    await prisma.transaction.updateMany({
+      where: { status: "PENDING", expiresAt: { gt: maxReservationUntil } },
+      data: { expiresAt: maxReservationUntil },
+    }).catch(() => null);
+
+    await prisma.block.updateMany({
+      where: { status: "RESERVED", reservedUntil: { gt: maxReservationUntil } },
+      data: { reservedUntil: maxReservationUntil },
+    }).catch(() => null);
 
     await prisma.transaction.updateMany({
       where: { status: "PENDING", expiresAt: { lt: now } },

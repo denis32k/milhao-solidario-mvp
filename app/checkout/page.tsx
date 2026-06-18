@@ -756,7 +756,7 @@ export default function CompraPage() {
               <p className="font-semibold text-slate-700">Compra rápida e segura</p>
               <p className="mt-1.5">Primeiro você paga. Depois personaliza com nome, imagem e link.</p>
               <p className="mt-1.5">PIX via Mercado Pago. Dados privados não aparecem no mural.</p>
-              <p className="mt-1.5">Reserva estimada: {reservationMinutes} minutos.</p>
+              <p className="mt-1.5">Reserva estimada: 2 minutos.</p>
             </div>
           </aside>
         </div>
