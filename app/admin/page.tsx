@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
@@ -1036,17 +1035,17 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
                 <p className="admin-page-kicker">Central de operação</p>
                 <h2>Atenção necessária</h2>
               </div>
-              <Link href={withAdminSecret("/admin/suporte", secret)} className="admin-row-link">Abrir suporte</Link>
+              <a href={withAdminSecret("/admin/suporte", secret)} className="admin-row-link">Abrir suporte</a>
             </div>
             <div className="grid gap-3 p-4 sm:grid-cols-2">
               {operationCards.map((card) => (
-                <Link key={card.title} href={card.href} className={`rounded-2xl border p-4 transition hover:-translate-y-0.5 ${card.tone}`}>
+                <a key={card.title} href={card.href} className={`rounded-2xl border p-4 transition hover:-translate-y-0.5 ${card.tone}`}>
                   <div className="flex items-start justify-between gap-3">
                     <p className="text-xs font-black uppercase tracking-wide">{card.title}</p>
                     <strong className="text-xl font-black">{card.count}</strong>
                   </div>
                   <p className="mt-2 text-xs font-bold leading-relaxed opacity-80">{card.description}</p>
-                </Link>
+                </a>
               ))}
             </div>
           </section>
@@ -1057,7 +1056,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
                 <p className="admin-page-kicker">Fila prática</p>
                 <h2>O que resolver agora</h2>
               </div>
-              <Link href={withAdminSecret("/admin/diagnostico", secret)} className="admin-row-link">Diagnóstico</Link>
+              <a href={withAdminSecret("/admin/diagnostico", secret)} className="admin-row-link">Diagnóstico</a>
             </div>
             <div className="divide-y divide-slate-100">
               {attentionRows.length === 0 && <div className="p-4 text-sm font-bold text-slate-500">Nenhuma pendência crítica no momento.</div>}
@@ -1067,7 +1066,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
                     <p className="text-sm font-black text-slate-950">{item.title}</p>
                     <p className="mt-1 text-xs font-bold leading-relaxed text-slate-500">{item.description}</p>
                   </div>
-                  <Link href={item.href} className="inline-flex h-9 shrink-0 items-center justify-center rounded-xl bg-slate-950 px-3 text-xs font-black text-white">{item.label}</Link>
+                  <a href={item.href} className="inline-flex h-9 shrink-0 items-center justify-center rounded-xl bg-slate-950 px-3 text-xs font-black text-white">{item.label}</a>
                 </article>
               ))}
             </div>
