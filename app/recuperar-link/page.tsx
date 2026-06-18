@@ -287,12 +287,12 @@ async function recoverManagementLink(formData: FormData) {
       data: {
         transactionId: transaction.id,
         customerId: transaction.userId,
-        category: "CUSTOMER_LINK_RECOVERY",
+        category: "ACCESS_RECOVERY",
         note: emailDelivery.ok
-          ? `Área do Cliente: acesso recuperado com validação completa. Foram localizadas ${matches.length} compra(s), ordenadas da mais recente para a mais antiga. E-mail enviado com bairro e coordenadas. IP: ${ip}`
+          ? `Área do Cliente: validação concluída com e-mail, CPF final e WhatsApp. ${matches.length} compra(s) localizada(s), da mais recente para a mais antiga. Acesso enviado por e-mail com bairro e coordenadas.`
           : providerConfigured
-            ? `Área do Cliente: dados validados, mas o envio da lista de acessos falhou. Links não exibidos por segurança e tokens anteriores foram preservados/restaurados. Motivo: ${emailDelivery.message || "erro no provedor"}. IP: ${ip}`
-            : `Área do Cliente: acesso recuperado com validação completa. Foram localizadas ${matches.length} compra(s), ordenadas da mais recente para a mais antiga. Links exibidos na tela porque RESEND_API_KEY não está configurada. IP: ${ip}`,
+            ? `Área do Cliente: validação concluída, mas o envio automático dos acessos não foi concluído. Por segurança, os acessos não foram exibidos na tela. Motivo: ${emailDelivery.message || "falha no envio automático"}.`
+            : `Área do Cliente: validação concluída com e-mail, CPF final e WhatsApp. ${matches.length} compra(s) localizada(s), da mais recente para a mais antiga. Acessos exibidos na tela porque o e-mail automático ainda não está configurado.`,
       },
     }).catch(() => null)
   )));

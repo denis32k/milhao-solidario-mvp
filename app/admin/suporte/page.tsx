@@ -135,6 +135,39 @@ function statusPill(status: string | null | undefined) {
   return <span className={`rounded-full border px-3 py-1 text-[10px] font-black normal-case ${statusTone(status)}`}>{statusLabel(status)}</span>;
 }
 
+function supportCategoryLabel(value: string | null | undefined) {
+  const key = String(value || "").trim();
+  const labels: Record<string, string> = {
+    CUSTOMER_LINK_RECOVERY: "Recuperação de acesso",
+    ACCESS_RECOVERY: "Recuperação de acesso",
+    SUPPORT: "Atendimento",
+    FINANCE: "Financeiro",
+    MODERATION: "Moderação",
+    SYSTEM: "Sistema",
+  };
+
+  return labels[key] || key.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase()) || "Atendimento";
+}
+
+function cleanSupportNote(value: string | null | undefined) {
+  let text = String(value || "").trim();
+  if (!text) return "Registro sem observação.";
+
+  text = text
+    .replace(/RESEND_API_KEY não está configurada/g, "o e-mail automático ainda não está configurado")
+    .replace(/Links exibidos na tela/g, "Acessos exibidos na tela")
+    .replace(/Link exibido na tela/g, "Acesso exibido na tela")
+    .replace(/links exibidos na tela/g, "acessos exibidos na tela")
+    .replace(/link exibido na tela/g, "acesso exibido na tela")
+    .replace(/tokens anteriores foram preservados\/restaurados/gi, "acessos anteriores foram preservados")
+    .replace(/Motivo: erro no provedor/gi, "Motivo: falha no envio automático")
+    .replace(/IP:\s*[^.\n]+\.?/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  return text || "Registro de atendimento atualizado.";
+}
+
 export default async function AdminSuportePage({ searchParams }: { searchParams: AdminSearchParams }) {
   const params = await searchParams;
   const access = await getAdminAccess(params);
@@ -308,8 +341,8 @@ export default async function AdminSuportePage({ searchParams }: { searchParams:
                     <div className="mt-2 space-y-2">
                       {transaction.supportNotes.map((note: any) => (
                         <div key={note.id} className="rounded-xl bg-white p-3 text-xs font-bold text-slate-600">
-                          <p className="font-black text-slate-900">{note.category || "SUPORTE"} • {dateTime(note.createdAt)} • {note.admin?.email || note.admin?.name || "Admin"}</p>
-                          <p className="mt-1">{note.note}</p>
+                          <p className="font-black text-slate-900">{supportCategoryLabel(note.category)} • {dateTime(note.createdAt)} • {note.admin?.name || "Equipe Mural29"}</p>
+                          <p className="mt-1 leading-relaxed">{cleanSupportNote(note.note)}</p>
                         </div>
                       ))}
                     </div>
