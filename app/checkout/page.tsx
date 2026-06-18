@@ -424,6 +424,7 @@ export default function CompraPage() {
           <div className="mt-5 grid gap-2">
             <Link href="/" className="flex h-11 items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800">Voltar ao mural</Link>
             {recoveryLink && <a href={recoveryLink} className="flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-950 shadow-sm transition hover:bg-slate-50">Continuar compra anterior</a>}
+            <Link href="/recuperar-link" className="flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-950 shadow-sm transition hover:bg-slate-50">Perdi meu link</Link>
           </div>
           {recoveryLink && <p className="mt-3 text-xs leading-relaxed text-slate-500">Encontramos um link salvo neste aparelho. Ele permite voltar para personalizar depois do pagamento aprovado.</p>}
         </div>
@@ -548,7 +549,7 @@ export default function CompraPage() {
                     {getManagementHref() && (
                       <div className="rounded-2xl border border-blue-200 bg-blue-50 p-3">
                         <p className="text-xs font-semibold text-blue-900">Link seguro da compra</p>
-                        <p className="mt-1 text-xs leading-relaxed text-blue-800">Se fechar esta tela sem querer, volte por este link para acompanhar o pagamento e personalizar depois.</p>
+                        <p className="mt-1 text-xs leading-relaxed text-blue-800">Se fechar esta tela sem querer, volte por este link para acompanhar o pagamento e personalizar depois. Também tentaremos enviar esse link para seu e-mail.</p>
                         <div className="mt-3 grid gap-2 sm:grid-cols-2">
                           <a href={getManagementHref()} className="flex h-10 items-center justify-center rounded-xl bg-white px-3 text-xs font-semibold text-blue-900 shadow-sm ring-1 ring-blue-200">Abrir área do comprador</a>
                           <button type="button" onClick={handleCopyManagementLink} className="flex h-10 items-center justify-center rounded-xl bg-blue-600 px-3 text-xs font-semibold text-white shadow-sm">Copiar link</button>
@@ -643,7 +644,7 @@ export default function CompraPage() {
               <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">PIX aprovado</p>
                 <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-950">Pagamento confirmado com sucesso</h2>
-                <p className="mt-2 text-sm leading-relaxed text-slate-600">Guarde este link seguro para voltar depois e editar sua personalização quando quiser.</p>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">Guarde este link seguro para voltar depois e editar sua personalização quando quiser. Também tentaremos enviar esse link para seu e-mail.</p>
               </div>
             </div>
 

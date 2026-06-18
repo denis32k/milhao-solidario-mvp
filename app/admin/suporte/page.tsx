@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { AdminSearchParams, dateTime, getAdminAccess, normalizeSearch, money, safeListQuery, shortId, muralBlockHref, withAdminSecret } from "@/lib/admin";
 import { getAdminSession } from "@/lib/admin-auth";
 import { createManagementToken, getManagementUrl, hashManagementToken } from "@/lib/customer-access";
+import { sendManagementLinkEmail } from "@/lib/customer-notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -78,6 +79,12 @@ async function regenerateManagementLink(formData: FormData) {
   const q = String(formData.get("q") || "");
   if (!transactionId) return;
 
+  const transaction = await (prisma as any).transaction.findUnique({
+    where: { id: transactionId },
+    include: { user: true },
+  });
+  if (!transaction) return;
+
   const token = createManagementToken();
   await (prisma as any).transaction.update({
     where: { id: transactionId },
@@ -87,12 +94,22 @@ async function regenerateManagementLink(formData: FormData) {
     },
   });
 
+  const managementUrl = getManagementUrl(token, getCleanAppUrl());
+  const emailDelivery = await sendManagementLinkEmail({
+    to: transaction.user?.email,
+    customerName: transaction.user?.name,
+    managementUrl,
+    transactionId,
+  });
+
   await (prisma as any).supportNote.create({
     data: {
       transactionId,
       adminId,
       category: "MANAGEMENT_LINK",
-      note: "Novo link de gerenciamento gerado pelo suporte.",
+      note: emailDelivery.ok
+        ? "Novo link de gerenciamento gerado pelo suporte e enviado por e-mail."
+        : `Novo link de gerenciamento gerado pelo suporte. E-mail não enviado: ${emailDelivery.message || "provedor não configurado"}`,
     },
   }).catch(() => null);
 

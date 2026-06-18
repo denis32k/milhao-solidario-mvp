@@ -4,6 +4,7 @@ import { GRID_COLS, GRID_ROWS } from "@/lib/grid";
 import { siteConfig } from "@/lib/site-config";
 import { createManagementToken, getManagementPath, getManagementUrl, hashManagementToken } from "@/lib/customer-access";
 import { getOperationalSettings } from "@/lib/system-settings";
+import { sendManagementLinkEmail } from "@/lib/customer-notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -490,13 +491,34 @@ export async function POST(request: Request) {
       },
     });
 
+    const managementPath = getManagementPath(pendingData.managementToken);
+    const managementUrl = getManagementUrl(pendingData.managementToken, cleanAppUrl);
+    const emailDelivery = await sendManagementLinkEmail({
+      to: pendingData.user.email,
+      customerName: pendingData.user.name,
+      managementUrl,
+      transactionId: pendingData.transaction.id,
+    });
+
+    await (prisma as any).supportNote.create({
+      data: {
+        transactionId: pendingData.transaction.id,
+        customerId: pendingData.user.id,
+        category: "MANAGEMENT_LINK_EMAIL",
+        note: emailDelivery.ok
+          ? "Link seguro enviado por e-mail após geração do PIX."
+          : `Link seguro não enviado por e-mail: ${emailDelivery.message || "provedor não configurado"}`,
+      },
+    }).catch(() => null);
+
     return NextResponse.json({
       ok: true,
       message: "PIX criado com sucesso.",
       category: pendingData.category,
       webhookUrl: notificationUrl,
-      managementPath: getManagementPath(pendingData.managementToken),
-      managementUrl: getManagementUrl(pendingData.managementToken, cleanAppUrl),
+      managementPath,
+      managementUrl,
+      emailDelivery,
       payment: {
         id: paymentData.id,
         status: paymentData.status,
