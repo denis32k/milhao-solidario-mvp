@@ -366,6 +366,28 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
     );
   }
 
+  function focusTutorialBlocks(blocks: SelectedBlock[]) {
+    const wrapper = wrapperRef.current;
+    if (!wrapper || blocks.length === 0) return;
+
+    const rect = wrapper.getBoundingClientRect();
+    const minX = Math.min(...blocks.map((block) => block.gridX));
+    const maxX = Math.max(...blocks.map((block) => block.gridX));
+    const minY = Math.min(...blocks.map((block) => block.gridY));
+    const maxY = Math.max(...blocks.map((block) => block.gridY));
+    const centerX = ((minX + maxX + 1) / 2) * BLOCK_SIZE;
+    const centerY = ((minY + maxY + 1) / 2) * BLOCK_SIZE;
+    const nextScale = clamp(MAX_SCALE, getMinScale(), MAX_SCALE);
+
+    setCamera(
+      clampCamera({
+        x: rect.width / 2 - centerX * nextScale,
+        y: rect.height / 2 - centerY * nextScale,
+        scale: Math.max(nextScale, getMinScale()),
+      })
+    );
+  }
+
 
   function focusPurchasedBlock(block: ApiMapBlock, mode: "placement" | "cell" = "placement") {
     const wrapper = wrapperRef.current;
@@ -495,6 +517,7 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
     }
 
     const demoBlocks = getTutorialSelectionBlocks();
+    focusTutorialBlocks(demoBlocks);
 
     if (tutorialStep === 2) {
       setSelectedBlocks(demoBlocks);
@@ -508,7 +531,7 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
       index += 1;
       setSelectedBlocks(demoBlocks.slice(0, index));
       if (index >= demoBlocks.length) window.clearInterval(interval);
-    }, 550);
+    }, 650);
 
     return () => window.clearInterval(interval);
   }, [tutorialVisible, tutorialStep, isPurchaseMode, isLoadingBlocks, mapBlocks]);
@@ -1095,8 +1118,8 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
 
       {tutorialVisible && (
         <div
-          className={`absolute inset-0 z-[998] bg-slate-950/10 p-4 backdrop-blur-[1px] ${
-            tutorialStep === 0 ? "flex items-start justify-center" : tutorialStep === 1 ? "flex items-center justify-center" : "flex items-end justify-center"
+          className={`absolute inset-0 z-[998] p-3 ${
+            tutorialStep === 0 ? "flex items-start justify-center" : tutorialStep === 1 ? "flex items-start justify-end" : "flex items-end justify-center pb-24"
           }`}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
@@ -1104,30 +1127,20 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
             advancePurchaseTutorial();
           }}
         >
-          <div className="relative w-full max-w-sm rounded-3xl border border-white/70 bg-white p-4 text-center shadow-2xl">
-            {tutorialStep === 0 && <div className="absolute -top-5 left-1/2 h-10 w-10 -translate-x-1/2 rotate-45 rounded-sm bg-white shadow-lg" />}
-            {tutorialStep === 2 && <div className="absolute -bottom-5 left-1/2 h-10 w-10 -translate-x-1/2 rotate-45 rounded-sm bg-white shadow-lg" />}
+          <div className="relative max-w-[260px] rounded-2xl border border-slate-200 bg-white px-3 py-3 text-center shadow-2xl">
+            {tutorialStep === 0 && <div className="absolute -top-3 left-1/2 h-6 w-6 -translate-x-1/2 rotate-45 rounded-sm bg-white ring-1 ring-slate-200" />}
+            {tutorialStep === 1 && <div className="absolute -left-3 top-1/2 h-6 w-6 -translate-y-1/2 rotate-45 rounded-sm bg-white ring-1 ring-slate-200" />}
+            {tutorialStep === 2 && <div className="absolute -bottom-3 left-1/2 h-6 w-6 -translate-x-1/2 rotate-45 rounded-sm bg-white ring-1 ring-slate-200" />}
 
             <div className="relative z-10">
-              <p className="text-[11px] font-black uppercase tracking-wide text-orange-600">Tutorial {tutorialStep + 1}/3</p>
-              <h2 className="mt-1 text-lg font-black text-slate-950">
-                {tutorialStep === 0 && "Botão de compra"}
-                {tutorialStep === 1 && "Selecionando exemplo"}
-                {tutorialStep === 2 && "Botão Continuar"}
+              <p className="text-[10px] font-black uppercase tracking-wide text-orange-600">{tutorialStep + 1}/3</p>
+              <h2 className="mt-1 text-sm font-black text-slate-950">
+                {tutorialStep === 0 && "Clique aqui para comprar"}
+                {tutorialStep === 1 && "Selecione seus tijolinhos"}
+                {tutorialStep === 2 && "Clique em Continuar"}
               </h2>
-              <p className="mt-2 text-sm font-bold leading-relaxed text-slate-500">
-                {tutorialStep === 0 && "A faixa laranja abre o modo de compra do mural."}
-                {tutorialStep === 1 && "O sistema vai selecionar blocos vazios reais, um por um, em formato retangular."}
-                {tutorialStep === 2 && "Com os blocos selecionados, o botão Continuar aparece para reservar e pagar."}
-              </p>
 
-              {tutorialStep === 1 && (
-                <p className="mt-3 rounded-2xl bg-amber-50 px-3 py-2 text-xs font-black text-amber-800 ring-1 ring-amber-200">
-                  Selecionando exemplo no mapa...
-                </p>
-              )}
-
-              <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
                 {tutorialStep > 0 && (
                   <button
                     type="button"
@@ -1135,7 +1148,7 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
                       event.stopPropagation();
                       backPurchaseTutorial();
                     }}
-                    className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700"
+                    className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-black text-slate-700"
                   >
                     Voltar
                   </button>
@@ -1146,11 +1159,11 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
                     event.stopPropagation();
                     closePurchaseTutorial();
                   }}
-                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700"
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-black text-slate-700"
                 >
-                  Pular tutorial
+                  Pular
                 </button>
-                <span className="rounded-full bg-slate-950 px-4 py-2 text-xs font-black text-white">Toque para avançar</span>
+                <span className="rounded-full bg-slate-950 px-3 py-1.5 text-[11px] font-black text-white">Avançar</span>
               </div>
             </div>
           </div>
