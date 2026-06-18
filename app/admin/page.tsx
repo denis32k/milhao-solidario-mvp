@@ -1029,7 +1029,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
         </section>
 
         <section id="conteudos" className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
-          <h2 className="text-xl font-black text-slate-950">Conteúdos publicados / sem revisão</h2>
+          <h2 className="text-xl font-black text-slate-950">Nome, imagem e link publicados / sem revisão</h2>
           <div className="mt-4 space-y-3">
             {premiumPlacementsList.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhum conteúdo publicado ainda.</p>}
             {premiumPlacementsList.map((placement: any) => (
@@ -1038,14 +1038,14 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
                   <div>
                     <p className="text-xs font-black uppercase text-slate-500">{areaLabel(placement.kind)} • {placement.status} • {placement.reviewStatus}</p>
                     <h3 className="mt-1 text-lg font-black text-slate-950">{placement.title || placement.displayName}</h3>
-                    <p className="mt-1 text-sm text-slate-600">{placement.description || "Sem descrição"}</p>
+                    <p className="mt-1 text-sm text-slate-600">{placement.placeholderReason || "Novo padrão: nome, imagem e link"}</p>
                     <p className="mt-1 text-xs font-bold text-slate-500">Imagem: {placement.imageUrl ? "sim" : "não"} • Link: {placement.redirectUrl && !placement.linkDisabled ? "ativo" : "não"}</p>
                   </div>
                   <div className="grid min-w-44 gap-2">
                     <ActionButton label="Aprovar/revisar" action="APPROVE_CONTENT" secret={secret} placementId={placement.id} className="w-full rounded-2xl bg-green-600 px-3 py-2 text-xs font-black text-white" />
                     <ActionButton label="Bloquear imagem" action="BLOCK_IMAGE" secret={secret} placementId={placement.id} className="w-full rounded-2xl bg-slate-800 px-3 py-2 text-xs font-black text-white" />
                     <ActionButton label="Bloquear link" action="BLOCK_LINK" secret={secret} placementId={placement.id} className="w-full rounded-2xl bg-orange-500 px-3 py-2 text-xs font-black text-white" />
-                    <ActionButton label="Ocultar descrição" action="HIDE_DESCRIPTION" secret={secret} placementId={placement.id} className="w-full rounded-2xl bg-yellow-400 px-3 py-2 text-xs font-black text-yellow-950" />
+                    <ActionButton label="Ocultar texto antigo" action="HIDE_DESCRIPTION" secret={secret} placementId={placement.id} className="w-full rounded-2xl bg-yellow-400 px-3 py-2 text-xs font-black text-yellow-950" />
                     <ActionButton label="Ocultar nome" action="HIDE_PUBLIC_NAME" secret={secret} placementId={placement.id} className="w-full rounded-2xl bg-yellow-500 px-3 py-2 text-xs font-black text-yellow-950" />
                     <ActionButton label="Restaurar conteúdo" action="RESTORE_CONTENT" secret={secret} placementId={placement.id} className="w-full rounded-2xl bg-green-600 px-3 py-2 text-xs font-black text-white" />
                     <ActionButton label="Banir comprador" action="BAN_USER" secret={secret} placementId={placement.id} userId={placement.userId} className="w-full rounded-2xl bg-red-600 px-3 py-2 text-xs font-black text-white" />
@@ -1058,7 +1058,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
 
         <section id="edicoes" className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
           <h2 className="text-xl font-black text-slate-950">Edições futuras pendentes</h2>
-          <p className="mt-1 text-xs font-bold text-slate-500">Toda alteração futura de nome, imagem, link, frase ou descrição fica parada aqui até aprovação com motivo.</p>
+          <p className="mt-1 text-xs font-bold text-slate-500">Toda alteração futura de nome, imagem ou link fica parada aqui até aprovação com motivo.</p>
           <div className="mt-4 space-y-3">
             {pendingEditRequestsList.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma edição pendente.</p>}
             {pendingEditRequestsList.map((request: any) => (
@@ -1071,7 +1071,6 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
                     <div className="mt-3 rounded-2xl bg-slate-50 p-3 text-xs font-bold leading-relaxed text-slate-600">
                       {request.requestedTitle && <p>Novo nome/título: {request.requestedTitle}</p>}
                       {request.requestedDisplayName && <p>Novo nome público: {request.requestedDisplayName}</p>}
-                      {request.requestedDescription && <p>Nova descrição: {request.requestedDescription}</p>}
                       {request.requestedRedirectUrl && <p>Novo link: {request.requestedRedirectUrl}</p>}
                       {request.requestedImageUrl && <p>Nova imagem: {request.requestedImageUrl}</p>}
                     </div>
@@ -1157,7 +1156,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
                   <div className="grid min-w-44 gap-2">
                     <ActionButton label="Bloquear imagem" action="BLOCK_IMAGE" secret={secret} reportId={report.id} placementId={report.placementId} className="w-full rounded-2xl bg-slate-800 px-3 py-2 text-xs font-black text-white" />
                     <ActionButton label="Bloquear link" action="BLOCK_LINK" secret={secret} reportId={report.id} placementId={report.placementId} className="w-full rounded-2xl bg-orange-500 px-3 py-2 text-xs font-black text-white" />
-                    <ActionButton label="Ocultar descrição" action="HIDE_DESCRIPTION" secret={secret} reportId={report.id} placementId={report.placementId} className="w-full rounded-2xl bg-yellow-400 px-3 py-2 text-xs font-black text-yellow-950" />
+                    <ActionButton label="Ocultar texto antigo" action="HIDE_DESCRIPTION" secret={secret} reportId={report.id} placementId={report.placementId} className="w-full rounded-2xl bg-yellow-400 px-3 py-2 text-xs font-black text-yellow-950" />
                     <ActionButton label="Ocultar nome" action="HIDE_PUBLIC_NAME" secret={secret} reportId={report.id} placementId={report.placementId} className="w-full rounded-2xl bg-yellow-500 px-3 py-2 text-xs font-black text-yellow-950" />
                     <ActionButton label="Liberar tijolinho" action="RELEASE_BLOCK" secret={secret} reportId={report.id} placementId={report.placementId} className="w-full rounded-2xl bg-yellow-400 px-3 py-2 text-xs font-black text-yellow-950" />
                     <ActionButton label="Banir comprador" action="BAN_USER" secret={secret} reportId={report.id} placementId={report.placementId} userId={report.placement?.userId} className="w-full rounded-2xl bg-red-600 px-3 py-2 text-xs font-black text-white" />
