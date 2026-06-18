@@ -19,6 +19,21 @@ const statusTabs = [
   { value: "BANNED", label: "Banidas" },
 ];
 
+
+function reportReasonLabel(value: string | null | undefined) {
+  const labels: Record<string, string> = {
+    IMAGEM_IMPROPRIA: "Imagem imprópria",
+    LINK_SUSPEITO: "Link suspeito",
+    GOLPE_FRAUDE: "Golpe ou fraude",
+    USO_INDEVIDO_MARCA: "Uso indevido de marca",
+    CONTEUDO_OFENSIVO: "Conteúdo ofensivo",
+    OUTRO: "Outro motivo",
+  };
+
+  const key = String(value || "OUTRO");
+  return labels[key] || "Outro motivo";
+}
+
 export default async function AdminDenunciasPage({ searchParams }: { searchParams: AdminSearchParams }) {
   const params = await searchParams;
   const access = await getAdminAccess(params);
