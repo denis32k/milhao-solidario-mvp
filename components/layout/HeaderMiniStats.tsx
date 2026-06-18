@@ -17,9 +17,9 @@ type RankingItem = {
   totalApprovedCents: number;
 };
 
-const podiumSlots = [
-  { rank: 2, label: "2º lugar", tone: "border-slate-200 bg-slate-50 text-slate-700" },
+const rankingSlots = [
   { rank: 1, label: "1º lugar", tone: "border-amber-200 bg-amber-50 text-amber-800" },
+  { rank: 2, label: "2º lugar", tone: "border-slate-200 bg-slate-50 text-slate-700" },
   { rank: 3, label: "3º lugar", tone: "border-orange-200 bg-orange-50 text-orange-800" },
 ] as const;
 
@@ -53,7 +53,7 @@ export default function HeaderMiniStats({ ranking = [] }: { ranking?: RankingIte
 
   return (
     <div className="min-w-0 flex-1">
-      <div className="mx-auto max-w-3xl rounded-[26px] border border-slate-200 bg-white/90 px-3 py-2 shadow-sm">
+      <div className="mx-auto w-full max-w-3xl rounded-[24px] border border-slate-200 bg-white/92 px-3 py-2 shadow-sm lg:px-3.5">
         <div className="flex items-center justify-between gap-2 text-[10px] font-black uppercase tracking-wide text-slate-500">
           <p className="min-w-0 truncate text-slate-700">
             <span>{phase.currentPhase}</span>
@@ -72,13 +72,13 @@ export default function HeaderMiniStats({ ranking = [] }: { ranking?: RankingIte
         <p className="mt-1 truncate text-[10px] font-bold text-slate-500">{nextText}</p>
 
         {topThree.length > 0 && (
-          <div className="mt-2 grid grid-cols-3 gap-1.5">
-            {podiumSlots.map((slot) => {
+          <div className="mt-2 grid grid-cols-3 gap-1.5 lg:gap-2">
+            {rankingSlots.map((slot) => {
               const item = getRankItem(topThree, slot.rank);
               return (
                 <div key={slot.rank} className={`min-w-0 rounded-2xl border px-2 py-1.5 text-center ${slot.tone}`}>
                   <p className="text-[10px] font-black leading-none">{slot.label}</p>
-                  <p title={item?.publicName || ""} className="mt-1 truncate text-[10px] font-black leading-tight">
+                  <p title={item?.publicName || ""} className="mt-1 truncate text-[10px] font-black leading-tight lg:text-[11px]">
                     {item?.publicName || "—"}
                   </p>
                 </div>
