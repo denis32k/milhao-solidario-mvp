@@ -1434,3 +1434,180 @@ body:has(.admin-saas-main), body:has(.admin-auth-shell){
 .admin-saas-main p.text-xs.font-black.uppercase{letter-spacing:.02em !important;text-transform:none !important;}
 .admin-saas-main .shadow,
 .admin-saas-main .shadow-xl{box-shadow:none !important;}
+
+/* Fase 25 — Admin SaaS compacto real */
+body:has(.admin-saas-main), body:has(.admin-auth-shell){
+  background:#f6f7fb !important;
+  font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
+.admin-saas-main{
+  background:#f6f7fb !important;
+  padding-top:92px !important;
+  font-size:12px !important;
+}
+@media (min-width:1024px){
+  .admin-saas-main{
+    padding-left:260px !important;
+    padding-top:64px !important;
+    padding-right:18px !important;
+    padding-bottom:18px !important;
+  }
+}
+.admin-saas-main > div{max-width:1100px !important;}
+.admin-sidebar{
+  width:244px !important;
+  padding:10px !important;
+  background:#f7f8fb !important;
+}
+@media (min-width:1024px){.admin-topbar{left:244px !important;}}
+.admin-brand{height:46px !important;padding:5px 6px !important;gap:9px !important;}
+.admin-brand-logo{height:34px !important;width:46px !important;border-radius:10px !important;background:#fff !important;}
+.admin-brand-logo img{max-height:22px !important;max-width:40px !important;}
+.admin-brand strong{font-size:16px !important;font-weight:750 !important;}
+.admin-brand small{font-size:9px !important;letter-spacing:.08em !important;}
+.admin-sidebar-scroll{margin-top:10px !important;}
+.admin-sidebar-label{font-size:11px !important;font-weight:650 !important;color:#99a3b4 !important;padding-left:10px !important;}
+.admin-side-link{
+  min-height:34px !important;
+  gap:9px !important;
+  padding:7px 9px !important;
+  border-radius:9px !important;
+  font-size:13px !important;
+  font-weight:520 !important;
+  color:#334155 !important;
+}
+.admin-side-icon{height:22px !important;width:22px !important;}
+.admin-side-icon svg{height:15px !important;width:15px !important;}
+.admin-mini-link{min-height:30px !important;border-radius:8px !important;font-size:10.5px !important;font-weight:600 !important;}
+.admin-sidebar-note{padding:10px !important;border-radius:12px !important;}
+.admin-sidebar-note p{font-size:10.5px !important;line-height:1.35 !important;}
+.admin-sidebar-note strong{font-size:11.5px !important;}
+.admin-topbar{
+  height:54px !important;
+  padding:0 16px !important;
+}
+.admin-topbar h2{font-size:13px !important;font-weight:650 !important;}
+.admin-topbar p{font-size:10px !important;}
+.admin-top-search{height:36px !important;max-width:450px !important;border-radius:10px !important;}
+.admin-top-search-icon{width:32px !important;}
+.admin-top-search input{height:34px !important;font-size:12px !important;padding:8px 8px 8px 0 !important;}
+.admin-top-search button{height:34px !important;padding:0 12px !important;font-size:12px !important;font-weight:700 !important;}
+.admin-top-action,.admin-top-user,.admin-top-badge{height:34px !important;border-radius:9px !important;font-size:12px !important;font-weight:650 !important;padding:0 10px !important;}
+.admin-mobile-nav{top:54px !important;}
+.admin-page-heading.admin-page-heading-flat{
+  padding:0 !important;
+  margin:0 0 12px !important;
+  border:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+}
+.admin-page-heading-flat .admin-page-kicker{
+  margin:0 0 2px !important;
+  font-size:11px !important;
+  font-weight:650 !important;
+  color:#8a94a6 !important;
+}
+.admin-page-heading-flat h1{
+  margin:0 !important;
+  font-size:22px !important;
+  line-height:1.15 !important;
+  font-weight:720 !important;
+  color:#0f172a !important;
+}
+.admin-page-heading-flat p:last-child{
+  margin-top:4px !important;
+  font-size:12px !important;
+  line-height:1.45 !important;
+  font-weight:430 !important;
+  color:#667085 !important;
+  max-width:760px !important;
+}
+.admin-section-nav{margin-bottom:12px !important;border-radius:12px !important;padding:6px !important;}
+.admin-section-link{min-height:28px !important;font-size:10.5px !important;font-weight:650 !important;padding:0 9px !important;}
+
+/* KPI compacto igual backoffice SaaS */
+.admin-stats-row{display:grid;gap:12px;grid-template-columns:1fr;}
+@media (min-width:1180px){.admin-stats-row{grid-template-columns:1.4fr .9fr;}}
+.admin-stats-panel{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  border:1px solid #dfe5ee;
+  border-radius:12px;
+  background:#fff;
+  overflow:hidden;
+}
+.admin-stats-panel.compact{grid-template-columns:repeat(4,minmax(0,1fr));}
+.admin-stats-cell{
+  min-height:74px;
+  padding:11px 13px;
+  border-right:1px solid #edf1f6;
+  border-bottom:1px solid #edf1f6;
+}
+.admin-stats-panel .admin-stats-cell:nth-child(2n){border-right:0;}
+.admin-stats-panel.compact .admin-stats-cell{border-bottom:0;}
+.admin-stats-panel.compact .admin-stats-cell:nth-child(2n){border-right:1px solid #edf1f6;}
+.admin-stats-panel.compact .admin-stats-cell:last-child{border-right:0;}
+.admin-stats-cell.is-active-line{box-shadow:inset 0 2px 0 #2563eb;}
+.admin-stats-cell p{margin:0;color:#475569;font-size:12px;font-weight:520;line-height:1.2;}
+.admin-stats-cell strong{display:block;margin-top:8px;color:#0f172a;font-size:18px;line-height:1;font-weight:720;letter-spacing:-.02em;}
+.admin-stats-cell span{display:block;margin-top:7px;color:#8a94a6;font-size:11px;font-weight:430;line-height:1.25;}
+.admin-stats-cell.danger strong{color:#dc2626;}
+.admin-board-card{
+  border:1px solid #dfe5ee;
+  border-radius:12px;
+  background:#fff;
+  padding:14px;
+}
+.admin-board-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:12px;border-bottom:1px solid #edf1f6;}
+.admin-board-header h2{margin:0;color:#0f172a;font-size:15px;font-weight:720;line-height:1.25;}
+.admin-board-header p{margin:3px 0 0;color:#667085;font-size:11.5px;font-weight:430;line-height:1.35;}
+.admin-health-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px;}
+@media (min-width:1180px){.admin-health-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
+.admin-health-grid div{border:1px solid #edf1f6;border-radius:10px;background:#fafbfc;padding:9px 10px;}
+.admin-health-grid span{display:block;color:#667085;font-size:11px;font-weight:430;line-height:1.2;}
+.admin-health-grid strong{display:block;margin-top:5px;color:#0f172a;font-size:16px;font-weight:720;line-height:1;}
+.admin-alert-box{margin-top:12px;border:1px solid #edf1f6;border-radius:10px;background:#fafbfc;padding:10px 12px;}
+.admin-alert-box p,.admin-alert-box li{color:#047857;font-size:12px;font-weight:520;line-height:1.45;}
+.admin-alert-box ul{margin:0;padding-left:16px;}
+.admin-alert-box li{color:#b45309;}
+.admin-area-list{margin-top:12px;display:grid;gap:8px;}
+.admin-area-list .empty{font-size:12px;color:#667085;font-weight:520;}
+.admin-area-item{border:1px solid #edf1f6;border-radius:10px;background:#fafbfc;padding:10px;}
+.admin-area-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.admin-area-top p{margin:0;font-size:12px;font-weight:650;color:#0f172a;}
+.admin-area-top span{display:block;margin-top:2px;font-size:11px;color:#8a94a6;font-weight:430;}
+.admin-area-top strong{font-size:12px;font-weight:650;color:#334155;white-space:nowrap;}
+.admin-area-bar{margin-top:8px;height:5px;border-radius:999px;background:#e9eef5;overflow:hidden;}
+.admin-area-bar span{display:block;height:100%;border-radius:999px;background:#2563eb;}
+
+/* Compactar todo o admin */
+.admin-saas-main .rounded-3xl.bg-white.p-5.shadow-xl,
+.admin-saas-main .rounded-3xl.bg-white.p-4.shadow-xl,
+.admin-saas-main section.rounded-3xl.bg-white,
+.admin-saas-main aside.rounded-3xl.bg-white{
+  padding:14px !important;
+  border-radius:12px !important;
+}
+.admin-saas-main h2.text-xl,
+.admin-saas-main h2.text-xl.font-black{font-size:15px !important;font-weight:720 !important;}
+.admin-saas-main h3.text-lg,
+.admin-saas-main h3.text-lg.font-black{font-size:14px !important;font-weight:650 !important;}
+.admin-saas-main p.text-sm{font-size:12px !important;line-height:1.42 !important;}
+.admin-saas-main p.text-xs{font-size:11px !important;}
+.admin-saas-main .p-5{padding:14px !important;}
+.admin-saas-main .p-4{padding:12px !important;}
+.admin-saas-main .mt-5{margin-top:12px !important;}
+.admin-saas-main .mt-4{margin-top:10px !important;}
+.admin-saas-main .mb-6{margin-bottom:14px !important;}
+.admin-saas-main .gap-4{gap:12px !important;}
+.admin-saas-main .gap-3{gap:10px !important;}
+.admin-saas-main input,.admin-saas-main select{height:34px !important;min-height:34px !important;font-size:12px !important;}
+.admin-saas-main textarea{font-size:12px !important;}
+.admin-saas-main button{min-height:34px !important;font-size:11.5px !important;font-weight:650 !important;}
+.admin-table-card{border-radius:12px !important;}
+.admin-table-header{padding:11px 13px !important;}
+.admin-table-header h2{font-size:15px !important;font-weight:720 !important;}
+.admin-table-card table thead th{padding:8px 10px !important;font-size:10.5px !important;font-weight:650 !important;}
+.admin-table-card table tbody td{padding:9px 10px !important;font-size:12px !important;}
+.table-status{min-height:22px !important;padding:0 8px !important;font-size:10px !important;font-weight:650 !important;}
+.admin-row-link{min-height:24px !important;padding:4px 8px !important;font-size:10.5px !important;font-weight:650 !important;}

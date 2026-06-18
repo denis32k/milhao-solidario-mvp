@@ -842,106 +842,109 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
       <div className="mx-auto max-w-5xl">
         <AdminPageHeader secret={secret} active="dashboard" title="Dashboard" description="Visão geral compacta das vendas, reservas, pagamentos, moderação e saúde operacional do Mural29." />
 
-        <section id="dashboard" className="mb-6 space-y-4">
-          <div className="dashboard-metrics-grid">
-            <article className="dashboard-metric-card">
-              <div className="dashboard-metric-icon">R$</div>
-              <div>
-                <p className="dashboard-metric-label">Entrou hoje</p>
-                <h3 className="dashboard-metric-value">{money(todayRevenueCents)}</h3>
-                <p className="dashboard-metric-meta">{approvedPaymentsTodayCount} pagamento(s) aprovado(s)</p>
+        <section id="dashboard" className="mb-5 space-y-4">
+          <div className="admin-stats-row">
+            <div className="admin-stats-panel">
+              <div className="admin-stats-cell is-active-line">
+                <p>Entrou hoje</p>
+                <strong>{money(todayRevenueCents)}</strong>
+                <span>{approvedPaymentsTodayCount} pagamento(s)</span>
               </div>
-            </article>
-            <article className="dashboard-metric-card">
-              <div className="dashboard-metric-icon">7d</div>
-              <div>
-                <p className="dashboard-metric-label">Entrou na semana</p>
-                <h3 className="dashboard-metric-value">{money(weekRevenueCents)}</h3>
-                <p className="dashboard-metric-meta">Visão rápida do fluxo recente</p>
+              <div className="admin-stats-cell">
+                <p>Entrou na semana</p>
+                <strong>{money(weekRevenueCents)}</strong>
+                <span>Fluxo recente</span>
               </div>
-            </article>
-            <article className="dashboard-metric-card">
-              <div className="dashboard-metric-icon">30</div>
-              <div>
-                <p className="dashboard-metric-label">Entrou no mês</p>
-                <h3 className="dashboard-metric-value">{money(monthRevenueCents)}</h3>
-                <p className="dashboard-metric-meta">Receita acumulada do mês</p>
+              <div className="admin-stats-cell">
+                <p>Entrou no mês</p>
+                <strong>{money(monthRevenueCents)}</strong>
+                <span>Receita mensal</span>
               </div>
-            </article>
-            <article className="dashboard-metric-card is-primary">
-              <div className="dashboard-metric-icon dark">Σ</div>
-              <div>
-                <p className="dashboard-metric-label on-dark">Total aprovado</p>
-                <h3 className="dashboard-metric-value on-dark">{money(totalRevenueCents)}</h3>
-                <p className="dashboard-metric-meta on-dark">Total confirmado no projeto</p>
+              <div className="admin-stats-cell">
+                <p>Total aprovado</p>
+                <strong>{money(totalRevenueCents)}</strong>
+                <span>Projeto inteiro</span>
               </div>
-            </article>
+            </div>
+
+            <div className="admin-stats-panel compact">
+              <div className="admin-stats-cell">
+                <p>Vendidos</p>
+                <strong>{activeBlocks}</strong>
+                <span>blocos</span>
+              </div>
+              <div className="admin-stats-cell">
+                <p>Disponíveis</p>
+                <strong>{availableBlocks}</strong>
+                <span>blocos</span>
+              </div>
+              <div className="admin-stats-cell">
+                <p>Reservados</p>
+                <strong>{reservedBlocks}</strong>
+                <span>em aberto</span>
+              </div>
+              <div className="admin-stats-cell danger">
+                <p>Pendências</p>
+                <strong>{openReports + pendingEditRequestsList.length + problematicPaymentsCount}</strong>
+                <span>atenção</span>
+              </div>
+            </div>
           </div>
 
-          <div className="dashboard-mini-grid">
-            <article className="dashboard-mini-card"><p>Blocos vendidos</p><strong>{activeBlocks}</strong></article>
-            <article className="dashboard-mini-card"><p>Disponíveis</p><strong>{availableBlocks}</strong></article>
-            <article className="dashboard-mini-card"><p>Reservados</p><strong>{reservedBlocks}</strong></article>
-            <article className="dashboard-mini-card warning"><p>Expirados</p><strong>{expiredReservationsCount}</strong></article>
-            <article className="dashboard-mini-card alert"><p>Sem revisão</p><strong>{unreviewedContentCount}</strong></article>
-            <article className="dashboard-mini-card danger"><p>Pendências</p><strong>{openReports + pendingEditRequestsList.length + problematicPaymentsCount}</strong></article>
-          </div>
-
-          <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-            <section className="admin-table-card p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+            <section className="admin-board-card">
+              <div className="admin-board-header">
                 <div>
-                  <p className="admin-page-kicker">Estatísticas primeiro</p>
-                  <h2 className="text-xl font-bold text-slate-950">Saúde da operação</h2>
+                  <h2>Saúde da operação</h2>
+                  <p>Alertas que precisam de revisão antes de lançamento ou operação diária.</p>
                 </div>
                 <span className={`table-status ${healthAlerts.length ? "warning" : "success"}`}>
-                  {healthAlerts.length ? "Requer atenção" : "Operação saudável"}
+                  {healthAlerts.length ? "Atenção" : "Saudável"}
                 </span>
               </div>
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                <div className="dashboard-stat-row"><span>Pagamentos pendentes</span><strong>{pendingPaymentsCount}</strong></div>
-                <div className="dashboard-stat-row"><span>Pagamentos problemáticos</span><strong>{problematicPaymentsCount}</strong></div>
-                <div className="dashboard-stat-row"><span>Denúncias abertas</span><strong>{openReports}</strong></div>
-                <div className="dashboard-stat-row"><span>Edições pendentes</span><strong>{pendingEditRequestsList.length}</strong></div>
-                <div className="dashboard-stat-row"><span>Disputas internas</span><strong>{openDisputesList.length}</strong></div>
-                <div className="dashboard-stat-row"><span>Usuários banidos</span><strong>{bannedUsersCount}</strong></div>
+              <div className="admin-health-grid">
+                <div><span>Pagamentos pendentes</span><strong>{pendingPaymentsCount}</strong></div>
+                <div><span>Pagamentos problemáticos</span><strong>{problematicPaymentsCount}</strong></div>
+                <div><span>Denúncias abertas</span><strong>{openReports}</strong></div>
+                <div><span>Edições pendentes</span><strong>{pendingEditRequestsList.length}</strong></div>
+                <div><span>Disputas internas</span><strong>{openDisputesList.length}</strong></div>
+                <div><span>Usuários banidos</span><strong>{bannedUsersCount}</strong></div>
               </div>
 
-              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="admin-alert-box">
                 {healthAlerts.length === 0 ? (
-                  <p className="text-sm font-semibold text-emerald-700">Tudo limpo por enquanto. Sem alerta crítico no painel.</p>
+                  <p>Tudo limpo por enquanto. Sem alerta crítico no painel.</p>
                 ) : (
-                  <ul className="space-y-2 text-sm font-semibold text-amber-700">
-                    {healthAlerts.map((alert: any) => <li key={String(alert)}>• {alert}</li>)}
+                  <ul>
+                    {healthAlerts.map((alert: any) => <li key={String(alert)}>{alert}</li>)}
                   </ul>
                 )}
               </div>
             </section>
 
-            <section className="admin-table-card p-5">
-              <div className="flex items-center justify-between gap-3">
+            <section className="admin-board-card">
+              <div className="admin-board-header">
                 <div>
-                  <p className="admin-page-kicker">Performance por área</p>
-                  <h2 className="text-xl font-bold text-slate-950">Áreas que mais vendem</h2>
+                  <h2>Áreas que mais vendem</h2>
+                  <p>Ranking por faturamento aprovado.</p>
                 </div>
-                <span className="table-status info">Top áreas</span>
               </div>
-              <div className="mt-4 space-y-3">
-                {areaSales.length === 0 && <p className="text-sm font-semibold text-slate-500">Nenhuma venda aprovada ainda.</p>}
+              <div className="admin-area-list">
+                {areaSales.length === 0 && <p className="empty">Nenhuma venda aprovada ainda.</p>}
                 {areaSales.map((area: any, index: number) => {
                   const maxValue = areaSales[0]?.totalCents || 1;
                   const percent = Math.max(8, Math.round((Number(area.totalCents || 0) / maxValue) * 100));
                   return (
-                    <div key={area.kind} className="dashboard-area-row">
-                      <div className="flex items-center justify-between gap-3">
+                    <div key={area.kind} className="admin-area-item">
+                      <div className="admin-area-top">
                         <div>
-                          <p className="text-sm font-semibold text-slate-950">{index + 1}. {areaLabel(area.kind)}</p>
-                          <p className="text-xs text-slate-500">{area.count} pedido(s) • {area.blocks} bloco(s)</p>
+                          <p>{index + 1}. {areaLabel(area.kind)}</p>
+                          <span>{area.count} pedido(s) • {area.blocks} bloco(s)</span>
                         </div>
-                        <strong className="text-sm text-slate-700">{money(area.totalCents)}</strong>
+                        <strong>{money(area.totalCents)}</strong>
                       </div>
-                      <div className="dashboard-area-bar"><span style={{ width: `${percent}%` }} /></div>
+                      <div className="admin-area-bar"><span style={{ width: `${percent}%` }} /></div>
                     </div>
                   );
                 })}
