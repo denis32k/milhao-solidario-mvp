@@ -5,8 +5,14 @@ import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminStatusBadge from "@/components/admin/AdminStatusBadge";
 import AdminTabs from "@/components/admin/AdminTabs";
 import { AdminSearchParams, dateTime, getAdminAccess, money, normalizeSearch, safeListQuery, shortId, muralBlockHref, withAdminSecret } from "@/lib/admin";
+import { getAreaName, type AreaKey } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
+
+function areaLabel(value: string | null | undefined) {
+  if (value === "SOLIDARITY" || value === "PREMIUM" || value === "GOLD" || value === "GRAND_CENTER") return getAreaName(value as AreaKey);
+  return "Área do mural";
+}
 
 const statusTabs = [
   { value: "ALL", label: "Todos" },
@@ -82,7 +88,7 @@ export default async function AdminPedidosPage({ searchParams }: { searchParams:
           <div className="admin-table-header"><h2>Pedidos encontrados</h2><span className="text-xs font-bold text-slate-500">{orders.length} registros</span></div>
           <div className="overflow-x-auto">
             <table>
-              <thead><tr><th className="text-left">Pedido</th><th className="text-left">Cliente</th><th className="text-left">Status</th><th className="text-left">Valor</th><th className="text-left">Blocos</th><th className="text-left">Pagamento</th><th className="text-left">Datas</th><th className="text-right">Ações</th></tr></thead>
+              <thead><tr><th className="text-left">Pedido / área</th><th className="text-left">Cliente</th><th className="text-left">Status</th><th className="text-left">Valor</th><th className="text-left">Blocos</th><th className="text-left">Pagamento</th><th className="text-left">Datas</th><th className="text-right">Ações</th></tr></thead>
               <tbody>
                 {orders.map((order: any) => {
                   const previewItems = (order.items || []).slice(0, 3);
@@ -90,12 +96,12 @@ export default async function AdminPedidosPage({ searchParams }: { searchParams:
                   const primaryBlockId = order.placement?.blocks?.[0]?.id || previewItems[0]?.blockId;
                   return (
                     <tr key={order.id}>
-                      <td><p className="font-black text-slate-950">{shortId(order.id)}</p><p className="text-[11px] font-bold text-slate-400">{order.kind}</p></td>
+                      <td><p className="font-black text-slate-950">{shortId(order.id)}</p><p className="text-[11px] font-bold text-slate-400">{areaLabel(order.kind)}</p></td>
                       <td><p className="font-black text-slate-800">{order.user?.name || order.placementTitle || "Cliente"}</p><p className="text-[11px] font-bold text-slate-500">{order.user?.email || "sem e-mail"}</p><p className="text-[11px] font-bold text-slate-400">{order.checkoutWhatsapp || order.user?.whatsapp || "sem WhatsApp"}</p></td>
                       <td><AdminStatusBadge value={order.status} /></td>
                       <td className="font-black text-slate-950">{money(order.totalPaidCents)}</td>
                       <td><p className="font-bold text-slate-700">{order.items?.length || 0} bloco(s)</p><div className="mt-1 flex flex-wrap gap-1 text-[11px] font-bold">{previewItems.length ? previewItems.map((item: any) => <Link key={item.id || item.blockId} href={muralBlockHref(item.blockId)} className="rounded-full bg-orange-50 px-2 py-1 text-orange-700">x{item.gridX}/y{item.gridY}</Link>) : <span className="text-slate-400">—</span>}{extraBlocks && <span className="px-1 py-1 text-slate-400">{extraBlocks}</span>}</div></td>
-                      <td><p className="font-bold text-slate-700">{order.mpStatus || "sem MP"}</p><p className="text-[11px] font-bold text-slate-400">{order.mpPaymentId || "sem payment_id"}</p></td>
+                      <td><p className="font-bold text-slate-700">{order.mpStatus || "sem confirmação"}</p><p className="text-[11px] font-bold text-slate-400">{order.mpPaymentId || "sem ID Mercado Pago"}</p></td>
                       <td><p className="text-[11px] font-bold text-slate-600">Criado: {dateTime(order.createdAt)}</p><p className="text-[11px] font-bold text-slate-400">Pago: {dateTime(order.approvedAt || order.paidAt)}</p></td>
                       <td><div className="admin-row-actions"><Link href={withAdminSecret(`/admin/suporte?q=${encodeURIComponent(order.id)}`, secret)} className="admin-row-link">Suporte</Link>{primaryBlockId && <Link href={muralBlockHref(primaryBlockId)} className="admin-row-link">Mural</Link>}{order.placement?.blocks?.[0]?.id && <Link href={`/bloco/${order.placement.blocks[0].id}`} className="admin-row-link">Bloco</Link>}</div></td>
                     </tr>

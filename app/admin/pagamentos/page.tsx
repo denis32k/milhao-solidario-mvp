@@ -7,8 +7,14 @@ import AdminStatusBadge from "@/components/admin/AdminStatusBadge";
 import AdminTabs from "@/components/admin/AdminTabs";
 import { AdminSearchParams, dateTime, getAdminAccess, money, normalizeSearch, safeListQuery, shortId, withAdminSecret } from "@/lib/admin";
 import { getAdminSession } from "@/lib/admin-auth";
+import { getAreaName, type AreaKey } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
+
+function areaLabel(value: string | null | undefined) {
+  if (value === "SOLIDARITY" || value === "PREMIUM" || value === "GOLD" || value === "GRAND_CENTER") return getAreaName(value as AreaKey);
+  return "Área do mural";
+}
 
 
 function isSecretAuthorized(secretFromForm: string | undefined) {
@@ -121,7 +127,7 @@ export default async function AdminPagamentosPage({ searchParams }: { searchPara
         <form className="admin-compact-filter mb-4 md:grid-cols-[1fr_170px_100px]">
           <input type="hidden" name="secret" value={secret} />
           <input name="q" defaultValue={q} placeholder="Buscar payment_id, referência, pedido ou e-mail" />
-          <select name="status" defaultValue={status}><option value="ALL">Todos</option><option value="PENDING">Pendente</option><option value="APPROVED">Aprovado</option><option value="REJECTED">Recusado</option><option value="EXPIRED">Expirado</option><option value="REFUNDED">Reembolsado</option></select>
+          <select name="status" defaultValue={status}><option value="ALL">Todos</option><option value="PENDING">Aguardando pagamento</option><option value="APPROVED">Pagamento confirmado</option><option value="REJECTED">Pagamento não aprovado</option><option value="EXPIRED">Reserva expirada</option><option value="REFUNDED">Reembolso processado</option></select>
           <button>Filtrar</button>
         </form>
 
@@ -130,15 +136,15 @@ export default async function AdminPagamentosPage({ searchParams }: { searchPara
             <div className="admin-table-header"><h2>Pedidos financeiros</h2><span className="text-xs font-bold text-slate-500">{payments.length} registros</span></div>
             <div className="overflow-x-auto">
               <table>
-                <thead><tr><th className="text-left">Pedido</th><th className="text-left">Cliente</th><th className="text-left">Status</th><th className="text-left">Valor</th><th className="text-left">Mercado Pago</th><th className="text-left">Datas</th><th className="text-right">Ações</th></tr></thead>
+                <thead><tr><th className="text-left">Pedido / área</th><th className="text-left">Cliente</th><th className="text-left">Status</th><th className="text-left">Valor</th><th className="text-left">Mercado Pago</th><th className="text-left">Datas</th><th className="text-right">Ações</th></tr></thead>
                 <tbody>
                   {payments.map((payment: any) => (
                     <tr key={payment.id}>
-                      <td><p className="font-black text-slate-950">{shortId(payment.id)}</p><p className="text-[11px] font-bold text-slate-400">{payment.kind}</p></td>
+                      <td><p className="font-black text-slate-950">{shortId(payment.id)}</p><p className="text-[11px] font-bold text-slate-400">{areaLabel(payment.kind)}</p></td>
                       <td><p className="font-black text-slate-800">{payment.user?.name || "Cliente"}</p><p className="text-[11px] font-bold text-slate-500">{payment.user?.email || "sem e-mail"}</p></td>
                       <td><AdminStatusBadge value={payment.status} /></td>
                       <td className="font-black text-slate-950">{money(payment.totalPaidCents)}</td>
-                      <td><p className="font-bold text-slate-700">{payment.mpStatus || "sem status"}</p><p className="text-[11px] font-bold text-slate-400">{payment.mpPaymentId || "sem payment_id"}</p><p className="text-[11px] font-bold text-slate-400">{shortId(payment.mpExternalReference)}</p></td>
+                      <td><p className="font-bold text-slate-700">{payment.mpStatus || "sem status"}</p><p className="text-[11px] font-bold text-slate-400">{payment.mpPaymentId || "sem ID Mercado Pago"}</p><p className="text-[11px] font-bold text-slate-400">{shortId(payment.mpExternalReference)}</p></td>
                       <td><p className="text-[11px] font-bold text-slate-600">Criado: {dateTime(payment.createdAt)}</p><p className="text-[11px] font-bold text-slate-400">Pago: {dateTime(payment.paidAt || payment.approvedAt)}</p></td>
                       <td><div className="admin-row-actions"><Link href={withAdminSecret(`/admin/suporte?q=${encodeURIComponent(payment.id)}`, secret)} className="admin-row-link">Suporte</Link><Link href={withAdminSecret(`/admin/webhooks?q=${encodeURIComponent(payment.mpPaymentId || payment.id)}`, secret)} className="admin-row-link">Webhooks</Link>{payment.mpPaymentId && <form action={syncMercadoPagoPayment}><input type="hidden" name="secret" value={secret} /><input type="hidden" name="paymentId" value={payment.mpPaymentId} /><input type="hidden" name="transactionId" value={payment.id} /><input type="hidden" name="status" value={status} /><input type="hidden" name="q" value={q} /><button className="admin-row-link">Sincronizar</button></form>}</div></td>
                     </tr>
@@ -155,7 +161,7 @@ export default async function AdminPagamentosPage({ searchParams }: { searchPara
               {events.map((event: any) => (
                 <div key={event.id} className="p-3">
                   <div className="flex items-start justify-between gap-2"><p className="font-black text-slate-950">{event.eventType || "evento"}</p><span className={`rounded-full px-2 py-1 text-[10px] font-black ${event.processed ? "bg-emerald-50 text-emerald-700" : event.ignored ? "bg-slate-100 text-slate-700" : "bg-yellow-50 text-yellow-700"}`}>{event.processed ? "processado" : event.ignored ? "ignorado" : "pendente"}</span></div>
-                  <p className="mt-1 text-[11px] font-bold text-slate-500">payment_id: {event.paymentId || "—"}</p>
+                  <p className="mt-1 text-[11px] font-bold text-slate-500">ID Mercado Pago: {event.paymentId || "—"}</p>
                   <p className="text-[11px] font-bold text-slate-400">{dateTime(event.receivedAt)}</p>
                   {event.error && <p className="mt-1 text-[11px] font-bold text-red-600">{event.error}</p>}
                 </div>

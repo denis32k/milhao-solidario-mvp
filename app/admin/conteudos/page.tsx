@@ -70,21 +70,64 @@ export default async function AdminConteudosPage({ searchParams }: { searchParam
   const countByReview = new Map(grouped.map((item: any) => [item.reviewStatus, item._count?._all || 0]));
   const tabs = reviewTabs.map((tab) => ({ ...tab, count: tab.value === "ALL" ? Array.from(countByReview.values()).reduce((a: any, b: any) => a + Number(b || 0), 0) : Number(countByReview.get(tab.value) || 0) }));
 
+  const moderationCards = [
+    {
+      title: "Publicado sem revisão",
+      count: Number(countByReview.get("PUBLISHED_NOT_REVIEWED") || 0),
+      text: "Entrou no mural automaticamente e precisa de conferência.",
+      tone: "border-orange-200 bg-orange-50 text-orange-800",
+    },
+    {
+      title: "Aprovados",
+      count: Number(countByReview.get("APPROVED") || 0),
+      text: "Conteúdos conferidos e liberados pela administração.",
+      tone: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    },
+    {
+      title: "Com ajuste solicitado",
+      count: Number(countByReview.get("CHANGES_REQUESTED") || 0),
+      text: "Conteúdos que precisam de correção ou acompanhamento.",
+      tone: "border-blue-200 bg-blue-50 text-blue-800",
+    },
+    {
+      title: "Ocultos",
+      count: Number(countByReview.get("HIDDEN_BY_ADMIN") || 0),
+      text: "Conteúdos ocultados para proteger o mural.",
+      tone: "border-rose-200 bg-rose-50 text-rose-800",
+    },
+  ];
+
   return (
     <main className="admin-saas-main min-h-screen px-3 py-4 lg:px-5">
       <div className="mx-auto max-w-6xl">
-        <AdminPageHeader secret={secret} active="conteudos" title="Moderação" description="Revisão compacta do novo padrão: nome público, imagem e link. O conteúdo entra rápido no mural e o admin corrige depois se precisar." />
+        <AdminPageHeader secret={secret} active="conteudos" title="Moderação de conteúdo" description="Fila de revisão para nome público, imagem e link. O conteúdo pode publicar rápido, mas o admin precisa conferir e agir com motivo registrado quando houver risco." />
         <AdminTabs secret={secret} basePath="/admin/conteudos" paramName="review" active={review} tabs={tabs} />
+
+        <section className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {moderationCards.map((card) => (
+            <div key={card.title} className={`rounded-2xl border p-4 ${card.tone}`}>
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-xs font-black uppercase tracking-wide">{card.title}</p>
+                <strong className="text-xl font-black">{card.count}</strong>
+              </div>
+              <p className="mt-2 text-xs font-bold leading-relaxed opacity-80">{card.text}</p>
+            </div>
+          ))}
+        </section>
+
+        <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 text-xs font-bold leading-relaxed text-slate-600 shadow-sm">
+          Regra operacional: o conteúdo pode entrar rápido no mural, mas tudo que estiver como <strong>Publicado sem revisão</strong> precisa ser conferido. Ao bloquear imagem, link ou nome, registre sempre o motivo para proteger o histórico.
+        </div>
 
         <form className="admin-compact-filter mb-4 md:grid-cols-[1fr_210px_100px]">
           <input type="hidden" name="secret" value={secret} />
           <input name="q" defaultValue={q} placeholder="Buscar nome público, link, cliente ou e-mail" />
-          <select name="review" defaultValue={review}><option value="ALL">Todos</option><option value="PUBLISHED_NOT_REVIEWED">Sem revisão</option><option value="APPROVED">Aprovados</option><option value="CHANGES_REQUESTED">Com restrição</option><option value="HIDDEN_BY_ADMIN">Ocultos</option></select>
+          <select name="review" defaultValue={review}><option value="ALL">Todos</option><option value="PUBLISHED_NOT_REVIEWED">Sem revisão</option><option value="APPROVED">Aprovados</option><option value="CHANGES_REQUESTED">Ajuste solicitado</option><option value="HIDDEN_BY_ADMIN">Ocultos</option></select>
           <button>Filtrar</button>
         </form>
 
         <section className="admin-table-card">
-          <div className="admin-table-header"><h2>Nome, imagem e link no mural</h2><span className="text-xs font-bold text-slate-500">{placements.length} registros</span></div>
+          <div className="admin-table-header"><h2>Fila de conteúdo publicado</h2><span className="text-xs font-bold text-slate-500">{placements.length} registros</span></div>
           <div className="overflow-x-auto">
             <table>
               <thead><tr><th className="text-left">Imagem</th><th className="text-left">Nome público</th><th className="text-left">Link</th><th className="text-left">Área / bloco</th><th className="text-left">Cliente</th><th className="text-left">Revisão</th><th className="text-left">Estado</th><th className="text-right">Ações</th></tr></thead>
