@@ -91,12 +91,12 @@ export default async function PublicBlockPage({ params, searchParams }: BlockPag
 
   if (!block) {
     return (
-      <main className="min-h-screen bg-slate-100 px-4 py-8">
+      <main className="min-h-screen bg-transparent px-4 py-8">
         <div className="mx-auto max-w-md rounded-3xl bg-white p-6 text-center shadow-xl">
           <div className="text-5xl">🧱</div>
           <h1 className="mt-4 text-2xl font-black text-slate-950">Bloco não encontrado</h1>
           <p className="mt-2 text-sm font-bold text-slate-500">Esse tijolinho não existe ou não está disponível para visualização.</p>
-          <Link href="/" className="mt-5 block rounded-2xl bg-slate-950 py-4 text-sm font-black text-white">Voltar ao mural</Link>
+          <Link href="/" className="pixel-btn pixel-btn--dark mt-5 flex justify-center !rounded-2xl !py-4 !text-sm">Voltar ao mural</Link>
         </div>
       </main>
     );
@@ -109,17 +109,17 @@ export default async function PublicBlockPage({ params, searchParams }: BlockPag
   const error = query.error;
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-6">
+    <main className="min-h-screen bg-transparent px-4 py-6">
       <div className="mx-auto max-w-3xl">
-        <Link href="/" className="mb-5 inline-flex rounded-full bg-white px-4 py-2 text-sm font-black text-slate-950 shadow">← Voltar ao mural</Link>
+        <Link href="/" className="pixel-btn pixel-btn--light mb-5 !rounded-2xl !px-4 !py-2 !text-sm">← Voltar ao mural</Link>
 
-        <section className="rounded-3xl bg-slate-950 p-5 text-white shadow-xl">
+        <section className="rounded-[2rem] border-2 border-slate-950 bg-[linear-gradient(135deg,#0f172a,#1e293b_55%,#f97316)] p-5 text-white shadow-xl">
           <p className="text-xs font-black uppercase tracking-wide text-yellow-300">Tijolinho digital</p>
           <h1 className="mt-2 text-3xl font-black">{hidden ? "Conteúdo em análise" : placement.title || placement.displayName || "Bloco publicado"}</h1>
           <p className="mt-2 text-sm font-bold text-slate-300">{getAreaName((block as any).category)} • Coordenada x{(block as any).gridX}/y{(block as any).gridY}</p>
         </section>
 
-        <section className="mt-5 rounded-3xl bg-white p-5 shadow-xl">
+        <section className="pixel-panel mt-5 p-5">
           {hidden ? (
             <div className="rounded-3xl bg-yellow-50 p-5 text-center">
               <div className="text-4xl">👀</div>
@@ -128,7 +128,7 @@ export default async function PublicBlockPage({ params, searchParams }: BlockPag
             </div>
           ) : (
             <div className="grid gap-5 md:grid-cols-[160px_1fr]">
-              <div className="flex h-40 w-40 items-center justify-center overflow-hidden rounded-3xl bg-slate-100">
+              <div className="flex h-40 w-40 items-center justify-center overflow-hidden rounded-3xl bg-transparent">
                 {placement.imageUrl && !imageBlocked ? <img src={placement.imageUrl} alt="Conteúdo do bloco" className="h-full w-full object-cover" /> : <span className="px-4 text-center text-xs font-black text-slate-400">{imageBlocked ? "Imagem bloqueada" : "Sem imagem"}</span>}
               </div>
               <div>
@@ -137,11 +137,11 @@ export default async function PublicBlockPage({ params, searchParams }: BlockPag
                 <p className="mt-2 rounded-2xl bg-slate-50 p-3 text-sm font-bold leading-relaxed text-slate-600">{placement.description || "Sem descrição."}</p>
                 <div className="mt-4 grid gap-2 sm:grid-cols-2">
                   {placement.redirectUrl && !placement.linkDisabled ? (
-                    <a href={normalizeExternalUrl(placement.redirectUrl)} target="_blank" rel="noopener noreferrer" className="rounded-2xl bg-slate-950 py-3 text-center text-xs font-black text-white">Abrir link</a>
+                    <a href={normalizeExternalUrl(placement.redirectUrl)} target="_blank" rel="noopener noreferrer" className="pixel-btn pixel-btn--dark justify-center !rounded-2xl !py-3 !text-xs">Abrir link</a>
                   ) : (
-                    <div className="rounded-2xl bg-slate-100 py-3 text-center text-xs font-black text-slate-500">Link indisponível</div>
+                    <div className="rounded-2xl bg-transparent py-3 text-center text-xs font-black text-slate-500">Link indisponível</div>
                   )}
-                  <a href="#denunciar" className="rounded-2xl bg-red-50 py-3 text-center text-xs font-black text-red-700">Denunciar este bloco</a>
+                  <a href="#denunciar" className="pixel-btn pixel-btn--red justify-center !rounded-2xl !py-3 !text-xs">Denunciar este tijolinho</a>
                 </div>
               </div>
             </div>
@@ -154,9 +154,9 @@ export default async function PublicBlockPage({ params, searchParams }: BlockPag
           <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black uppercase text-slate-500">Valor</p><p className="mt-1 text-lg font-black text-slate-950">{money((block as any).priceCents)}</p></div>
         </section>
 
-        <section id="denunciar" className="mt-5 rounded-3xl bg-white p-5 shadow-xl">
+        <section id="denunciar" className="pixel-panel mt-5 p-5">
           <p className="text-xs font-black uppercase tracking-wide text-red-600">Denúncia pública</p>
-          <h2 className="mt-1 text-xl font-black text-slate-950">Denunciar este bloco</h2>
+          <h2 className="mt-1 text-xl font-black text-slate-950">Denunciar este tijolinho</h2>
           <p className="mt-2 text-sm font-bold leading-relaxed text-slate-500">Use este canal para imagem imprópria, link suspeito, golpe, uso indevido de marca ou conteúdo ofensivo. A denúncia vai para análise no admin.</p>
 
           {reported && <div className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm font-black text-emerald-800">Denúncia enviada. Obrigado por ajudar a manter o mural seguro.</div>}
@@ -164,12 +164,12 @@ export default async function PublicBlockPage({ params, searchParams }: BlockPag
 
           <form action={submitReport} className="mt-5 space-y-3">
             <input type="hidden" name="blockId" value={(block as any).id} />
-            <select name="reasonCode" className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold outline-none focus:border-slate-950">
+            <select name="reasonCode" className="pixel-input">
               {Object.entries(reasonLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
-            <textarea name="message" rows={4} placeholder="Explique rapidamente o problema encontrado" className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold outline-none focus:border-slate-950" />
-            <input name="reporterEmail" type="email" placeholder="Seu e-mail opcional" className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold outline-none focus:border-slate-950" />
-            <button className="w-full rounded-2xl bg-red-600 py-4 text-sm font-black text-white">Enviar denúncia</button>
+            <textarea name="message" rows={4} placeholder="Explique rapidamente o problema encontrado" className="pixel-input min-h-[120px] resize-none" />
+            <input name="reporterEmail" type="email" placeholder="Seu e-mail opcional" className="pixel-input" />
+            <button className="pixel-btn pixel-btn--red w-full !rounded-2xl !py-4 !text-sm">Enviar denúncia</button>
           </form>
         </section>
 

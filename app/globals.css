@@ -1,4 +1,92 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#f8fafc}body{color:#0f172a}a{color:inherit;text-decoration:none}
+
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#fff8ee}
+body{
+  color:#0f172a;
+  background:
+    radial-gradient(circle at top left, rgba(251,191,36,.18), transparent 28%),
+    radial-gradient(circle at top right, rgba(217,70,239,.08), transparent 22%),
+    linear-gradient(180deg, #fff8ee 0%, #f8fafc 45%, #fff 100%);
+}
+a{color:inherit;text-decoration:none}
+
+.pixel-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:.5rem;
+  border:2px solid #0f172a;
+  border-radius:16px;
+  padding:.9rem 1.1rem;
+  font-weight:900;
+  letter-spacing:.02em;
+  box-shadow: 0 5px 0 #0f172a;
+  transform: translateY(0);
+  transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+}
+.pixel-btn:hover{filter:brightness(1.03)}
+.pixel-btn:active{transform:translateY(3px);box-shadow:0 2px 0 #0f172a}
+.pixel-btn--dark{background:#0f172a;color:#fff}
+.pixel-btn--light{background:#fff;color:#0f172a}
+.pixel-btn--orange{background:#fb923c;color:#fff}
+.pixel-btn--gold{background:#facc15;color:#422006}
+.pixel-btn--green{background:#22c55e;color:#052e16}
+.pixel-btn--red{background:#fb7185;color:#fff}
+.pixel-btn--ghost{background:#f8fafc;color:#0f172a}
+
+.pixel-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:.4rem;
+  border:2px solid rgba(15,23,42,.12);
+  border-radius:999px;
+  padding:.45rem .8rem;
+  background:rgba(255,255,255,.88);
+  font-weight:800;
+  box-shadow:0 3px 0 rgba(15,23,42,.08);
+}
+
+.pixel-panel{
+  border:2px solid rgba(15,23,42,.08);
+  border-radius:28px;
+  background:rgba(255,255,255,.92);
+  box-shadow:0 14px 35px rgba(15,23,42,.08);
+}
+
+.pixel-card{
+  border:2px solid rgba(15,23,42,.08);
+  border-radius:22px;
+  background:#fff;
+  box-shadow:0 8px 24px rgba(15,23,42,.06);
+}
+
+.pixel-input{
+  width:100%;
+  border:2px solid #e2e8f0;
+  border-radius:18px;
+  background:#f8fafc;
+  padding:.95rem 1rem;
+  font-weight:700;
+  color:#0f172a;
+  outline:none;
+}
+.pixel-input:focus{border-color:#0f172a;background:#fff}
+
+.pixel-kicker{
+  display:inline-flex;
+  align-items:center;
+  gap:.5rem;
+  border:2px solid #fed7aa;
+  border-radius:999px;
+  background:rgba(255,255,255,.85);
+  padding:.55rem .95rem;
+  font-size:.72rem;
+  font-weight:900;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  color:#c2410c;
+  box-shadow:0 4px 0 rgba(194,65,12,.08);
+}

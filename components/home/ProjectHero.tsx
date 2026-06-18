@@ -7,7 +7,7 @@ export default function ProjectHero() {
       <div className="absolute inset-0 opacity-[0.08] [background-image:linear-gradient(90deg,#0f172a_1px,transparent_1px),linear-gradient(#0f172a_1px,transparent_1px)] [background-size:22px_22px]" />
       <div className="relative mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white/80 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-orange-700 shadow-sm">
+          <div className="pixel-kicker">
             <span>{siteConfig.brand.logoEmoji}</span>
             obra digital em construção
           </div>
@@ -18,15 +18,15 @@ export default function ProjectHero() {
             {siteConfig.copy.heroSubtitle}
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <a href="#mural" className="rounded-2xl bg-slate-950 px-6 py-4 text-center text-sm font-black text-white shadow-xl active:scale-95">
+            <a href="#mural" className="pixel-btn pixel-btn--dark justify-center !rounded-2xl !px-6 !py-4 !text-sm">
               {siteConfig.copy.primaryCta}
             </a>
-            <a href="#areas" className="rounded-2xl border border-slate-200 bg-white px-6 py-4 text-center text-sm font-black text-slate-950 shadow-lg active:scale-95">
+            <a href="#areas" className="pixel-btn pixel-btn--light justify-center !rounded-2xl !px-6 !py-4 !text-sm">
               {siteConfig.copy.secondaryCta}
             </a>
           </div>
           <p className="mt-5 text-sm font-bold text-slate-500">
-            O mural começa vazio. A história começa com quem entra primeiro.
+            O mural começa em branco. Cada novo tijolinho deixa a obra mais viva.
           </p>
         </div>
         <ConstructionProgress />

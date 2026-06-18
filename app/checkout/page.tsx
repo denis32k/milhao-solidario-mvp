@@ -505,14 +505,14 @@ export default function CompraPage() {
 
   if (selectedBlocks.length === 0) {
     return (
-      <main className="min-h-screen bg-slate-100 px-4 py-6">
+      <main className="min-h-screen bg-transparent px-4 py-6">
         <div className="mx-auto max-w-md rounded-3xl bg-white p-6 text-center shadow-xl">
           <div className="text-5xl">🧩</div>
           <h1 className="mt-4 text-2xl font-black text-slate-950">Selecione os tijolinhos primeiro</h1>
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
             Volte ao mural, toque nos tijolinhos desejados e depois continue para o checkout.
           </p>
-          <Link href="/" className="mt-5 block rounded-2xl bg-green-600 py-4 text-sm font-black text-white shadow-lg">
+          <Link href="/" className="pixel-btn pixel-btn--green mt-5 flex justify-center !rounded-2xl !py-4 !text-sm">
             Voltar ao mural
           </Link>
         </div>
@@ -521,7 +521,7 @@ export default function CompraPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-6">
+    <main className="min-h-screen bg-transparent px-4 py-6">
       <div className="mx-auto max-w-md">
         <Link href="/" className="mb-5 inline-flex rounded-full bg-white px-4 py-2 text-sm font-black text-slate-950 shadow">
           ← Voltar ao mural
@@ -535,8 +535,8 @@ export default function CompraPage() {
 
           <div className="mt-5 grid grid-cols-3 gap-2 text-center text-xs font-black">
             <div className="rounded-2xl bg-green-500 p-3 text-white">1. Tijolinhos</div>
-            <div className={`rounded-2xl p-3 ${step === "data" ? "bg-green-500 text-white" : "bg-slate-100 text-slate-500"}`}>2. Dados</div>
-            <div className={`rounded-2xl p-3 ${step === "pix" ? "bg-green-500 text-white" : "bg-slate-100 text-slate-500"}`}>3. PIX</div>
+            <div className={`rounded-2xl p-3 ${step === "data" ? "bg-green-500 text-white" : "bg-transparent text-slate-500"}`}>2. Dados</div>
+            <div className={`rounded-2xl p-3 ${step === "pix" ? "bg-green-500 text-white" : "bg-transparent text-slate-500"}`}>3. PIX</div>
           </div>
 
           {operationalSettings?.checkoutNotice && (
@@ -750,9 +750,9 @@ export default function CompraPage() {
                   <p className="mt-2 text-sm font-bold leading-relaxed text-emerald-800">Seus tijolinhos já entraram no mural.</p>
                   <div className="mt-4 grid gap-2 sm:grid-cols-3">
                     <Link href="/" className="rounded-2xl bg-emerald-600 py-3 text-center text-xs font-black text-white">Ver no mural</Link>
-                    <Link href="/ranking" className="rounded-2xl bg-slate-950 py-3 text-center text-xs font-black text-white">Ver destaques</Link>
+                    <Link href="/ranking" className="pixel-btn pixel-btn--dark justify-center !rounded-2xl !py-3 !text-xs">Ver destaques</Link>
                     {(pixResult.managementUrl || pixResult.managementPath) && (
-                      <a href={pixResult.managementUrl || pixResult.managementPath} className="rounded-2xl bg-yellow-400 py-3 text-center text-xs font-black text-yellow-950">Gerenciar conteúdo</a>
+                      <a href={pixResult.managementUrl || pixResult.managementPath} className="pixel-btn pixel-btn--gold justify-center !rounded-2xl !py-3 !text-xs">Gerenciar conteúdo</a>
                     )}
                   </div>
                   {(pixResult.managementUrl || pixResult.managementPath) && (
@@ -771,7 +771,7 @@ export default function CompraPage() {
                 <div className="mt-5 rounded-3xl bg-slate-50 p-4">
                   <p className="text-xs font-black uppercase tracking-wide text-slate-500">PIX copia e cola</p>
                   <textarea readOnly value={pixResult.pix.qrCode} rows={5} className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white p-3 text-xs font-bold text-slate-700" />
-                  <button type="button" onClick={handleCopyPix} className="mt-3 w-full rounded-2xl bg-slate-950 py-3 text-sm font-black text-white">Copiar código PIX</button>
+                  <button type="button" onClick={handleCopyPix} className="pixel-btn pixel-btn--dark mt-3 w-full !rounded-2xl !py-3 !text-sm">Copiar código PIX</button>
                   {copyMessage && <p className="mt-2 text-center text-xs font-black text-green-700">{copyMessage}</p>}
                 </div>
               )}
@@ -780,7 +780,7 @@ export default function CompraPage() {
                 type="button"
                 onClick={handleCheckPayment}
                 disabled={isCheckingPayment}
-                className="mt-5 w-full rounded-2xl bg-green-600 py-4 text-sm font-extrabold text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
+                className="pixel-btn pixel-btn--green mt-5 w-full !rounded-2xl !py-4 !text-sm disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isCheckingPayment ? "Verificando..." : "Já paguei, verificar pagamento"}
               </button>

@@ -8,7 +8,7 @@
   },
   "goalCents": 200000000,
   "operationalFeePercent": 0,
-  "mainHeadline": "Compre seu tijolinho digital e ajude a construir um dos murais mais ambiciosos da internet.",
+  "mainHeadline": "Compre seu tijolinho digital e entre para a construção de um mural único, feito pedaço por pedaço na internet.",
   "areas": {
     "SOLIDARITY": {
       "id": "copacabana",
@@ -92,15 +92,15 @@
     "Mural Completo"
   ],
   "copy": {
-    "heroTitle": "Compre seu tijolinho digital e ajude a construir um dos murais mais ambiciosos da internet.",
-    "heroSubtitle": "Escolha uma área, personalize seu espaço e faça parte de uma obra digital construída tijolinho por tijolinho.",
-    "primaryCta": "Comprar meu tijolinho",
-    "secondaryCta": "Explorar mural",
+    "heroTitle": "Compre seu tijolinho digital e entre para a construção de um mural único, feito pedaço por pedaço na internet.",
+    "heroSubtitle": "Escolha sua área, personalize seu espaço e marque presença em uma obra digital construída tijolinho por tijolinho.",
+    "primaryCta": "Quero meu tijolinho",
+    "secondaryCta": "Explorar o mural",
     "heroTagline": "Um mural digital sendo construído tijolinho por tijolinho.",
     "constructionText": "Cada tijolinho vendido ajuda essa obra digital a crescer. Acompanhe as fases da construção e escolha seu espaço antes que o mural seja completado.",
     "legendaryMessage": "O edifício Tom Delfim Moreira é uma área nobre do mural, com blocos de altíssimo destaque.",
-    "checkoutTitle": "Comprar tijolinho digital",
-    "pixButton": "Gerar PIX Mercado Pago",
+    "checkoutTitle": "Garanta seu espaço no Mural29",
+    "pixButton": "Gerar PIX e reservar agora",
     "reportButton": "Denunciar",
     "legalNotice": "Este é um projeto comercial de venda de espaços digitais em um mural público. A compra de tijolinhos digitais não constitui doação, investimento, sorteio, rifa ou promessa de retorno financeiro."
   },

@@ -153,7 +153,7 @@ export default async function ManageOrderPage({ params, searchParams }: ManagePa
 
   if (!transaction) {
     return (
-      <main className="min-h-screen bg-slate-100 px-4 py-8">
+      <main className="min-h-screen bg-transparent px-4 py-8">
         <div className="mx-auto max-w-md rounded-3xl bg-white p-6 text-center shadow-xl">
           <div className="text-5xl">🔒</div>
           <h1 className="mt-4 text-2xl font-black text-slate-950">Link inválido</h1>
@@ -177,7 +177,7 @@ export default async function ManageOrderPage({ params, searchParams }: ManagePa
   );
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-6">
+    <main className="min-h-screen bg-transparent px-4 py-6">
       <div className="mx-auto max-w-3xl">
         <Link href="/" className="mb-5 inline-flex rounded-full bg-white px-4 py-2 text-sm font-black text-slate-950 shadow">← Voltar ao mural</Link>
 
@@ -213,7 +213,7 @@ export default async function ManageOrderPage({ params, searchParams }: ManagePa
           {!placement && <p className="mt-3 text-sm font-bold text-slate-500">O conteúdo ainda não foi publicado. Aguarde a confirmação do pagamento/webhook.</p>}
           {placement && (
             <div className="mt-4 grid gap-4 md:grid-cols-[120px_1fr]">
-              <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-3xl bg-slate-100">
+              <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-3xl bg-transparent">
                 {placement.imageUrl ? <img src={placement.imageUrl} alt="Conteúdo atual" className="h-full w-full object-cover" /> : <span className="text-xs font-black text-slate-400">Sem imagem</span>}
               </div>
               <div>
@@ -229,9 +229,9 @@ export default async function ManageOrderPage({ params, searchParams }: ManagePa
 
         {placement && (transaction as any).status === "APPROVED" && (
           <section className="mt-5 rounded-3xl bg-white p-5 shadow-xl">
-            <p className="text-xs font-black uppercase text-slate-500">Solicitar alteração</p>
+            <p className="text-xs font-black uppercase text-slate-500">Solicitar uma alteração</p>
             <h2 className="mt-1 text-xl font-black text-slate-950">Nova versão para aprovação</h2>
-            <p className="mt-2 text-sm font-bold leading-relaxed text-slate-500">Sua alteração será enviada para análise. O conteúdo atual continuará aparecendo no mural até que a nova versão seja aprovada.</p>
+            <p className="mt-2 text-sm font-bold leading-relaxed text-slate-500">Sua alteração vai para análise. Enquanto isso, o conteúdo atual continua aparecendo no mural.</p>
 
             <form action={requestEdit} encType="multipart/form-data" className="mt-5 space-y-3">
               <input type="hidden" name="token" value={token} />

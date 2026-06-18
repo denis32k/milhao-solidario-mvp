@@ -69,7 +69,7 @@ export default function AreaCards() {
             const area = siteConfig.areas[key];
             const areaStats = stats?.blocks.byCategory?.[key];
             return (
-              <article key={key} className={`overflow-hidden rounded-[2rem] border p-5 shadow-xl ${themeClass(key)}`}>
+              <article key={key} className={`overflow-hidden rounded-[2rem] border-2 p-5 shadow-xl ${themeClass(key)}`}>
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-4xl">{areaIcon(key)}</p>
@@ -88,8 +88,8 @@ export default function AreaCards() {
                     {areaStats ? areaStats.available.toLocaleString("pt-BR") : "—"}
                   </p>
                 </div>
-                <a href="#mural" className="mt-4 block rounded-2xl bg-slate-950 py-3 text-center text-sm font-black text-white shadow-lg">
-                  Escolher área
+                <a href="#mural" className="pixel-btn pixel-btn--dark mt-4 flex justify-center !rounded-2xl !py-3 !text-sm">
+                  Escolher esta área
                 </a>
               </article>
             );
