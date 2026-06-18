@@ -309,12 +309,6 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
   const selectedFeeCents = Math.ceil(selectedSubtotalCents * (siteConfig.operationalFeePercent / 100));
   const selectedTotalCents = selectedSubtotalCents + selectedFeeCents;
 
-  const tutorialDemoBlocks = [
-    { gridX: 104, gridY: 58 },
-    { gridX: 105, gridY: 58 },
-    { gridX: 104, gridY: 59 },
-    { gridX: 105, gridY: 59 },
-  ];
 
   function getMinScale() {
     const wrapper = wrapperRef.current;
@@ -488,6 +482,37 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
     });
   }
 
+  function backPurchaseTutorial() {
+    setTutorialStep((current) => Math.max(0, current - 1));
+  }
+
+  useEffect(() => {
+    if (!tutorialVisible || !isPurchaseMode || isLoadingBlocks) return;
+
+    if (tutorialStep === 0) {
+      setSelectedBlocks([]);
+      return;
+    }
+
+    const demoBlocks = getTutorialSelectionBlocks();
+
+    if (tutorialStep === 2) {
+      setSelectedBlocks(demoBlocks);
+      return;
+    }
+
+    let index = 0;
+    setSelectedBlocks([]);
+
+    const interval = window.setInterval(() => {
+      index += 1;
+      setSelectedBlocks(demoBlocks.slice(0, index));
+      if (index >= demoBlocks.length) window.clearInterval(interval);
+    }, 550);
+
+    return () => window.clearInterval(interval);
+  }, [tutorialVisible, tutorialStep, isPurchaseMode, isLoadingBlocks, mapBlocks]);
+
   useEffect(() => {
     let isAlive = true;
 
@@ -539,6 +564,39 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
 
   function getMapBlockAt(x: number, y: number) {
     return mapBlocks.find((block) => block.gridX === x && block.gridY === y);
+  }
+
+  function getTutorialSelectionBlocks(): SelectedBlock[] {
+    const blocked = new Set(mapBlocks.map((block) => getBlockKey(block.gridX, block.gridY)));
+
+    for (let y = 8; y < GRID_ROWS - 2; y++) {
+      for (let x = 8; x < GRID_COLS - 2; x++) {
+        const category = getBlockCategory(x, y) as BuyableCategory;
+        if (!["SOLIDARITY", "PREMIUM", "GOLD", "GRAND_CENTER"].includes(category)) continue;
+
+        const demo = [
+          { gridX: x, gridY: y, category, priceCents: getAreaPriceCents(category) },
+          { gridX: x + 1, gridY: y, category, priceCents: getAreaPriceCents(category) },
+          { gridX: x, gridY: y + 1, category, priceCents: getAreaPriceCents(category) },
+          { gridX: x + 1, gridY: y + 1, category, priceCents: getAreaPriceCents(category) },
+        ];
+
+        const isFreeRectangle = demo.every((block) => {
+          if (blocked.has(getBlockKey(block.gridX, block.gridY))) return false;
+          return getBlockCategory(block.gridX, block.gridY) === category;
+        });
+
+        if (isFreeRectangle) return demo;
+      }
+    }
+
+    const fallbackCategory = getBlockCategory(10, 10) as BuyableCategory;
+    return [
+      { gridX: 10, gridY: 10, category: fallbackCategory, priceCents: getAreaPriceCents(fallbackCategory) },
+      { gridX: 11, gridY: 10, category: fallbackCategory, priceCents: getAreaPriceCents(fallbackCategory) },
+      { gridX: 10, gridY: 11, category: fallbackCategory, priceCents: getAreaPriceCents(fallbackCategory) },
+      { gridX: 11, gridY: 11, category: fallbackCategory, priceCents: getAreaPriceCents(fallbackCategory) },
+    ];
   }
 
   function isSelected(x: number, y: number) {
@@ -672,19 +730,6 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
       }
     }
 
-    if (tutorialVisible && tutorialStep === 1) {
-      const visibleCount = Math.min(tutorialDemoBlocks.length, Math.floor((clockTick % 8) / 2) + 1);
-      for (const [index, block] of tutorialDemoBlocks.entries()) {
-        if (index >= visibleCount) continue;
-        const px = block.gridX * BLOCK_SIZE;
-        const py = block.gridY * BLOCK_SIZE;
-        ctx.fillStyle = "rgba(245,158,11,0.65)";
-        ctx.fillRect(px + 0.7, py + 0.7, BLOCK_SIZE - 1.4, BLOCK_SIZE - 1.4);
-        ctx.strokeStyle = "rgba(120,53,15,0.95)";
-        ctx.lineWidth = 1.4;
-        ctx.strokeRect(px + 0.5, py + 0.5, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
-      }
-    }
 
     // imagens de áreas vendidas
     const imageGroups = new Map<string, ApiMapBlock[]>();
@@ -1067,27 +1112,34 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
               <p className="text-[11px] font-black uppercase tracking-wide text-orange-600">Tutorial {tutorialStep + 1}/3</p>
               <h2 className="mt-1 text-lg font-black text-slate-950">
                 {tutorialStep === 0 && "Botão de compra"}
-                {tutorialStep === 1 && "Selecione seu espaço"}
-                {tutorialStep === 2 && "Continue para pagar"}
+                {tutorialStep === 1 && "Selecionando exemplo"}
+                {tutorialStep === 2 && "Botão Continuar"}
               </h2>
               <p className="mt-2 text-sm font-bold leading-relaxed text-slate-500">
-                {tutorialStep === 0 && "Use a faixa laranja para entrar no modo de compra."}
-                {tutorialStep === 1 && "O exemplo mostra tijolinhos vazios sendo escolhidos em formato retangular."}
-                {tutorialStep === 2 && "Depois de escolher, toque em Continuar para reservar e pagar."}
+                {tutorialStep === 0 && "A faixa laranja abre o modo de compra do mural."}
+                {tutorialStep === 1 && "O sistema vai selecionar blocos vazios reais, um por um, em formato retangular."}
+                {tutorialStep === 2 && "Com os blocos selecionados, o botão Continuar aparece para reservar e pagar."}
               </p>
 
               {tutorialStep === 1 && (
-                <div className="mx-auto mt-3 grid w-24 grid-cols-2 gap-1 rounded-2xl bg-amber-50 p-2 ring-1 ring-amber-200">
-                  {[0, 1, 2, 3].map((item) => (
-                    <span
-                      key={item}
-                      className={`h-8 rounded-lg border border-amber-300 ${item <= Math.floor((clockTick % 8) / 2) ? "bg-amber-400" : "bg-white"}`}
-                    />
-                  ))}
-                </div>
+                <p className="mt-3 rounded-2xl bg-amber-50 px-3 py-2 text-xs font-black text-amber-800 ring-1 ring-amber-200">
+                  Selecionando exemplo no mapa...
+                </p>
               )}
 
-              <div className="mt-4 flex items-center justify-center gap-2">
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                {tutorialStep > 0 && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      backPurchaseTutorial();
+                    }}
+                    className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700"
+                  >
+                    Voltar
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={(event) => {
