@@ -17,7 +17,7 @@ const statusTabs = [
 ];
 
 function changeBadges(request: any) {
-  const badges = [];
+  const badges: string[] = [];
   if (request.requestedDisplayName || request.requestedTitle) badges.push("Nome");
   if (request.requestedRedirectUrl) badges.push("Link");
   if (request.requestedImageUrl) badges.push("Imagem");
