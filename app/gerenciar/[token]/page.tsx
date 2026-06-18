@@ -4,7 +4,8 @@ import path from "path";
 import { randomUUID } from "crypto";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { hashManagementToken } from "@/lib/customer-access";
+import { getManagementUrl, hashManagementToken } from "@/lib/customer-access";
+import CopyTextButton from "@/components/CopyTextButton";
 import { dateTime, money, safeValueQuery } from "@/lib/admin";
 import { findBlockedDomain, getHostnameFromUrl, normalizePublicUrl, validateImageFile } from "@/lib/content-validation";
 import { getOperationalSettings } from "@/lib/system-settings";
@@ -422,6 +423,8 @@ export default async function ManageOrderPage({ params, searchParams }: ManagePa
   const extra = items.length > 14 ? ` +${items.length - 14}` : "";
   const displayName = placement?.displayName || placement?.title || "Espaço comprado";
   const isWaitingPersonalization = displayName === "Espaço comprado";
+  const appUrl = String(process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "").replace(/\/$/, "");
+  const managementUrl = getManagementUrl(token, appUrl || null);
 
   return (
     <main className="min-h-screen bg-transparent px-4 py-6">
@@ -467,6 +470,10 @@ export default async function ManageOrderPage({ params, searchParams }: ManagePa
               <div className="flex justify-between gap-3"><span>Aprovado</span><strong className="text-right text-slate-950">{dateTime((transaction as any).approvedAt)}</strong></div>
             </div>
             <p className="mt-4 rounded-2xl bg-slate-50 p-3 text-xs font-bold leading-relaxed text-slate-500">{coordinates}{extra}</p>
+            <div className="mt-3 grid gap-2">
+              <CopyTextButton text={managementUrl} label="Copiar link seguro" copiedLabel="Link copiado" />
+              <Link href={managementUrl} className="flex h-11 items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-bold text-white shadow-sm">Abrir este link</Link>
+            </div>
           </aside>
         </section>
 

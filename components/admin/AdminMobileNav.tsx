@@ -9,6 +9,7 @@ const items = [
   ["blocos", "/admin/blocos", "Blocos"],
   ["moderacao", "/admin/conteudos", "Moderação"],
   ["clientes", "/admin/clientes", "Clientes"],
+  ["diagnostico", "/admin/diagnostico", "Diagnóstico"],
 ] as const;
 
 function selected(key: string, active: string) {

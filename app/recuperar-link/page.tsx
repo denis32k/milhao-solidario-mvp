@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { createManagementToken, getManagementUrl, hashManagementToken } from "@/lib/customer-access";
 import { sendManagementLinkEmail } from "@/lib/customer-notifications";
+import CopyTextButton from "@/components/CopyTextButton";
 
 export const dynamic = "force-dynamic";
 
@@ -110,7 +111,7 @@ export default async function RecoverLinkPage({ searchParams }: { searchParams: 
               <h2 className="mt-1 text-lg font-bold text-emerald-950">Seu novo link seguro foi gerado</h2>
               <p className="mt-2 text-sm leading-relaxed text-emerald-800">{sent ? `Também enviamos para ${email}.` : "Copie e guarde este link. O envio por e-mail não está configurado no servidor."}</p>
               <div className="mt-3 rounded-xl border border-emerald-200 bg-white p-3 text-xs font-semibold break-all text-emerald-950">{link}</div>
-              <a href={link} className="mt-3 flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white">Abrir área do comprador</a>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2"><CopyTextButton text={link} label="Copiar link" copiedLabel="Copiado" /><a href={link} className="flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white">Abrir área do comprador</a></div>
             </div>
           ) : (
             <form action={recoverManagementLink} className="mt-5 space-y-3">

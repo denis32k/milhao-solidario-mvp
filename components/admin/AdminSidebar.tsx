@@ -30,6 +30,7 @@ const sections: { title: string; items: readonly Item[] }[] = [
       { key: "webhooks", href: "/admin/webhooks", label: "Webhooks", icon: "zap" },
       { key: "logs", href: "/admin/logs", label: "Auditoria", icon: "list" },
       { key: "relatorios", href: "/admin/relatorios", label: "Relatórios", icon: "chart" },
+      { key: "diagnostico", href: "/admin/diagnostico", label: "Diagnóstico", icon: "help" },
       { key: "configuracoes", href: "/admin/configuracoes", label: "Configurações", icon: "settings" },
     ],
   },
