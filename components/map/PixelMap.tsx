@@ -296,6 +296,8 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
   const [isLoadingBlocks, setIsLoadingBlocks] = useState(true);
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, scale: 1 });
   const [clockTick, setClockTick] = useState(0);
+  const [tutorialVisible, setTutorialVisible] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(0);
 
   const isPurchaseMode = mode === "purchase";
   const selectedCategory = selectedBlocks[0]?.category || null;
@@ -432,24 +434,62 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
   }, []);
 
   useEffect(() => {
+    if (!isPurchaseMode) {
+      setTutorialVisible(false);
+      return;
+    }
+
+    try {
+      const skipped = localStorage.getItem("mural29:purchaseTutorialDone") === "1";
+      setTutorialVisible(!skipped);
+      setTutorialStep(0);
+    } catch {
+      setTutorialVisible(true);
+      setTutorialStep(0);
+    }
+  }, [isPurchaseMode]);
+
+  function closePurchaseTutorial() {
+    setTutorialVisible(false);
+    try {
+      localStorage.setItem("mural29:purchaseTutorialDone", "1");
+    } catch {
+      // ignore
+    }
+  }
+
+  function advancePurchaseTutorial() {
+    setTutorialStep((current) => {
+      if (current >= 2) {
+        closePurchaseTutorial();
+        return current;
+      }
+      return current + 1;
+    });
+  }
+
+  useEffect(() => {
     let isAlive = true;
+
+    let firstLoad = true;
 
     async function loadMapBlocks() {
       try {
-        setIsLoadingBlocks(true);
-        const response = await fetch("/api/map/blocks", { cache: "no-store" });
+        if (firstLoad) setIsLoadingBlocks(true);
+        const response = await fetch(`/api/map/blocks?ts=${Date.now()}`, { cache: "no-store" });
         const data = await response.json();
         if (!isAlive) return;
         if (data.ok) setMapBlocks(data.blocks);
       } catch (error) {
         console.error("Erro ao carregar tijolinhos do mural:", error);
       } finally {
+        firstLoad = false;
         if (isAlive) setIsLoadingBlocks(false);
       }
     }
 
     loadMapBlocks();
-    const interval = window.setInterval(loadMapBlocks, 5000);
+    const interval = window.setInterval(loadMapBlocks, 2000);
     return () => {
       isAlive = false;
       window.clearInterval(interval);
@@ -586,12 +626,12 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
           ctx.strokeStyle = "rgba(245,158,11,0.92)";
           ctx.lineWidth = camera.scale > 2 ? 1.1 : 0.7;
           ctx.strokeRect(px + 1, py + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
-          if (camera.scale > 2.4) {
+          if (camera.scale > 3.5) {
             ctx.fillStyle = "rgba(120,53,15,0.95)";
-            ctx.font = "bold 7px Arial";
+            ctx.font = "bold 4px Arial";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.fillText("RES", px + BLOCK_SIZE / 2, py + BLOCK_SIZE / 2);
+            ctx.fillText("R", px + BLOCK_SIZE / 2, py + BLOCK_SIZE / 2);
           }
         }
 
@@ -973,6 +1013,44 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
       onWheel={handleWheel}
     >
       <canvas ref={canvasRef} className="block h-full w-full" />
+
+      {tutorialVisible && (
+        <div
+          className="absolute inset-0 z-[998] flex items-end justify-center bg-slate-950/10 p-4 backdrop-blur-[1px]"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            advancePurchaseTutorial();
+          }}
+        >
+          <div className="w-full max-w-sm rounded-3xl border border-white/70 bg-white p-4 text-center shadow-2xl">
+            <p className="text-[11px] font-black uppercase tracking-wide text-orange-600">Tutorial {tutorialStep + 1}/3</p>
+            <h2 className="mt-1 text-lg font-black text-slate-950">
+              {tutorialStep === 0 && "Clique em “Compre seu tijolinho”"}
+              {tutorialStep === 1 && "Toque nos espaços livres"}
+              {tutorialStep === 2 && "Aperte “Continuar”"}
+            </h2>
+            <p className="mt-2 text-sm font-bold leading-relaxed text-slate-500">
+              {tutorialStep === 0 && "Entre no modo de compra pela faixa laranja."}
+              {tutorialStep === 1 && "Escolha seu lugar no mural. Pode selecionar tijolinhos encostados."}
+              {tutorialStep === 2 && "Depois finalize o pagamento para garantir sua reserva."}
+            </p>
+            <div className="mt-4 flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  closePurchaseTutorial();
+                }}
+                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700"
+              >
+                Pular tutorial
+              </button>
+              <span className="rounded-full bg-slate-950 px-4 py-2 text-xs font-black text-white">Toque para avançar</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div
         className="absolute right-3 top-24 z-40 hidden flex-col gap-2 md:flex"

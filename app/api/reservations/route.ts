@@ -91,7 +91,8 @@ export async function POST(request: Request) {
     }).catch(() => null);
 
     const reservationToken = randomUUID();
-    const reservedUntil = new Date(now.getTime() + settings.reservationMinutes * 60 * 1000);
+    const effectiveReservationMinutes = 2;
+    const reservedUntil = new Date(now.getTime() + effectiveReservationMinutes * 60 * 1000);
 
     const result = await prisma.$transaction(async (tx: any) => {
       const foundBlocks = await tx.block.findMany({
@@ -140,7 +141,7 @@ export async function POST(request: Request) {
       reservationToken,
       reservedUntil: reservedUntil.toISOString(),
       expiresInSeconds: Math.max(0, Math.floor((reservedUntil.getTime() - Date.now()) / 1000)),
-      reservationMinutes: settings.reservationMinutes,
+      reservationMinutes: effectiveReservationMinutes,
       category: result.category,
       blocks: result.blocks.map((block: any) => ({
         id: block.id,
@@ -154,5 +155,38 @@ export async function POST(request: Request) {
       { ok: false, message: getErrorMessage(error) || "Não foi possível reservar." },
       { status: 409 }
     );
+  }
+}
+
+
+export async function DELETE(request: Request) {
+  try {
+    const { prisma } = await import("@/lib/prisma");
+    const url = new URL(request.url);
+    const reservationToken = String(url.searchParams.get("token") || "").trim();
+
+    if (!reservationToken) {
+      return NextResponse.json({ ok: false, message: "Reserva não informada." }, { status: 400 });
+    }
+
+    const released = await prisma.block.updateMany({
+      where: {
+        reservationToken,
+        status: "RESERVED",
+        currentTransactionId: null,
+      },
+      data: {
+        status: "AVAILABLE",
+        available: true,
+        ownerId: null,
+        currentTransactionId: null,
+        reservationToken: null,
+        reservedUntil: null,
+      },
+    });
+
+    return NextResponse.json({ ok: true, releasedBlocks: released.count });
+  } catch (error) {
+    return NextResponse.json({ ok: false, message: getErrorMessage(error) || "Não foi possível liberar." }, { status: 500 });
   }
 }

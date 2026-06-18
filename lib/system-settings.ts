@@ -58,7 +58,7 @@ export function normalizeOperationalSettings(value: any): OperationalSettings {
     checkoutNotice: asString(source.checkoutNotice, DEFAULT_OPERATIONAL_SETTINGS.checkoutNotice).slice(0, 500),
     supportEmail: asString(source.supportEmail, DEFAULT_OPERATIONAL_SETTINGS.supportEmail).slice(0, 120),
     supportWhatsapp: asString(source.supportWhatsapp, DEFAULT_OPERATIONAL_SETTINGS.supportWhatsapp).replace(/\D/g, "").slice(0, 14),
-    reservationMinutes: asNumber(source.reservationMinutes, DEFAULT_OPERATIONAL_SETTINGS.reservationMinutes, 1, 30),
+    reservationMinutes: asNumber(source.reservationMinutes, DEFAULT_OPERATIONAL_SETTINGS.reservationMinutes, 2, 2),
     maxImageMb: asNumber(source.maxImageMb, DEFAULT_OPERATIONAL_SETTINGS.maxImageMb, 1, 20),
     perIpLimitPerDay: asNumber(source.perIpLimitPerDay, DEFAULT_OPERATIONAL_SETTINGS.perIpLimitPerDay, 0, 500),
     perCustomerLimitPerDay: asNumber(source.perCustomerLimitPerDay, DEFAULT_OPERATIONAL_SETTINGS.perCustomerLimitPerDay, 0, 500),

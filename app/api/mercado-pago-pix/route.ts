@@ -270,7 +270,7 @@ export async function POST(request: Request) {
 
     const uniqueId = Date.now();
     const externalReference = `mp-pix-${uniqueId}`;
-    const fallbackReservedUntil = new Date(Date.now() + settings.reservationMinutes * 60 * 1000);
+    const fallbackReservedUntil = new Date(Date.now() + 2 * 60 * 1000);
 
     const pendingData = await prisma.$transaction(async (tx: any) => {
       const now = new Date();

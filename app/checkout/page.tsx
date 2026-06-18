@@ -204,7 +204,7 @@ export default function CompraPage() {
         setReservedUntil(String(data.reservedUntil || ""));
         setReservationRemainingSeconds(Number(data.expiresInSeconds || 0));
         setReservationExpired(false);
-        setReservationMessage(`Reservado por ${Number(data.reservationMinutes || reservationMinutes)} minuto(s).`);
+        setReservationMessage("Reservado por 2 minutos.");
       } catch (error) {
         if (cancelled) return;
         setReservationExpired(true);
@@ -230,13 +230,50 @@ export default function CompraPage() {
       if (remaining <= 0) {
         setReservationExpired(true);
         setReservationMessage("Reserva expirada.");
+        if (reservationToken && !paymentApproved) {
+          fetch(`/api/reservations?token=${encodeURIComponent(reservationToken)}`, {
+            method: "DELETE",
+            keepalive: true,
+          }).catch(() => null);
+        }
       }
     }
 
     updateTimer();
     const interval = window.setInterval(updateTimer, 1000);
     return () => window.clearInterval(interval);
-  }, [reservedUntil, paymentApproved]);
+  }, [reservedUntil, reservationToken, paymentApproved]);
+
+  useEffect(() => {
+    if (!reservationToken || pixResult || paymentApproved) return;
+
+    const releaseReservation = () => {
+      const body = JSON.stringify({ reservationToken });
+      try {
+        if (navigator.sendBeacon) {
+          const blob = new Blob([body], { type: "application/json" });
+          navigator.sendBeacon("/api/reservations/release", blob);
+          return;
+        }
+      } catch {
+        // fallback abaixo
+      }
+
+      fetch(`/api/reservations?token=${encodeURIComponent(reservationToken)}`, {
+        method: "DELETE",
+        keepalive: true,
+      }).catch(() => null);
+    };
+
+    window.addEventListener("pagehide", releaseReservation);
+    window.addEventListener("beforeunload", releaseReservation);
+
+    return () => {
+      window.removeEventListener("pagehide", releaseReservation);
+      window.removeEventListener("beforeunload", releaseReservation);
+      releaseReservation();
+    };
+  }, [reservationToken, pixResult, paymentApproved]);
 
   useEffect(() => {
     if (!imageFile) {
@@ -260,7 +297,6 @@ export default function CompraPage() {
   const totalCents = subtotalCents + operationalFeeCents;
   const theme = getCategoryTheme(category);
   const isRectangle = blocksFormRectangle(selectedBlocks);
-  const reservationMinutes = operationalSettings?.reservationMinutes || 2;
   const mustBeRectangle = selectedBlocks.length > 1;
 
   function validateFastCheckout() {
