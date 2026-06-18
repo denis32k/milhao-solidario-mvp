@@ -22,6 +22,15 @@ const reasonLabels: Record<string, string> = {
   OUTRO: "Outro motivo",
 };
 
+function normalizeImageUrl(url: string | null | undefined) {
+  if (!url) return "";
+  if (url.startsWith("/uploads/")) {
+    const filename = url.split("/").pop();
+    return filename ? `/api/uploads/file/${encodeURIComponent(filename)}` : url;
+  }
+  return url;
+}
+
 function normalizeExternalUrl(url: string | null | undefined) {
   if (!url) return "";
   if (/^https?:\/\//i.test(url)) return url;
@@ -154,7 +163,7 @@ export default async function PublicBlockPage({ params, searchParams }: BlockPag
         <section className={`rounded-[2rem] border-2 p-5 shadow-xl ${theme.box}`}>
           <div className="flex flex-col gap-5 md:flex-row md:items-center">
             <div className="flex h-44 w-full items-center justify-center overflow-hidden rounded-[2rem] border border-white/80 bg-white shadow md:h-48 md:w-48">
-              {!hidden && placement?.imageUrl && !imageBlocked ? <img src={placement.imageUrl} alt={displayName} className="h-full w-full object-cover" /> : <span className="px-6 text-center text-4xl">🧱</span>}
+              {!hidden && placement?.imageUrl && !imageBlocked ? <img src={normalizeImageUrl(placement.imageUrl)} alt={displayName} className="h-full w-full object-cover" /> : <span className="px-6 text-center text-4xl">🧱</span>}
             </div>
             <div className="min-w-0 flex-1">
               <span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-black uppercase ${theme.badge}`}>{theme.label}</span>

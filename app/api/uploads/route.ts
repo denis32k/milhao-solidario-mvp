@@ -7,6 +7,10 @@ import { getOperationalSettings } from "@/lib/system-settings";
 
 export const dynamic = "force-dynamic";
 
+function getUploadDir() {
+  return process.env.UPLOAD_DIR || path.join(process.cwd(), "public", "uploads");
+}
+
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
   return String(error);
@@ -41,7 +45,7 @@ export async function POST(request: Request) {
     }
 
     const filename = `${Date.now()}-${randomUUID()}.${validation.extension}`;
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
+    const uploadDir = getUploadDir();
     const filepath = path.join(uploadDir, filename);
     const bytes = await file.arrayBuffer();
 
@@ -50,7 +54,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      url: `/uploads/${filename}`,
+      url: `/api/uploads/file/${filename}`,
       filename,
     });
   } catch (error) {

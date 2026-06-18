@@ -9,6 +9,15 @@ import { getAreaName } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
 
+function normalizeImageUrl(url: string | null | undefined) {
+  if (!url) return "";
+  if (url.startsWith("/uploads/")) {
+    const filename = url.split("/").pop();
+    return filename ? `/api/uploads/file/${encodeURIComponent(filename)}` : url;
+  }
+  return url;
+}
+
 const reviewTabs = [
   { value: "ALL", label: "Todos" },
   { value: "PUBLISHED_NOT_REVIEWED", label: "Sem revisão" },
@@ -85,7 +94,7 @@ export default async function AdminConteudosPage({ searchParams }: { searchParam
                   const displayName = p.displayName || p.title || "Espaço comprado";
                   return (
                     <tr key={p.id}>
-                      <td>{p.imageUrl ? <img src={p.imageUrl} alt={displayName} className="h-10 w-10 rounded-lg object-cover" /> : <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-xs font-black text-slate-400">sem</span>}</td>
+                      <td>{p.imageUrl ? <img src={normalizeImageUrl(p.imageUrl)} alt={displayName} className="h-10 w-10 rounded-lg object-cover" /> : <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-xs font-black text-slate-400">sem</span>}</td>
                       <td><p className="font-black text-slate-950">{displayName}</p><p className="text-[11px] font-bold text-slate-400">{shortId(p.id)}</p></td>
                       <td className="max-w-[220px]"><p className="truncate text-[11px] font-bold text-slate-600">{p.redirectUrl || "—"}</p><p className="text-[11px] font-black uppercase text-slate-400">{linkLabel(p)}</p></td>
                       <td><p className="font-bold text-slate-700">{firstBlock ? getAreaName(firstBlock.category) : getAreaName(p.kind)}</p><p className="text-[11px] font-bold text-slate-400">{firstBlock ? `x${firstBlock.gridX}/y${firstBlock.gridY}` : "sem bloco"}</p></td>

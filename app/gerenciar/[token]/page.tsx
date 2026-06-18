@@ -17,6 +17,19 @@ type ManagePageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+function getUploadDir() {
+  return process.env.UPLOAD_DIR || path.join(process.cwd(), "public", "uploads");
+}
+
+function normalizeImageUrl(url: string | null | undefined) {
+  if (!url) return "";
+  if (url.startsWith("/uploads/")) {
+    const filename = url.split("/").pop();
+    return filename ? `/api/uploads/file/${encodeURIComponent(filename)}` : url;
+  }
+  return url;
+}
+
 function safeText(value: FormDataEntryValue | null, maxLength: number) {
   return String(value || "").trim().slice(0, maxLength);
 }
@@ -55,14 +68,14 @@ async function savePendingImage(file: FormDataEntryValue | null, maxImageMb: num
   }
 
   const filename = `edicao-${Date.now()}-${randomUUID()}.${validation.extension}`;
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
+  const uploadDir = getUploadDir();
   const filepath = path.join(uploadDir, filename);
   const bytes = await file.arrayBuffer();
 
   await mkdir(uploadDir, { recursive: true });
   await writeFile(filepath, Buffer.from(bytes));
 
-  return `/uploads/${filename}`;
+  return `/api/uploads/file/${filename}`;
 }
 
 async function refreshPaymentStatus(formData: FormData) {
@@ -430,7 +443,7 @@ export default async function ManageOrderPage({ params, searchParams }: ManagePa
             <p className="text-xs font-black uppercase tracking-wide text-slate-500">Conteúdo atual</p>
             <div className="mt-4 grid gap-5 md:grid-cols-[180px_1fr]">
               <div className="flex h-44 w-full items-center justify-center overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 md:w-44">
-                {placement?.imageUrl ? <img src={placement.imageUrl} alt={displayName} className="h-full w-full object-cover" /> : <span className="px-5 text-center text-xs font-black text-slate-400">{isWaitingPersonalization ? "Aguardando imagem" : "Sem imagem"}</span>}
+                {placement?.imageUrl ? <img src={normalizeImageUrl(placement.imageUrl)} alt={displayName} className="h-full w-full object-cover" /> : <span className="px-5 text-center text-xs font-black text-slate-400">{isWaitingPersonalization ? "Aguardando imagem" : "Sem imagem"}</span>}
               </div>
               <div>
                 <span className="inline-flex rounded-full bg-slate-950 px-3 py-1 text-[10px] font-black uppercase text-white">{getAreaName((transaction as any).kind)}</span>

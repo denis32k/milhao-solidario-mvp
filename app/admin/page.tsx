@@ -165,6 +165,10 @@ type AvailableBlockForTest = {
   priceCents: number;
 };
 
+function getUploadDir() {
+  return process.env.UPLOAD_DIR || path.join(process.cwd(), "public", "uploads");
+}
+
 function normalizeTestCategory(value: string): TestCategory {
   if (value === "PREMIUM") return "PREMIUM";
   if (value === "GOLD") return "GOLD";
@@ -180,14 +184,14 @@ async function saveTestImage(file: FormDataEntryValue | null) {
   if (!validation.ok || !validation.extension) return null;
 
   const filename = `teste-${Date.now()}-${randomUUID()}.${validation.extension}`;
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
+  const uploadDir = getUploadDir();
   const filepath = path.join(uploadDir, filename);
   const bytes = await file.arrayBuffer();
 
   await mkdir(uploadDir, { recursive: true });
   await writeFile(filepath, Buffer.from(bytes));
 
-  return `/uploads/${filename}`;
+  return `/api/uploads/file/${filename}`;
 }
 
 

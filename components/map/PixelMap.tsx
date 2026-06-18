@@ -71,7 +71,7 @@ type ApiMapBlock = {
 
 type SelectedSheet =
   | null
-  | { type: "sold"; block: ApiMapBlock; anchorX: number; anchorY: number };
+  | { type: "sold"; block: ApiMapBlock; gridX: number; gridY: number };
 
 type PointerPoint = {
   x: number;
@@ -225,6 +225,15 @@ function normalizeExternalUrl(url: string | null | undefined) {
   return `https://${url}`;
 }
 
+function normalizeImageUrl(url: string | null | undefined) {
+  if (!url) return "";
+  if (url.startsWith("/uploads/")) {
+    const filename = url.split("/").pop();
+    return filename ? `/api/uploads/file/${encodeURIComponent(filename)}` : url;
+  }
+  return url;
+}
+
 function drawImageCover(
   ctx: CanvasRenderingContext2D,
   image: HTMLImageElement,
@@ -262,6 +271,7 @@ export default function PixelMap() {
   const focusedBlockFromUrlRef = useRef(false);
 
   const [selectedSheet, setSelectedSheet] = useState<SelectedSheet>(null);
+  const [successToast, setSuccessToast] = useState("");
   const [mapBlocks, setMapBlocks] = useState<ApiMapBlock[]>([]);
   const [selectedBlocks, setSelectedBlocks] = useState<SelectedBlock[]>([]);
   const [selectionMessage, setSelectionMessage] = useState("");
@@ -355,8 +365,8 @@ export default function PixelMap() {
     setSelectedSheet({
       type: "sold",
       block,
-      anchorX: rect.left + rect.width / 2,
-      anchorY: rect.top + rect.height / 2,
+      gridX: block.gridX,
+      gridY: block.gridY,
     });
   }
 
@@ -388,6 +398,16 @@ export default function PixelMap() {
     }
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("publicado") !== "1") return;
+
+    setSuccessToast("PIX aprovado, personalização salva e espaço publicado no mural.");
+    const timer = window.setTimeout(() => setSuccessToast(""), 5200);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -569,7 +589,7 @@ export default function PixelMap() {
       const placement = blocks[0]?.placement;
       if (!placement?.imageUrl) continue;
 
-      const image = getImage(placement.imageUrl);
+      const image = getImage(normalizeImageUrl(placement.imageUrl));
       if (!image.complete || !image.naturalWidth) continue;
 
       const minX = Math.min(...blocks.map((block) => block.gridX));
@@ -660,11 +680,25 @@ export default function PixelMap() {
     setSelectionMessage("");
   }
 
+  function getCellScreenAnchor(gridX: number, gridY: number) {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return null;
+
+    const rect = wrapper.getBoundingClientRect();
+    const worldX = (gridX + 0.5) * BLOCK_SIZE;
+    const worldY = (gridY + 0.5) * BLOCK_SIZE;
+
+    return {
+      x: rect.left + camera.x + worldX * camera.scale,
+      y: rect.top + camera.y + worldY * camera.scale,
+    };
+  }
+
   function selectBlock(gridX: number, gridY: number, category: BlockCategory, clientX: number, clientY: number) {
 
     const soldBlock = getMapBlockAt(gridX, gridY);
     if (soldBlock) {
-      setSelectedSheet({ type: "sold", block: soldBlock, anchorX: clientX, anchorY: clientY });
+      setSelectedSheet({ type: "sold", block: soldBlock, gridX, gridY });
       return;
     }
 
@@ -814,16 +848,24 @@ export default function PixelMap() {
     zoomFromScreenPoint(screenX, screenY, event.deltaY > 0 ? 0.9 : 1.1);
   }
 
-  function getBubbleStyle(anchorX: number, anchorY: number) {
+  function getBubblePosition(anchorX: number, anchorY: number) {
     if (typeof window === "undefined") {
-      return { left: anchorX, top: anchorY };
+      return { box: { left: anchorX, top: anchorY }, arrowLeft: 24, isAbove: false };
     }
 
     const width = 292;
-    const height = 220;
+    const estimatedHeight = 320;
+    const gap = 18;
+    const isAbove = anchorY + gap + estimatedHeight > window.innerHeight - 12;
+    const left = clamp(anchorX - width / 2, 12, window.innerWidth - width - 12);
+    const top = isAbove
+      ? clamp(anchorY - estimatedHeight - gap, 74, window.innerHeight - estimatedHeight - 12)
+      : clamp(anchorY + gap, 74, window.innerHeight - estimatedHeight - 12);
+
     return {
-      left: clamp(anchorX + 14, 12, window.innerWidth - width - 12),
-      top: clamp(anchorY + 14, 74, window.innerHeight - height - 12),
+      box: { left, top },
+      arrowLeft: clamp(anchorX - left - 8, 18, width - 18),
+      isAbove,
     };
   }
 
@@ -862,6 +904,17 @@ export default function PixelMap() {
       onWheel={handleWheel}
     >
       <canvas ref={canvasRef} className="block h-full w-full" />
+
+      {successToast && (
+        <div className="fixed left-3 right-3 top-24 z-[1000] mx-auto flex max-w-md items-start gap-3 rounded-2xl border border-emerald-200 bg-white/95 p-4 text-slate-950 shadow-2xl backdrop-blur">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-sm font-black text-white">✓</span>
+          <div className="min-w-0">
+            <p className="text-sm font-black">Tudo certo no Mural29</p>
+            <p className="mt-1 text-xs font-bold leading-relaxed text-slate-500">{successToast}</p>
+          </div>
+          <button type="button" onClick={() => setSuccessToast("")} className="ml-auto text-sm font-black text-slate-400">×</button>
+        </div>
+      )}
 
       <div
         className="absolute right-3 top-24 z-40 hidden flex-col gap-2 md:flex"
@@ -964,15 +1017,17 @@ export default function PixelMap() {
         const bubbleTheme = getBubbleTheme(selectedSheet.block, rank);
         const hasImage = Boolean(selectedSheet.block.placement?.imageUrl && selectedSheet.block.placement?.status === "ACTIVE");
         const isWaitingPersonalization = getDisplayName(selectedSheet.block) === "Espaço comprado";
+        const anchor = getCellScreenAnchor(selectedSheet.gridX, selectedSheet.gridY) || { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+        const bubblePosition = getBubblePosition(anchor.x, anchor.y);
 
         return (
           <div
             className={`fixed z-[999] w-[292px] rounded-3xl border p-4 shadow-2xl ${bubbleTheme.box}`}
-            style={getBubbleStyle(selectedSheet.anchorX, selectedSheet.anchorY)}
+            style={bubblePosition.box}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="absolute -left-2 top-6 h-4 w-4 rotate-45 border-b border-l border-inherit bg-white" />
+            <div className={`absolute h-4 w-4 rotate-45 border border-inherit bg-inherit ${bubblePosition.isAbove ? "-bottom-2" : "-top-2"}`} style={{ left: bubblePosition.arrowLeft }} />
             <button
               type="button"
               onClick={() => setSelectedSheet(null)}
@@ -984,7 +1039,7 @@ export default function PixelMap() {
             <div className="flex items-start gap-3 pr-8">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/70 bg-white shadow">
                 {hasImage ? (
-                  <img src={selectedSheet.block.placement?.imageUrl || ""} alt={getDisplayName(selectedSheet.block)} className="h-full w-full object-cover" />
+                  <img src={normalizeImageUrl(selectedSheet.block.placement?.imageUrl)} alt={getDisplayName(selectedSheet.block)} className="h-full w-full object-cover" />
                 ) : (
                   <span className="text-xl">🧱</span>
                 )}
