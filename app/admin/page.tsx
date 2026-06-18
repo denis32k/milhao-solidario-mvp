@@ -816,6 +816,7 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
 
   const openReports = reportsList.filter((report: any) => report.status === "OPEN" || report.status === "REVIEWING").length;
   const activeBlocks = Number(soldBlocksByDb || soldBlocks || 0);
+  const bannedUsersCount = Number(bannedUsers || 0);
 
   const areaSales = Object.values(
     areaSalesRaw.reduce((acc: Record<string, { kind: string; count: number; blocks: number; totalCents: number }>, transaction: any) => {
@@ -842,66 +843,110 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
         <AdminPageHeader secret={secret} active="dashboard" title="Dashboard" description="Visão geral compacta das vendas, reservas, pagamentos, moderação e saúde operacional do Mural29." />
 
         <section id="dashboard" className="mb-6 space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Entrou hoje</p><p className="mt-1 text-2xl font-black text-slate-950">{money(todayRevenueCents)}</p><p className="mt-1 text-[10px] font-bold text-slate-400">{approvedPaymentsTodayCount} pagamento(s) aprovado(s)</p></div>
-            <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Entrou na semana</p><p className="mt-1 text-2xl font-black text-slate-950">{money(weekRevenueCents)}</p></div>
-            <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Entrou no mês</p><p className="mt-1 text-2xl font-black text-slate-950">{money(monthRevenueCents)}</p></div>
-            <div className="rounded-3xl bg-slate-950 p-4 text-white shadow"><p className="text-xs font-black text-slate-300">Total aprovado</p><p className="mt-1 text-2xl font-black">{money(totalRevenueCents)}</p></div>
+          <div className="dashboard-metrics-grid">
+            <article className="dashboard-metric-card">
+              <div className="dashboard-metric-icon">R$</div>
+              <div>
+                <p className="dashboard-metric-label">Entrou hoje</p>
+                <h3 className="dashboard-metric-value">{money(todayRevenueCents)}</h3>
+                <p className="dashboard-metric-meta">{approvedPaymentsTodayCount} pagamento(s) aprovado(s)</p>
+              </div>
+            </article>
+            <article className="dashboard-metric-card">
+              <div className="dashboard-metric-icon">7d</div>
+              <div>
+                <p className="dashboard-metric-label">Entrou na semana</p>
+                <h3 className="dashboard-metric-value">{money(weekRevenueCents)}</h3>
+                <p className="dashboard-metric-meta">Visão rápida do fluxo recente</p>
+              </div>
+            </article>
+            <article className="dashboard-metric-card">
+              <div className="dashboard-metric-icon">30</div>
+              <div>
+                <p className="dashboard-metric-label">Entrou no mês</p>
+                <h3 className="dashboard-metric-value">{money(monthRevenueCents)}</h3>
+                <p className="dashboard-metric-meta">Receita acumulada do mês</p>
+              </div>
+            </article>
+            <article className="dashboard-metric-card is-primary">
+              <div className="dashboard-metric-icon dark">Σ</div>
+              <div>
+                <p className="dashboard-metric-label on-dark">Total aprovado</p>
+                <h3 className="dashboard-metric-value on-dark">{money(totalRevenueCents)}</h3>
+                <p className="dashboard-metric-meta on-dark">Total confirmado no projeto</p>
+              </div>
+            </article>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-            <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Blocos vendidos</p><p className="mt-1 text-2xl font-black">{activeBlocks}</p></div>
-            <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Disponíveis</p><p className="mt-1 text-2xl font-black">{availableBlocks}</p></div>
-            <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Reservados</p><p className="mt-1 text-2xl font-black">{reservedBlocks}</p></div>
-            <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Expirados</p><p className="mt-1 text-2xl font-black text-orange-600">{expiredReservationsCount}</p></div>
-            <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Sem revisão</p><p className="mt-1 text-2xl font-black text-yellow-600">{unreviewedContentCount}</p></div>
-            <div className="rounded-3xl bg-white p-4 shadow"><p className="text-xs font-black text-slate-500">Pendências</p><p className="mt-1 text-2xl font-black text-red-600">{openReports + pendingEditRequestsList.length + problematicPaymentsCount}</p></div>
+          <div className="dashboard-mini-grid">
+            <article className="dashboard-mini-card"><p>Blocos vendidos</p><strong>{activeBlocks}</strong></article>
+            <article className="dashboard-mini-card"><p>Disponíveis</p><strong>{availableBlocks}</strong></article>
+            <article className="dashboard-mini-card"><p>Reservados</p><strong>{reservedBlocks}</strong></article>
+            <article className="dashboard-mini-card warning"><p>Expirados</p><strong>{expiredReservationsCount}</strong></article>
+            <article className="dashboard-mini-card alert"><p>Sem revisão</p><strong>{unreviewedContentCount}</strong></article>
+            <article className="dashboard-mini-card danger"><p>Pendências</p><strong>{openReports + pendingEditRequestsList.length + problematicPaymentsCount}</strong></article>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-            <div className="rounded-3xl bg-white p-5 shadow-xl">
-              <div className="flex items-center justify-between gap-3">
+          <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+            <section className="admin-table-card p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-wide text-slate-500">Painel de avião</p>
-                  <h2 className="mt-1 text-xl font-black text-slate-950">Saúde da operação</h2>
+                  <p className="admin-page-kicker">Estatísticas primeiro</p>
+                  <h2 className="text-xl font-bold text-slate-950">Saúde da operação</h2>
                 </div>
-                <span className={`rounded-full px-3 py-2 text-xs font-black ${healthAlerts.length ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>
-                  {healthAlerts.length ? "Atenção" : "Saudável"}
+                <span className={`table-status ${healthAlerts.length ? "warning" : "success"}`}>
+                  {healthAlerts.length ? "Requer atenção" : "Operação saudável"}
                 </span>
               </div>
-              <div className="mt-4 grid gap-2 text-sm font-bold text-slate-700">
-                <p>Pagamentos pendentes: <strong>{pendingPaymentsCount}</strong></p>
-                <p>Pagamentos problemáticos: <strong>{problematicPaymentsCount}</strong></p>
-                <p>Denúncias abertas: <strong>{openReports}</strong></p>
-                <p>Edições pendentes: <strong>{pendingEditRequestsList.length}</strong></p>
-                <p>Disputas internas: <strong>{openDisputesList.length}</strong></p>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="dashboard-stat-row"><span>Pagamentos pendentes</span><strong>{pendingPaymentsCount}</strong></div>
+                <div className="dashboard-stat-row"><span>Pagamentos problemáticos</span><strong>{problematicPaymentsCount}</strong></div>
+                <div className="dashboard-stat-row"><span>Denúncias abertas</span><strong>{openReports}</strong></div>
+                <div className="dashboard-stat-row"><span>Edições pendentes</span><strong>{pendingEditRequestsList.length}</strong></div>
+                <div className="dashboard-stat-row"><span>Disputas internas</span><strong>{openDisputesList.length}</strong></div>
+                <div className="dashboard-stat-row"><span>Usuários banidos</span><strong>{bannedUsersCount}</strong></div>
               </div>
-              <div className="mt-4 rounded-2xl bg-slate-50 p-4">
+
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 {healthAlerts.length === 0 ? (
-                  <p className="text-sm font-bold text-emerald-700">Tudo limpo por enquanto. Sem alerta crítico no painel.</p>
+                  <p className="text-sm font-semibold text-emerald-700">Tudo limpo por enquanto. Sem alerta crítico no painel.</p>
                 ) : (
-                  <ul className="space-y-2 text-sm font-bold text-red-700">
+                  <ul className="space-y-2 text-sm font-semibold text-amber-700">
                     {healthAlerts.map((alert: any) => <li key={String(alert)}>• {alert}</li>)}
                   </ul>
                 )}
               </div>
-            </div>
+            </section>
 
-            <div className="rounded-3xl bg-white p-5 shadow-xl">
-              <p className="text-xs font-black uppercase tracking-wide text-slate-500">Áreas que mais vendem</p>
-              <div className="mt-4 space-y-3">
-                {areaSales.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma venda aprovada ainda.</p>}
-                {areaSales.map((area: any) => (
-                  <div key={area.kind} className="rounded-2xl bg-slate-50 p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-black text-slate-950">{areaLabel(area.kind)}</p>
-                      <p className="text-xs font-black text-slate-500">{money(area.totalCents)}</p>
-                    </div>
-                    <p className="mt-1 text-xs font-bold text-slate-500">{area.count} pedido(s) • {area.blocks} bloco(s)</p>
-                  </div>
-                ))}
+            <section className="admin-table-card p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="admin-page-kicker">Performance por área</p>
+                  <h2 className="text-xl font-bold text-slate-950">Áreas que mais vendem</h2>
+                </div>
+                <span className="table-status info">Top áreas</span>
               </div>
-            </div>
+              <div className="mt-4 space-y-3">
+                {areaSales.length === 0 && <p className="text-sm font-semibold text-slate-500">Nenhuma venda aprovada ainda.</p>}
+                {areaSales.map((area: any, index: number) => {
+                  const maxValue = areaSales[0]?.totalCents || 1;
+                  const percent = Math.max(8, Math.round((Number(area.totalCents || 0) / maxValue) * 100));
+                  return (
+                    <div key={area.kind} className="dashboard-area-row">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-950">{index + 1}. {areaLabel(area.kind)}</p>
+                          <p className="text-xs text-slate-500">{area.count} pedido(s) • {area.blocks} bloco(s)</p>
+                        </div>
+                        <strong className="text-sm text-slate-700">{money(area.totalCents)}</strong>
+                      </div>
+                      <div className="dashboard-area-bar"><span style={{ width: `${percent}%` }} /></div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
           </div>
         </section>
 
@@ -1002,33 +1047,78 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
           )}
         </section>
 
-        <section className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
-          <h2 className="text-xl font-black text-slate-950">Últimas compras</h2>
-          <div className="mt-4 space-y-3">
-            {latestTransactionsList.map((transaction: any) => (
-              <article key={transaction.id} className="rounded-2xl bg-slate-50 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-black text-slate-950">{transaction.user.publicName || transaction.user.name}</p>
-                    <p className="text-xs font-bold text-slate-500">{areaLabel(transaction.kind)} • {transaction.status} • {transaction.items.length} tijolinho(s)</p>
-                  </div>
-                  <p className="text-sm font-black text-green-700">{money(transaction.totalPaidCents)}</p>
-                </div>
-              </article>
-            ))}
+        <section className="admin-table-card mb-6 overflow-hidden">
+          <div className="admin-table-header">
+            <div>
+              <p className="admin-page-kicker">Fluxo comercial</p>
+              <h2>Últimas compras</h2>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Área</th>
+                  <th>Status</th>
+                  <th>Tijolinhos</th>
+                  <th>Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {latestTransactionsList.map((transaction: any) => (
+                  <tr key={transaction.id}>
+                    <td>
+                      <div>
+                        <p className="font-semibold text-slate-950">{transaction.user.publicName || transaction.user.name}</p>
+                        <p className="text-xs text-slate-500">{transaction.user.email || "sem e-mail"}</p>
+                      </div>
+                    </td>
+                    <td>{areaLabel(transaction.kind)}</td>
+                    <td><span className={`table-status ${transaction.status === "APPROVED" ? "success" : transaction.status === "PENDING" ? "warning" : "neutral"}`}>{transaction.status}</span></td>
+                    <td>{transaction.items.length}</td>
+                    <td className="font-semibold text-emerald-700">{money(transaction.totalPaidCents)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
 
-        <section id="reservas" className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
-          <h2 className="text-xl font-black text-slate-950">Reservas pendentes</h2>
-          <div className="mt-4 space-y-3">
-            {pendingReservationsList.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhuma reserva pendente.</p>}
-            {pendingReservationsList.map((block: any) => (
-              <article key={block.id} className="rounded-2xl bg-yellow-50 p-4">
-                <p><a href={muralBlockHref(block.id)} className="text-sm font-black text-yellow-950 underline decoration-yellow-300 underline-offset-4">x{block.gridX}/y{block.gridY}</a> <span className="text-sm font-black text-yellow-950">• {areaLabel(block.category)}</span></p>
-                <p className="text-xs font-bold text-yellow-700">{block.owner?.name || "Sem comprador"} • vence {block.reservedUntil?.toLocaleString("pt-BR")}</p>
-              </article>
-            ))}
+        <section id="reservas" className="admin-table-card mb-6 overflow-hidden">
+          <div className="admin-table-header">
+            <div>
+              <p className="admin-page-kicker">Fila operacional</p>
+              <h2>Reservas pendentes</h2>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            {pendingReservationsList.length === 0 ? (
+              <div className="p-4 text-sm font-semibold text-slate-500">Nenhuma reserva pendente.</div>
+            ) : (
+              <table className="min-w-full">
+                <thead>
+                  <tr>
+                    <th>Coordenada</th>
+                    <th>Área</th>
+                    <th>Comprador</th>
+                    <th>Expira em</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingReservationsList.map((block: any) => (
+                    <tr key={block.id}>
+                      <td><a href={muralBlockHref(block.id)} className="admin-row-link">x{block.gridX}/y{block.gridY}</a></td>
+                      <td>{areaLabel(block.category)}</td>
+                      <td>{block.owner?.name || "Sem comprador"}</td>
+                      <td>{block.reservedUntil?.toLocaleString("pt-BR")}</td>
+                      <td><span className="table-status warning">Reservado</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </section>
 
@@ -1089,30 +1179,44 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
           </div>
         </section>
 
-        <section id="pagamentos" className="mb-6 rounded-3xl bg-white p-5 shadow-xl">
-          <div className="flex flex-wrap items-start justify-between gap-3">
+        <section id="pagamentos" className="admin-table-card mb-6 overflow-hidden">
+          <div className="admin-table-header">
             <div>
-              <h2 className="text-xl font-black text-slate-950">Pagamentos e webhooks</h2>
-              <p className="mt-1 text-xs font-bold text-slate-500">Registro técnico dos eventos recebidos do Mercado Pago. Se webhook duplicar, atrasar ou falhar, aparece aqui.</p>
+              <p className="admin-page-kicker">Integração Mercado Pago</p>
+              <h2>Pagamentos e webhooks</h2>
             </div>
-            <div className="rounded-2xl bg-slate-100 px-4 py-3 text-xs font-black text-slate-700">{paymentWebhookEventsList.length} evento(s)</div>
+            <div className="table-status info">{paymentWebhookEventsList.length} evento(s)</div>
           </div>
-          <div className="mt-4 space-y-2">
-            {paymentWebhookEventsList.length === 0 && <p className="text-sm font-bold text-slate-500">Nenhum webhook registrado ainda.</p>}
-            {paymentWebhookEventsList.map((event: any) => (
-              <article key={event.id} className="rounded-2xl border border-slate-200 p-3">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <p className="text-xs font-black uppercase text-slate-500">{event.eventType || "evento"} • payment_id {event.paymentId || "—"}</p>
-                    <p className="mt-1 text-sm font-bold text-slate-700">{event.previousStatus || "sem status"} → {event.newStatus || "sem status"}</p>
-                    {event.error && <p className="mt-1 text-xs font-bold text-red-600">Erro: {event.error}</p>}
-                  </div>
-                  <span className={`rounded-full px-3 py-1 text-[10px] font-black ${event.processed ? "bg-emerald-100 text-emerald-700" : event.ignored ? "bg-slate-100 text-slate-600" : "bg-yellow-100 text-yellow-700"}`}>
-                    {event.processed ? "processado" : event.ignored ? "ignorado" : "pendente"}
-                  </span>
-                </div>
-              </article>
-            ))}
+          <div className="overflow-x-auto">
+            {paymentWebhookEventsList.length === 0 ? (
+              <div className="p-4 text-sm font-semibold text-slate-500">Nenhum webhook registrado ainda.</div>
+            ) : (
+              <table className="min-w-full">
+                <thead>
+                  <tr>
+                    <th>Evento</th>
+                    <th>Payment ID</th>
+                    <th>Status</th>
+                    <th>Situação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paymentWebhookEventsList.map((event: any) => (
+                    <tr key={event.id}>
+                      <td>
+                        <div>
+                          <p className="font-semibold text-slate-950">{event.eventType || "evento"}</p>
+                          {event.error && <p className="text-xs text-red-600">Erro: {event.error}</p>}
+                        </div>
+                      </td>
+                      <td>{event.paymentId || "—"}</td>
+                      <td>{event.previousStatus || "sem status"} → {event.newStatus || "sem status"}</td>
+                      <td><span className={`table-status ${event.processed ? "success" : event.ignored ? "neutral" : "warning"}`}>{event.processed ? "Processado" : event.ignored ? "Ignorado" : "Pendente"}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </section>
 

@@ -1119,3 +1119,95 @@ body:has(.admin-saas-main), body:has(.admin-auth-shell){
 .admin-auth-button{background:#2563eb !important;box-shadow:none !important;}
 .admin-auth-link{margin-top:12px !important;border:1px solid #e5e7eb !important;background:#fff !important;color:#334155 !important;}
 .admin-auth-note{border-radius:12px !important;border:1px solid #fde68a !important;background:#fffbeb !important;color:#92400e !important;font-weight:600 !important;}
+
+/* Fase 23 — dashboard + SaaS refinado */
+.dashboard-metrics-grid{
+  display:grid;
+  gap:16px;
+}
+@media (min-width:640px){.dashboard-metrics-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media (min-width:1280px){.dashboard-metrics-grid{grid-template-columns:repeat(4,minmax(0,1fr));}}
+.dashboard-metric-card{
+  display:flex;
+  gap:14px;
+  align-items:flex-start;
+  border:1px solid #e5e7eb;
+  border-radius:18px;
+  background:#fff;
+  padding:18px;
+}
+.dashboard-metric-card.is-primary{
+  background:linear-gradient(135deg,#1d4ed8,#0f172a);
+  border-color:#1d4ed8;
+}
+.dashboard-metric-icon{
+  display:flex;
+  height:42px;
+  width:42px;
+  flex:0 0 42px;
+  align-items:center;
+  justify-content:center;
+  border-radius:12px;
+  background:#eef4ff;
+  color:#1d4ed8;
+  font-size:13px;
+  font-weight:800;
+}
+.dashboard-metric-icon.dark{background:rgba(255,255,255,.16);color:#fff;}
+.dashboard-metric-label{font-size:12px;font-weight:700;color:#64748b;}
+.dashboard-metric-value{margin-top:4px;font-size:28px;line-height:1.1;font-weight:800;color:#0f172a;letter-spacing:-.03em;}
+.dashboard-metric-meta{margin-top:6px;font-size:12px;color:#94a3b8;font-weight:600;}
+.dashboard-metric-label.on-dark,.dashboard-metric-value.on-dark,.dashboard-metric-meta.on-dark{color:#fff;}
+.dashboard-metric-meta.on-dark{opacity:.82;}
+.dashboard-mini-grid{display:grid;gap:12px;grid-template-columns:repeat(2,minmax(0,1fr));}
+@media (min-width:1024px){.dashboard-mini-grid{grid-template-columns:repeat(6,minmax(0,1fr));}}
+.dashboard-mini-card{
+  border:1px solid #e5e7eb;
+  border-radius:16px;
+  background:#fff;
+  padding:14px 16px;
+}
+.dashboard-mini-card p{font-size:12px;font-weight:700;color:#64748b;}
+.dashboard-mini-card strong{display:block;margin-top:8px;font-size:28px;line-height:1;font-weight:800;color:#0f172a;}
+.dashboard-mini-card.warning strong{color:#d97706;}
+.dashboard-mini-card.alert strong{color:#ca8a04;}
+.dashboard-mini-card.danger strong{color:#dc2626;}
+.dashboard-stat-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  border:1px solid #e5e7eb;
+  border-radius:14px;
+  background:#fff;
+  padding:12px 14px;
+}
+.dashboard-stat-row span{font-size:13px;font-weight:600;color:#64748b;}
+.dashboard-stat-row strong{font-size:18px;font-weight:800;color:#0f172a;}
+.dashboard-area-row{
+  border:1px solid #e5e7eb;
+  border-radius:14px;
+  background:#fff;
+  padding:12px 14px;
+}
+.dashboard-area-bar{margin-top:10px;height:8px;border-radius:999px;background:#eef2f7;overflow:hidden;}
+.dashboard-area-bar span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#60a5fa,#2563eb);}
+.table-status{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:28px;
+  border:1px solid #e5e7eb;
+  border-radius:999px;
+  padding:0 10px;
+  font-size:11px;
+  font-weight:700;
+  white-space:nowrap;
+}
+.table-status.success{background:#ecfdf5;border-color:#a7f3d0;color:#047857;}
+.table-status.warning{background:#fffbeb;border-color:#fde68a;color:#b45309;}
+.table-status.danger{background:#fff1f2;border-color:#fecdd3;color:#be123c;}
+.table-status.info{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8;}
+.table-status.neutral{background:#f8fafc;border-color:#e5e7eb;color:#64748b;}
+.admin-table-card table tbody td{font-size:13px;color:#334155;vertical-align:middle;}
+.admin-table-card table tbody td:first-child{color:#0f172a;}
