@@ -10,11 +10,44 @@ export default async function AdminLogsPage({ searchParams }: { searchParams: Ad
   const access = await getAdminAccess(params);
   const secret = access.secret;
   if (!access.authorized) return <AdminLocked />;
+
   const type = normalizeSearch(params.type);
   const where: any = {};
   if (type) where.type = type;
-  const logs = await safeListQuery(() => (prisma as any).adminAction.findMany({ where, orderBy: { createdAt: "desc" }, take: 120, include: { admin: true, report: true, block: true, editRequest: true, disputeCase: true } }));
-  return <main className="admin-saas-main min-h-screen px-3 py-4 lg:px-5"><div className="mx-auto max-w-6xl"><AdminPageHeader secret={secret} active="logs" title="Logs e auditoria" description="Histórico administrativo. Ações importantes devem ficar registradas com motivo e entidade afetada." />
-    <section className="space-y-3">{logs.map((log: any) => <article key={log.id} className="rounded-3xl bg-white p-4 shadow-xl"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-black uppercase text-slate-500">{log.type} • {dateTime(log.createdAt)}</p><h2 className="mt-1 text-lg font-black text-slate-950">{log.admin?.name || "Admin"}</h2><p className="mt-1 text-sm font-bold text-slate-600">{log.note || "Sem motivo registrado"}</p></div><div className="text-right text-[10px] font-bold text-slate-500"><p>placement: {shortId(log.placementId)}</p><p>block: {shortId(log.blockId)}</p><p>report: {shortId(log.reportId)}</p><p>edit: {shortId(log.editRequestId)}</p></div></div></article>)}{logs.length === 0 && <p className="rounded-3xl bg-white p-5 text-sm font-bold text-slate-500 shadow">Nenhum log encontrado.</p>}</section>
-  </div></main>;
+  const logs = await safeListQuery(() => (prisma as any).adminAction.findMany({ where, orderBy: { createdAt: "desc" }, take: 160, include: { admin: true, report: true, block: true, editRequest: true, disputeCase: true } }));
+
+  return (
+    <main className="admin-saas-main min-h-screen px-3 py-4 lg:px-5">
+      <div className="mx-auto max-w-6xl">
+        <AdminPageHeader secret={secret} active="logs" title="Logs" description="Auditoria administrativa em tabela compacta, com motivo, operador e entidades afetadas." />
+
+        <form className="admin-compact-filter mb-4 md:grid-cols-[220px_100px]">
+          <input type="hidden" name="secret" value={secret} />
+          <input name="type" defaultValue={type} placeholder="Tipo de ação. Ex: BLOCK_LINK" />
+          <button>Filtrar</button>
+        </form>
+
+        <section className="admin-table-card">
+          <div className="admin-table-header"><h2>Auditoria</h2><span className="text-xs font-bold text-slate-500">{logs.length} registros</span></div>
+          <div className="overflow-x-auto">
+            <table>
+              <thead><tr><th className="text-left">Data</th><th className="text-left">Tipo</th><th className="text-left">Admin</th><th className="text-left">Motivo / observação</th><th className="text-left">Entidades</th></tr></thead>
+              <tbody>
+                {logs.map((log: any) => (
+                  <tr key={log.id}>
+                    <td className="whitespace-nowrap font-bold text-slate-600">{dateTime(log.createdAt)}</td>
+                    <td><span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-black text-slate-700">{log.type}</span></td>
+                    <td><p className="font-black text-slate-800">{log.admin?.name || "Admin"}</p><p className="text-[11px] font-bold text-slate-400">{log.admin?.email || ""}</p></td>
+                    <td className="max-w-[420px]"><p className="max-h-10 overflow-hidden font-bold text-slate-700">{log.note || "Sem motivo registrado"}</p></td>
+                    <td className="text-[11px] font-bold text-slate-500"><p>placement: {shortId(log.placementId)}</p><p>block: {shortId(log.blockId)}</p><p>report: {shortId(log.reportId)}</p><p>edit: {shortId(log.editRequestId)}</p></td>
+                  </tr>
+                ))}
+                {logs.length === 0 && <tr><td colSpan={5} className="py-8 text-center font-bold text-slate-500">Nenhum log encontrado.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
 }

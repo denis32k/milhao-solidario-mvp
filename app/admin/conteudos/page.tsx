@@ -1,21 +1,81 @@
 import { prisma } from "@/lib/prisma";
 import AdminLocked from "@/components/admin/AdminLocked";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
-import { AdminSearchParams, dateTime, getAdminAccess, normalizeSearch, safeListQuery } from "@/lib/admin";
+import AdminStatusBadge from "@/components/admin/AdminStatusBadge";
+import AdminTabs from "@/components/admin/AdminTabs";
+import { AdminSearchParams, dateTime, getAdminAccess, normalizeSearch, safeListQuery, shortId } from "@/lib/admin";
+import { getAreaName } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
+
+const reviewTabs = [
+  { value: "ALL", label: "Todos" },
+  { value: "PUBLISHED_NOT_REVIEWED", label: "Sem revisão" },
+  { value: "APPROVED", label: "Aprovados" },
+  { value: "CHANGES_REQUESTED", label: "Com restrição" },
+  { value: "HIDDEN_BY_ADMIN", label: "Ocultos" },
+];
 
 export default async function AdminConteudosPage({ searchParams }: { searchParams: AdminSearchParams }) {
   const params = await searchParams;
   const access = await getAdminAccess(params);
   const secret = access.secret;
   if (!access.authorized) return <AdminLocked />;
-  const review = normalizeSearch(params.review);
+
+  const review = normalizeSearch(params.review) || "ALL";
+  const q = normalizeSearch(params.q);
   const where: any = { isTest: false };
-  if (review && review !== "ALL") where.reviewStatus = review;
-  const placements = await safeListQuery(() => (prisma as any).placement.findMany({ where, orderBy: [{ reviewStatus: "asc" }, { createdAt: "desc" }], take: 80, include: { user: true, blocks: { take: 4 }, transaction: true } }));
-  return <main className="admin-saas-main min-h-screen px-3 py-4 lg:px-5"><div className="mx-auto max-w-6xl"><AdminPageHeader secret={secret} active="conteudos" title="Conteúdos" description="Fila de publicados sem revisão, aprovados e ocultados. A publicação automática continua, mas o admin revisa depois." />
-    <form className="mb-5 grid gap-3 rounded-3xl bg-white p-4 shadow-xl sm:grid-cols-[1fr_120px]"><input type="hidden" name="secret" value={secret}/><select name="review" defaultValue={review || "ALL"} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold"><option value="ALL">Todos</option><option value="PUBLISHED_NOT_REVIEWED">Publicados sem revisão</option><option value="APPROVED">Aprovados</option><option value="CHANGES_REQUESTED">Com restrição</option><option value="HIDDEN_BY_ADMIN">Ocultados</option></select><button className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white">Filtrar</button></form>
-    <section className="space-y-3">{placements.map((p: any) => <article key={p.id} className="rounded-3xl bg-white p-5 shadow-xl"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-black uppercase text-slate-500">{p.kind} • {p.status} • {p.reviewStatus}</p><h2 className="mt-1 text-xl font-black text-slate-950">{p.title || p.displayName || "Sem título"}</h2><p className="mt-1 text-sm font-bold text-slate-500">Cliente: {p.user?.name || "—"} • {dateTime(p.createdAt)}</p><p className="mt-1 text-xs font-bold text-slate-500">Link: {p.linkDisabled ? "bloqueado" : p.redirectUrl || "sem link"}</p></div>{p.imageUrl && <img src={p.imageUrl} alt="Conteúdo" className="h-20 w-20 rounded-2xl object-cover"/>}</div><p className="mt-3 rounded-2xl bg-slate-50 p-3 text-sm font-bold text-slate-600">{p.description || p.placeholderReason || "Sem descrição."}</p></article>)}{placements.length === 0 && <p className="rounded-3xl bg-white p-5 text-sm font-bold text-slate-500 shadow">Nenhum conteúdo encontrado.</p>}</section>
-  </div></main>;
+  if (review !== "ALL") where.reviewStatus = review;
+  if (q) where.OR = [{ title: { contains: q, mode: "insensitive" } }, { displayName: { contains: q, mode: "insensitive" } }, { redirectUrl: { contains: q, mode: "insensitive" } }, { user: { name: { contains: q, mode: "insensitive" } } }, { user: { publicName: { contains: q, mode: "insensitive" } } }];
+
+  const [placements, grouped] = await Promise.all([
+    safeListQuery(() => (prisma as any).placement.findMany({ where, orderBy: [{ reviewStatus: "asc" }, { createdAt: "desc" }], take: 120, include: { user: true, blocks: { take: 3 }, transaction: true } })),
+    safeListQuery(() => (prisma as any).placement.groupBy({ by: ["reviewStatus"], where: { isTest: false }, _count: { _all: true } })),
+  ]);
+
+  const countByReview = new Map(grouped.map((item: any) => [item.reviewStatus, item._count?._all || 0]));
+  const tabs = reviewTabs.map((tab) => ({ ...tab, count: tab.value === "ALL" ? Array.from(countByReview.values()).reduce((a: any, b: any) => a + Number(b || 0), 0) : Number(countByReview.get(tab.value) || 0) }));
+
+  return (
+    <main className="admin-saas-main min-h-screen px-3 py-4 lg:px-5">
+      <div className="mx-auto max-w-6xl">
+        <AdminPageHeader secret={secret} active="conteudos" title="Moderação" description="Fila compacta de conteúdos publicados, aprovados, restritos e ocultos. A publicação automática continua, mas o admin revisa depois." />
+        <AdminTabs secret={secret} basePath="/admin/conteudos" paramName="review" active={review} tabs={tabs} />
+
+        <form className="admin-compact-filter mb-4 md:grid-cols-[1fr_210px_100px]">
+          <input type="hidden" name="secret" value={secret} />
+          <input name="q" defaultValue={q} placeholder="Buscar título, nome público, link ou cliente" />
+          <select name="review" defaultValue={review}><option value="ALL">Todos</option><option value="PUBLISHED_NOT_REVIEWED">Sem revisão</option><option value="APPROVED">Aprovados</option><option value="CHANGES_REQUESTED">Com restrição</option><option value="HIDDEN_BY_ADMIN">Ocultos</option></select>
+          <button>Filtrar</button>
+        </form>
+
+        <section className="admin-table-card">
+          <div className="admin-table-header"><h2>Conteúdos no mural</h2><span className="text-xs font-bold text-slate-500">{placements.length} registros</span></div>
+          <div className="overflow-x-auto">
+            <table>
+              <thead><tr><th className="text-left">Conteúdo</th><th className="text-left">Cliente</th><th className="text-left">Área</th><th className="text-left">Status</th><th className="text-left">Revisão</th><th className="text-left">Link</th><th className="text-left">Imagem</th><th className="text-left">Criado</th></tr></thead>
+              <tbody>
+                {placements.map((p: any) => {
+                  const firstBlock = p.blocks?.[0];
+                  return (
+                    <tr key={p.id}>
+                      <td><p className="font-black text-slate-950">{p.title || p.displayName || "Sem título"}</p><p className="max-w-[260px] truncate text-[11px] font-bold text-slate-400">{p.description || p.placeholderReason || "Sem descrição"}</p></td>
+                      <td><p className="font-bold text-slate-800">{p.user?.name || "—"}</p><p className="text-[11px] font-bold text-slate-400">{p.user?.email || ""}</p></td>
+                      <td className="font-bold text-slate-700">{firstBlock ? getAreaName(firstBlock.category) : p.kind}</td>
+                      <td><AdminStatusBadge value={p.status} /></td>
+                      <td><AdminStatusBadge value={p.reviewStatus} /></td>
+                      <td className="max-w-[190px] truncate text-[11px] font-bold text-slate-600">{p.linkDisabled ? "bloqueado" : p.redirectUrl || "sem link"}</td>
+                      <td>{p.imageUrl ? <img src={p.imageUrl} alt="Conteúdo" className="h-9 w-9 rounded-lg object-cover" /> : <span className="text-[11px] font-bold text-slate-400">sem imagem</span>}</td>
+                      <td><p className="whitespace-nowrap text-[11px] font-bold text-slate-500">{dateTime(p.createdAt)}</p><p className="text-[11px] font-bold text-slate-400">{shortId(p.transactionId)}</p></td>
+                    </tr>
+                  );
+                })}
+                {placements.length === 0 && <tr><td colSpan={8} className="py-8 text-center font-bold text-slate-500">Nenhum conteúdo encontrado.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
 }
