@@ -134,6 +134,7 @@ export default function CompraPage() {
   const [operationalSettings, setOperationalSettings] = useState<OperationalClientSettings | null>(null);
   const [isCheckoutReady, setIsCheckoutReady] = useState(false);
   const [recoveryLink, setRecoveryLink] = useState("");
+  const [approvedModalOpen, setApprovedModalOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/mercado-pago-pix", { cache: "no-store" })
@@ -251,8 +252,8 @@ export default function CompraPage() {
 
       if (isApproved) {
         setPaymentApproved(true);
-        setStep("customize");
-        setVerifyMessage("Pagamento aprovado. Agora personalize seu espaço.");
+        setApprovedModalOpen(true);
+        setVerifyMessage("Pagamento aprovado. Seu link seguro já está pronto.");
         return true;
       }
 
@@ -295,6 +296,7 @@ export default function CompraPage() {
       setCopyMessage("");
       setVerifyMessage("");
       setPaymentApproved(false);
+      setApprovedModalOpen(false);
       setPersonalized(false);
 
       const validation = validateFastCheckout();
@@ -344,6 +346,11 @@ export default function CompraPage() {
 
   async function handleCheckPayment() {
     await checkPaymentApproval(false);
+  }
+
+  function handleContinueAfterApproval() {
+    setApprovedModalOpen(false);
+    setStep("customize");
   }
 
   async function uploadPersonalImage() {
@@ -463,7 +470,7 @@ export default function CompraPage() {
               </div>
             </div>
 
-            {step === "data" && (
+      {step === "data" && (
               <div className="mt-5">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${theme.bg} ${theme.text}`}>Checkout rápido</span>
@@ -627,6 +634,32 @@ export default function CompraPage() {
           </aside>
         </div>
       </div>
+
+      {approvedModalOpen && pixResult && (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-emerald-200 bg-white p-5 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-lg font-bold text-white">✓</div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">PIX aprovado</p>
+                <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-950">Pagamento confirmado com sucesso</h2>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">Guarde este link seguro para voltar depois e editar sua personalização quando quiser.</p>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Link seguro de edição</p>
+              <div className="mt-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs font-medium break-all text-slate-700">{getManagementHref()}</div>
+              {managementCopyMessage && <p className="mt-2 text-xs font-semibold text-emerald-700">{managementCopyMessage}</p>}
+            </div>
+
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <button type="button" onClick={handleCopyManagementLink} className="flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-950 shadow-sm transition hover:bg-slate-50">Copiar link</button>
+              <button type="button" onClick={handleContinueAfterApproval} className="flex h-11 items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800">Continuar personalização</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {step === "data" && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-3 py-3 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">

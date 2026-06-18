@@ -271,7 +271,6 @@ export default function PixelMap() {
   const focusedBlockFromUrlRef = useRef(false);
 
   const [selectedSheet, setSelectedSheet] = useState<SelectedSheet>(null);
-  const [successToast, setSuccessToast] = useState("");
   const [mapBlocks, setMapBlocks] = useState<ApiMapBlock[]>([]);
   const [selectedBlocks, setSelectedBlocks] = useState<SelectedBlock[]>([]);
   const [selectionMessage, setSelectionMessage] = useState("");
@@ -398,16 +397,6 @@ export default function PixelMap() {
     }
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("publicado") !== "1") return;
-
-    setSuccessToast("PIX aprovado, personalização salva e espaço publicado no mural.");
-    const timer = window.setTimeout(() => setSuccessToast(""), 5200);
-    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -603,9 +592,6 @@ export default function PixelMap() {
 
       drawImageCover(ctx, image, x, y, width, height);
 
-      ctx.strokeStyle = blocks[0].category === "GRAND_CENTER" ? "#a855f7" : blocks[0].category === "GOLD" ? "#f59e0b" : "#0f766e";
-      ctx.lineWidth = 2.1;
-      ctx.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
     }
 
     // redesenha as divisões no final para ficarem sempre exatamente visíveis entre as duas linhas douradas.
@@ -905,17 +891,6 @@ export default function PixelMap() {
     >
       <canvas ref={canvasRef} className="block h-full w-full" />
 
-      {successToast && (
-        <div className="fixed left-3 right-3 top-24 z-[1000] mx-auto flex max-w-md items-start gap-3 rounded-2xl border border-emerald-200 bg-white/95 p-4 text-slate-950 shadow-2xl backdrop-blur">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-sm font-black text-white">✓</span>
-          <div className="min-w-0">
-            <p className="text-sm font-black">Tudo certo no Mural29</p>
-            <p className="mt-1 text-xs font-bold leading-relaxed text-slate-500">{successToast}</p>
-          </div>
-          <button type="button" onClick={() => setSuccessToast("")} className="ml-auto text-sm font-black text-slate-400">×</button>
-        </div>
-      )}
-
       <div
         className="absolute right-3 top-24 z-40 hidden flex-col gap-2 md:flex"
         onPointerDown={(event) => event.stopPropagation()}
@@ -1017,6 +992,9 @@ export default function PixelMap() {
         const bubbleTheme = getBubbleTheme(selectedSheet.block, rank);
         const hasImage = Boolean(selectedSheet.block.placement?.imageUrl && selectedSheet.block.placement?.status === "ACTIVE");
         const isWaitingPersonalization = getDisplayName(selectedSheet.block) === "Espaço comprado";
+        const publicLink = selectedSheet.block.placement?.redirectUrl && !selectedSheet.block.placement.linkDisabled
+          ? normalizeExternalUrl(selectedSheet.block.placement.redirectUrl)
+          : "";
         const anchor = getCellScreenAnchor(selectedSheet.gridX, selectedSheet.gridY) || { x: window.innerWidth / 2, y: window.innerHeight / 2 };
         const bubblePosition = getBubblePosition(anchor.x, anchor.y);
 
@@ -1037,7 +1015,7 @@ export default function PixelMap() {
             </button>
 
             <div className="flex items-start gap-3 pr-8">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/70 bg-white shadow">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/70 bg-white shadow">
                 {hasImage ? (
                   <img src={normalizeImageUrl(selectedSheet.block.placement?.imageUrl)} alt={getDisplayName(selectedSheet.block)} className="h-full w-full object-cover" />
                 ) : (
@@ -1047,33 +1025,45 @@ export default function PixelMap() {
               <div className="min-w-0">
                 <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-black uppercase ${bubbleTheme.badge}`}>{bubbleTheme.label}</span>
                 <h2 className="mt-2 truncate text-lg font-black leading-tight text-slate-950">{getDisplayName(selectedSheet.block)}</h2>
-                <p className="mt-1 text-[11px] font-bold text-slate-500">{selectedSheet.block.status === "RESERVED" ? "Reservado" : selectedSheet.block.status === "BLOCKED" ? "Bloqueado" : "Publicado"} • {getAreaName(selectedSheet.block.category)}</p>
+                <p className="mt-1 text-[11px] font-bold text-slate-500">{getAreaName(selectedSheet.block.category)}</p>
               </div>
             </div>
 
-            {isWaitingPersonalization && (
+            {isWaitingPersonalization ? (
               <p className="mt-3 rounded-2xl bg-white/70 p-3 text-xs font-bold leading-relaxed text-slate-600">
                 Espaço comprado. Aguardando personalização do comprador.
               </p>
+            ) : (
+              <div className="mt-3 rounded-2xl bg-white/70 p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Link público</p>
+                {publicLink ? (
+                  <a
+                    href={publicLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1 block truncate text-sm font-bold text-slate-900 underline decoration-slate-300 underline-offset-4"
+                  >
+                    {selectedSheet.block.placement?.redirectUrl}
+                  </a>
+                ) : (
+                  <p className="mt-1 text-sm font-medium text-slate-400">Sem link público</p>
+                )}
+              </div>
             )}
 
-            <div className="mt-4 grid gap-2">
-              {selectedSheet.block.placement?.redirectUrl && !selectedSheet.block.placement.linkDisabled && (
+            <div className="mt-4 flex items-center justify-between gap-3">
+              {publicLink ? (
                 <a
-                  href={normalizeExternalUrl(selectedSheet.block.placement.redirectUrl)}
+                  href={publicLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-2xl bg-slate-950 py-3 text-center text-xs font-black text-white"
+                  className="inline-flex h-10 items-center justify-center rounded-xl bg-slate-950 px-4 text-xs font-black text-white"
                 >
                   Abrir link
                 </a>
-              )}
+              ) : <span />}
 
-              <a href={`/bloco/${selectedSheet.block.id}`} className="rounded-2xl bg-white/80 py-3 text-center text-xs font-black text-slate-900">
-                Ver tijolinho
-              </a>
-
-              <a href={`/bloco/${selectedSheet.block.id}#denunciar`} className="mx-auto rounded-full bg-red-50 px-3 py-1.5 text-[10px] font-black text-red-600">
+              <a href={`/bloco/${selectedSheet.block.id}#denunciar`} className="inline-flex h-8 items-center justify-center rounded-full bg-red-50 px-3 text-[10px] font-black text-red-600">
                 Denunciar
               </a>
             </div>
