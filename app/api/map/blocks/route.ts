@@ -38,6 +38,7 @@ export async function GET() {
 
         owner: {
           select: {
+            id: true,
             name: true,
             publicName: true,
             totalApprovedCents: true,

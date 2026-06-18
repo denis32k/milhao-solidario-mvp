@@ -44,6 +44,7 @@ type ApiMapBlock = {
   available: boolean;
   priceCents: number;
   owner: {
+    id: string;
     name: string;
     publicName: string | null;
     totalApprovedCents: number;
@@ -154,6 +155,45 @@ function getDisplayName(block: ApiMapBlock) {
   );
 }
 
+function getOwnerRanking(blocks: ApiMapBlock[]) {
+  const owners = new Map<string, { id: string; name: string; totalApprovedCents: number }>();
+
+  for (const block of blocks) {
+    if (!block.owner?.id) continue;
+    const current = owners.get(block.owner.id);
+    const totalApprovedCents = Number(block.owner.totalApprovedCents || 0);
+    if (!current || totalApprovedCents > current.totalApprovedCents) {
+      owners.set(block.owner.id, {
+        id: block.owner.id,
+        name: block.owner.publicName || block.owner.name || "Comprador",
+        totalApprovedCents,
+      });
+    }
+  }
+
+  return Array.from(owners.values())
+    .filter((owner) => owner.totalApprovedCents > 0)
+    .sort((a, b) => b.totalApprovedCents - a.totalApprovedCents);
+}
+
+function getOwnerRank(block: ApiMapBlock, blocks: ApiMapBlock[]) {
+  if (!block.owner?.id) return null;
+  const ranking = getOwnerRanking(blocks);
+  const index = ranking.findIndex((owner) => owner.id === block.owner?.id);
+  return index >= 0 ? index + 1 : null;
+}
+
+function getBubbleTheme(block: ApiMapBlock, rank: number | null) {
+  if (rank === 1) return { box: "border-yellow-300 bg-gradient-to-br from-yellow-50 via-white to-amber-100", badge: "bg-yellow-400 text-yellow-950", label: "🥇 1º lugar" };
+  if (rank === 2) return { box: "border-slate-300 bg-gradient-to-br from-slate-50 via-white to-slate-200", badge: "bg-slate-300 text-slate-950", label: "🥈 2º lugar" };
+  if (rank === 3) return { box: "border-orange-300 bg-gradient-to-br from-orange-50 via-white to-orange-100", badge: "bg-orange-300 text-orange-950", label: "🥉 3º lugar" };
+  if (rank && rank >= 4 && rank <= 10) return { box: "border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-white", badge: "bg-fuchsia-600 text-white", label: "VIP Top 10" };
+  if (block.category === "GRAND_CENTER") return { box: "border-fuchsia-200 bg-gradient-to-br from-fuchsia-50 via-white to-white", badge: "bg-fuchsia-600 text-white", label: "Tom Delfim" };
+  if (block.category === "GOLD") return { box: "border-yellow-200 bg-gradient-to-br from-yellow-50 via-white to-white", badge: "bg-yellow-400 text-yellow-950", label: "Leblon" };
+  if (block.category === "PREMIUM") return { box: "border-orange-200 bg-gradient-to-br from-orange-50 via-white to-white", badge: "bg-orange-500 text-white", label: "Ipanema" };
+  return { box: "border-slate-200 bg-white", badge: "bg-slate-900 text-white", label: getAreaName(block.category) };
+}
+
 function getSoldBlockOverlayColor(block: ApiMapBlock) {
   if (block.status === "BLOCKED") return "rgba(100,116,139,0.85)";
   if (block.placement?.status === "BANNED" || block.placement?.status === "REMOVED") return "rgba(100,116,139,0.85)";
@@ -228,7 +268,7 @@ export default function PixelMap() {
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, scale: 1 });
 
   const selectedCategory = selectedBlocks[0]?.category || null;
-  const selectedNeedsRectangle = selectedCategory === "PREMIUM" || selectedCategory === "GOLD" || selectedCategory === "GRAND_CENTER";
+  const selectedNeedsRectangle = selectedBlocks.length > 1;
   const selectedIsRectangle = blocksFormRectangle(selectedBlocks);
   const canContinue = selectedBlocks.length > 0 && (!selectedNeedsRectangle || selectedIsRectangle);
 
@@ -840,7 +880,7 @@ export default function PixelMap() {
 
             {(selectionMessage || (selectedNeedsRectangle && !selectedIsRectangle)) && (
               <p className="mt-2 rounded-2xl bg-yellow-100 p-2 text-center text-xs font-black text-yellow-800">
-                {selectionMessage || "A imagem precisa de uma área retangular."}
+                {selectionMessage || "Selecione uma área retangular para a imagem ficar bem encaixada."}
               </p>
             )}
 
@@ -877,60 +917,72 @@ export default function PixelMap() {
         </div>
       )}
 
-      {selectedSheet?.type === "sold" && (
-        <div
-          className="fixed z-[999] w-[292px] rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl"
-          style={getBubbleStyle(selectedSheet.anchorX, selectedSheet.anchorY)}
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => event.stopPropagation()}
-        >
-          <div className="absolute -left-2 top-6 h-4 w-4 rotate-45 border-b border-l border-slate-200 bg-white" />
-          <button
-            type="button"
-            onClick={() => setSelectedSheet(null)}
-            className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-black text-slate-700"
+      {selectedSheet?.type === "sold" && (() => {
+        const rank = getOwnerRank(selectedSheet.block, mapBlocks);
+        const bubbleTheme = getBubbleTheme(selectedSheet.block, rank);
+        const hasImage = Boolean(selectedSheet.block.placement?.imageUrl && selectedSheet.block.placement?.status === "ACTIVE");
+        const isWaitingPersonalization = getDisplayName(selectedSheet.block) === "Espaço comprado";
+
+        return (
+          <div
+            className={`fixed z-[999] w-[292px] rounded-3xl border p-4 shadow-2xl ${bubbleTheme.box}`}
+            style={getBubbleStyle(selectedSheet.anchorX, selectedSheet.anchorY)}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
-            ×
-          </button>
+            <div className="absolute -left-2 top-6 h-4 w-4 rotate-45 border-b border-l border-inherit bg-white" />
+            <button
+              type="button"
+              onClick={() => setSelectedSheet(null)}
+              className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-white/80 text-sm font-black text-slate-700"
+            >
+              ×
+            </button>
 
-          <p className="pr-8 text-[9px] font-black uppercase tracking-[0.18em] text-slate-400">
-            {selectedSheet.block.status === "RESERVED" ? "reservado" : selectedSheet.block.status === "BLOCKED" ? "bloqueado" : "vendido"} • {getAreaName(selectedSheet.block.category)}
-          </p>
+            <div className="flex items-start gap-3 pr-8">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/70 bg-white shadow">
+                {hasImage ? (
+                  <img src={selectedSheet.block.placement?.imageUrl || ""} alt={getDisplayName(selectedSheet.block)} className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-xl">🧱</span>
+                )}
+              </div>
+              <div className="min-w-0">
+                <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-black uppercase ${bubbleTheme.badge}`}>{bubbleTheme.label}</span>
+                <h2 className="mt-2 truncate text-lg font-black leading-tight text-slate-950">{getDisplayName(selectedSheet.block)}</h2>
+                <p className="mt-1 text-[11px] font-bold text-slate-500">{selectedSheet.block.status === "RESERVED" ? "Reservado" : selectedSheet.block.status === "BLOCKED" ? "Bloqueado" : "Publicado"} • {getAreaName(selectedSheet.block.category)}</p>
+              </div>
+            </div>
 
-          <h2 className="mt-1 pr-8 text-lg font-black leading-tight text-slate-950">{getDisplayName(selectedSheet.block)}</h2>
-
-          {selectedSheet.block.placement?.description && (
-            <p className="mt-2 text-xs leading-relaxed text-slate-600">{selectedSheet.block.placement.description}</p>
-          )}
-
-          <div className="mt-4 grid gap-2">
-            {selectedSheet.block.placement?.redirectUrl && !selectedSheet.block.placement.linkDisabled && (
-              <a
-                href={normalizeExternalUrl(selectedSheet.block.placement.redirectUrl)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-2xl bg-slate-950 py-3 text-center text-xs font-black text-white"
-              >
-                Abrir link
-              </a>
+            {isWaitingPersonalization && (
+              <p className="mt-3 rounded-2xl bg-white/70 p-3 text-xs font-bold leading-relaxed text-slate-600">
+                Espaço comprado. Aguardando personalização do comprador.
+              </p>
             )}
 
-            <a
-              href={`/bloco/${selectedSheet.block.id}`}
-              className="rounded-2xl bg-yellow-400 py-3 text-center text-xs font-black text-yellow-950"
-            >
-              Ver detalhes
-            </a>
+            <div className="mt-4 grid gap-2">
+              {selectedSheet.block.placement?.redirectUrl && !selectedSheet.block.placement.linkDisabled && (
+                <a
+                  href={normalizeExternalUrl(selectedSheet.block.placement.redirectUrl)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-2xl bg-slate-950 py-3 text-center text-xs font-black text-white"
+                >
+                  Abrir link
+                </a>
+              )}
 
-            <a
-              href={`/bloco/${selectedSheet.block.id}#denunciar`}
-              className="mx-auto rounded-full bg-red-50 px-3 py-1.5 text-[10px] font-black text-red-600"
-            >
-              {siteConfig.copy.reportButton}
-            </a>
+              <a href={`/bloco/${selectedSheet.block.id}`} className="rounded-2xl bg-white/80 py-3 text-center text-xs font-black text-slate-900">
+                Ver tijolinho
+              </a>
+
+              <a href={`/bloco/${selectedSheet.block.id}#denunciar`} className="mx-auto rounded-full bg-red-50 px-3 py-1.5 text-[10px] font-black text-red-600">
+                Denunciar
+              </a>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

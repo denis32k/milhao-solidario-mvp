@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { GRID_COLS, GRID_ROWS } from "@/lib/grid";
 import { siteConfig } from "@/lib/site-config";
 import { createManagementToken, getManagementPath, getManagementUrl, hashManagementToken } from "@/lib/customer-access";
-import { findBlockedDomain, getHostnameFromUrl, normalizePublicUrl } from "@/lib/content-validation";
 import { getOperationalSettings } from "@/lib/system-settings";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +17,6 @@ type SelectedBlockInput = {
 const TERMS_VERSION = "mural29-2026-06-17";
 const PRIVACY_VERSION = "mural29-privacy-2026-06-17";
 const CONTENT_RULES_VERSION = "mural29-content-2026-06-17";
-const ALLOWED_COLORS = new Set(siteConfig.mosaicColors.map((color) => color.value));
 
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) {
@@ -34,6 +32,10 @@ function centsToReais(cents: number) {
 
 function onlyDigits(value: string) {
   return value.replace(/\D/g, "");
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
 function getFirstName(fullName: string) {
@@ -163,15 +165,11 @@ export async function GET() {
     settings: { maintenanceMode: settings.maintenanceMode, blockNewPurchases: settings.blockNewPurchases, preorderMode: settings.preorderMode, uploadsEnabled: settings.uploadsEnabled, publicLinksEnabled: settings.publicLinksEnabled, checkoutNotice: settings.checkoutNotice, reservationMinutes: settings.reservationMinutes, maxImageMb: settings.maxImageMb },
     accepts: {
       fullName: "string",
-      publicName: "string",
+      email: "string required",
       whatsapp: "digits",
       cpf: "digits",
       selectedBlocks: [{ gridX: 7, gridY: 0 }],
-      title: "public title/name",
-      description: "short public description",
-      redirectUrl: "optional public link with https:// or http://. Example: https://instagram.com/meuusuario",
-      imageUrl: "optional premium/gold image url",
-      fillColor: "optional block color",
+      personalization: "after approved payment: displayName, upload image and public link",
       acceptedTerms: "boolean required",
       termsVersion: TERMS_VERSION,
       privacyVersion: PRIVACY_VERSION,
@@ -207,57 +205,22 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const fullName = safeText(body.fullName, 120);
-    const publicName = safeText(body.publicName || body.title || body.fullName, 60);
+    const email = safeText(body.email, 120).toLowerCase();
     const whatsapp = onlyDigits(String(body.whatsapp || ""));
     const cpf = onlyDigits(String(body.cpf || ""));
     const selectedBlocksInput = normalizeSelectedBlocks(body.selectedBlocks);
-
-    const title = safeText(body.title || publicName, 80);
-    const description = safeText(body.description, 180);
-    const rawRedirectUrl = body.redirectUrl || body.publicLink;
-    const redirectUrl = normalizePublicUrl(rawRedirectUrl);
-    const imageUrl = safeText(body.imageUrl, 500);
-    const requestedFillColor = safeText(body.fillColor, 20);
     const acceptedTerms = body.acceptedTerms === true;
-    const fillColor = ALLOWED_COLORS.has(requestedFillColor)
-      ? requestedFillColor
-      : "#22c55e";
-
-    const rawRedirectText = String(rawRedirectUrl || "").trim();
-    if (rawRedirectText && !settings.publicLinksEnabled) {
-      return NextResponse.json({ ok: false, message: "Links públicos estão temporariamente desativados." }, { status: 400 });
-    }
-
-    if (rawRedirectText && !redirectUrl) {
-      return NextResponse.json({ ok: false, message: "Link inválido. Use o link completo com https:// ou http://. Exemplo: https://instagram.com/meuusuario" }, { status: 400 });
-    }
-
-    if (redirectUrl) {
-      const blockedDomain = await findBlockedDomain(prisma, redirectUrl);
-      if (blockedDomain) {
-        await (prisma as any).linkModerationLog.create({
-          data: {
-            url: redirectUrl,
-            domain: getHostnameFromUrl(redirectUrl),
-            action: "BLOCKED_CHECKOUT",
-            reason: blockedDomain.reason || "Domínio bloqueado no admin.",
-          },
-        }).catch(() => null);
-
-        return NextResponse.json(
-          { ok: false, message: "Esse link não pode ser usado no Mural29. Tente outro domínio." },
-          { status: 400 }
-        );
-      }
-    }
+    const title = "Espaço comprado";
+    const fillColor = "#22c55e";
 
     if (!fullName || fullName.length < 3) {
       return NextResponse.json({ ok: false, message: "Informe um nome completo válido." }, { status: 400 });
     }
 
-    if (!publicName || publicName.length < 2) {
-      return NextResponse.json({ ok: false, message: "Informe um nome público válido." }, { status: 400 });
+    if (!email || !isValidEmail(email)) {
+      return NextResponse.json({ ok: false, message: "Informe um e-mail válido." }, { status: 400 });
     }
+
 
     if (whatsapp.length < 10) {
       return NextResponse.json({ ok: false, message: "Informe um WhatsApp válido." }, { status: 400 });
@@ -335,12 +298,8 @@ export async function POST(request: Request) {
 
       const category = categories[0] as BuyableCategory;
 
-      if ((category === "PREMIUM" || category === "GOLD" || category === "GRAND_CENTER") && !blocksFormRectangle(selectedBlocksInput)) {
-        throw new Error("Para usar imagem, selecione uma área retangular.");
-      }
-
-      if ((category === "PREMIUM" || category === "GOLD" || category === "GRAND_CENTER") && !title.trim()) {
-        throw new Error("Informe um título público para essa área.");
+      if (selectedBlocksInput.length > 1 && !blocksFormRectangle(selectedBlocksInput)) {
+        throw new Error("Selecione uma área retangular para que a imagem fique encaixada no mural.");
       }
 
       const subtotalCents = foundBlocks.reduce((total, block) => total + block.priceCents, 0);
@@ -352,17 +311,29 @@ export async function POST(request: Request) {
       const managementToken = createManagementToken();
       const managementTokenHash = hashManagementToken(managementToken);
 
-      const user = await tx.user.create({
-        data: {
-          name: fullName,
-          publicName,
-          email: `mp-pix-${uniqueId}@example.com`,
-          whatsapp,
-          cpfHash: hashCpf(cpf),
-          cpfLast4: cpf.slice(-4),
-          totalApprovedCents: 0,
-        },
-      });
+      const existingUser = await tx.user.findUnique({ where: { email } }).catch(() => null);
+      const user = existingUser
+        ? await tx.user.update({
+            where: { id: existingUser.id },
+            data: {
+              name: existingUser.name || fullName,
+              publicName: existingUser.publicName || null,
+              whatsapp: existingUser.whatsapp || whatsapp,
+              cpfHash: existingUser.cpfHash || hashCpf(cpf),
+              cpfLast4: existingUser.cpfLast4 || cpf.slice(-4),
+            },
+          })
+        : await tx.user.create({
+            data: {
+              name: fullName,
+              publicName: null,
+              email,
+              whatsapp,
+              cpfHash: hashCpf(cpf),
+              cpfLast4: cpf.slice(-4),
+              totalApprovedCents: 0,
+            },
+          });
 
       const transaction = await tx.transaction.create({
         data: {
@@ -381,11 +352,11 @@ export async function POST(request: Request) {
           checkoutCpfHash: hashCpf(cpf),
           checkoutCpfLast4: cpf.slice(-4),
 
-          placementTitle: title || publicName,
-          placementDescription: description || null,
-          placementRedirectUrl: redirectUrl || null,
-          placementImageUrl: imageUrl || null,
-          placementFillColor: fillColor || null,
+          placementTitle: title,
+          placementDescription: null,
+          placementRedirectUrl: null,
+          placementImageUrl: null,
+          placementFillColor: fillColor,
           termsAcceptedAt: new Date(),
           termsVersion: TERMS_VERSION,
           managementTokenHash,
