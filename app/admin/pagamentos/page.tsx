@@ -23,7 +23,7 @@ export default async function AdminPagamentosPage({ searchParams }: { searchPara
   ]);
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-6">
+    <main className="admin-saas-main min-h-screen px-3 py-4 lg:px-5">
       <div className="mx-auto max-w-6xl">
         <AdminPageHeader secret={secret} active="pagamentos" title="Pagamentos" description="Conferência financeira, status Mercado Pago e log técnico dos webhooks recebidos." />
         <form className="mb-5 grid gap-3 rounded-3xl bg-white p-4 shadow-xl sm:grid-cols-[1fr_180px_120px]">

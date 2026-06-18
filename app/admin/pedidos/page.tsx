@@ -51,7 +51,7 @@ export default async function AdminPedidosPage({ searchParams }: { searchParams:
   );
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-6">
+    <main className="admin-saas-main min-h-screen px-3 py-4 lg:px-5">
       <div className="mx-auto max-w-6xl">
         <AdminPageHeader secret={secret} active="pedidos" title="Pedidos" description="Busca e conferência dos pedidos, pagamentos, blocos comprados e conteúdo vinculado." />
 

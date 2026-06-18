@@ -84,7 +84,7 @@ export default async function AdminConfiguracoesPage({ searchParams }: { searchP
   const areas = Object.entries(siteConfig.areas as Record<string, any>);
   const operationHealthy = !settings.maintenanceMode && !settings.blockNewPurchases && settings.uploadsEnabled;
 
-  return <main className="min-h-screen bg-slate-100 px-4 py-6"><div className="mx-auto max-w-6xl"><AdminPageHeader secret={secret} active="configuracoes" title="Configurações" description="Controle operacional do site sem mexer em código. A estrutura do grid fica totalmente travada." />
+  return <main className="admin-saas-main min-h-screen px-3 py-4 lg:px-5"><div className="mx-auto max-w-6xl"><AdminPageHeader secret={secret} active="configuracoes" title="Configurações" description="Controle operacional do site sem mexer em código. A estrutura do grid fica totalmente travada." />
     <section className="mb-6 rounded-3xl border border-red-200 bg-red-50 p-5 shadow-xl"><h2 className="text-xl font-black text-red-950">Grid travado</h2><p className="mt-2 text-sm font-bold text-red-800">Não alterar quantidade de blocos, proporção, tamanho, coordenadas, fundo, divisões, bairros ou renderização principal do mural. Essas configurações mexem só na operação.</p></section>
 
     <section className="mb-6 grid gap-3 md:grid-cols-4">

@@ -157,7 +157,7 @@ export default async function AdminSuportePage({ searchParams }: { searchParams:
   const generatedUrl = generatedToken ? getManagementUrl(generatedToken, getCleanAppUrl()) : "";
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-6">
+    <main className="admin-saas-main min-h-screen px-3 py-4 lg:px-5">
       <div className="mx-auto max-w-6xl">
         <AdminPageHeader secret={secret} active="suporte" title="Suporte operacional" description="Busca rápida por pedido, cliente, WhatsApp, payment_id ou coordenada para resolver atendimento sem mexer no banco manualmente." />
 

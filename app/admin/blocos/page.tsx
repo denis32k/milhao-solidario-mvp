@@ -36,7 +36,7 @@ export default async function AdminBlocosPage({ searchParams }: { searchParams: 
   );
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-6">
+    <main className="admin-saas-main min-h-screen px-3 py-4 lg:px-5">
       <div className="mx-auto max-w-6xl">
         <AdminPageHeader secret={secret} active="blocos" title="Blocos" description="Administração de blocos sem alterar estrutura, coordenadas, tamanho ou posição do grid." />
         <div className="mb-5 rounded-3xl border border-yellow-200 bg-yellow-50 p-4 text-sm font-bold text-yellow-900 shadow">

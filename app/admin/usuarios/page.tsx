@@ -18,7 +18,7 @@ export default async function AdminUsuariosPage({ searchParams }: { searchParams
   ]);
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-6">
+    <main className="admin-saas-main min-h-screen px-3 py-4 lg:px-5">
       <div className="mx-auto max-w-6xl">
         <AdminPageHeader secret={secret} active="usuarios" title="Usuários admin e segurança" description="Perfis administrativos, sessões abertas e tentativas de login registradas." />
         <section className="mb-6 rounded-3xl bg-white p-5 shadow-xl">

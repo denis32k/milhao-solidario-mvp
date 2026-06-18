@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
@@ -6,7 +5,7 @@ import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { GRID_COLS, GRID_ROWS } from "@/lib/grid";
 import { getAreaName, siteConfig, type AreaKey } from "@/lib/site-config";
-import AdminNav from "@/components/admin/AdminNav";
+import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminLocked from "@/components/admin/AdminLocked";
 import { getAdminAccess } from "@/lib/admin";
 import { getAdminSession } from "@/lib/admin-auth";
@@ -834,19 +833,9 @@ export default async function AdminPage({ searchParams }: { searchParams: AdminS
   ].filter(Boolean);
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-6">
+    <main className="admin-saas-main min-h-screen px-3 py-4 lg:px-5">
       <div className="mx-auto max-w-5xl">
-        <Link href="/" className="mb-5 inline-flex rounded-full bg-white px-4 py-2 text-sm font-black text-slate-950 shadow">← Voltar ao mural</Link>
-
-        <section className="mb-6 rounded-3xl bg-slate-950 p-5 text-white shadow-xl">
-          <p className="text-xs font-black uppercase tracking-wide text-yellow-300">Painel admin</p>
-          <h1 className="mt-2 text-3xl font-black">Admin Mural 29</h1>
-          <p className="mt-2 text-sm leading-relaxed text-slate-300">
-            Compras, reservas, áreas do mural, Tom Delfim Moreira, moderação, testes e denúncias em um lugar só.
-          </p>
-        </section>
-
-        <AdminNav secret={secret} active="dashboard" />
+        <AdminPageHeader secret={secret} active="dashboard" title="Dashboard" description="Visão geral compacta das vendas, reservas, pagamentos, moderação e saúde operacional do Mural29." />
 
         <section id="dashboard" className="mb-6 space-y-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

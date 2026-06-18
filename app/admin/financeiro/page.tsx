@@ -132,7 +132,7 @@ export default async function AdminFinanceiroPage({ searchParams }: { searchPara
   const exportQuery = `type=financial&from=${encodeURIComponent(fromParam)}&to=${encodeURIComponent(toParam)}${area ? `&area=${encodeURIComponent(area)}` : ""}${status ? `&status=${encodeURIComponent(status)}` : ""}${secret ? `&secret=${encodeURIComponent(secret)}` : ""}`;
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-6">
+    <main className="admin-saas-main min-h-screen px-3 py-4 lg:px-5">
       <div className="mx-auto max-w-7xl">
         <AdminPageHeader secret={secret} active="financeiro" title="Financeiro" description="Conferência de vendas, pagamentos, reservas perdidas, ticket médio e saúde financeira do Mural29." />
 
