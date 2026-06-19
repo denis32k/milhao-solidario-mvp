@@ -14,36 +14,6 @@ type RankingUser = {
   };
 };
 
-const podiumVisuals = {
-  1: {
-    medalSrc: "/hall-medal-1.png",
-    position: "1º lugar",
-    ribbon: "from-[#f7d36a] via-[#d28c08] to-[#9b5a00]",
-    border: "border-amber-300",
-    glow: "shadow-[0_18px_50px_rgba(217,119,6,0.18)]",
-    chip: "bg-amber-50 text-amber-800 border-amber-200",
-    size: "large" as const,
-  },
-  2: {
-    medalSrc: "/hall-medal-2.png",
-    position: "2º lugar",
-    ribbon: "from-slate-300 via-slate-600 to-slate-900",
-    border: "border-slate-300",
-    glow: "shadow-[0_16px_44px_rgba(100,116,139,0.18)]",
-    chip: "bg-slate-50 text-slate-700 border-slate-200",
-    size: "medium" as const,
-  },
-  3: {
-    medalSrc: "/hall-medal-3.png",
-    position: "3º lugar",
-    ribbon: "from-[#d7a17a] via-[#a64a14] to-[#6a2808]",
-    border: "border-orange-300",
-    glow: "shadow-[0_16px_44px_rgba(194,65,12,0.18)]",
-    chip: "bg-orange-50 text-orange-700 border-orange-200",
-    size: "small" as const,
-  },
-};
-
 function money(cents: number) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -51,7 +21,8 @@ function money(cents: number) {
   }).format(cents / 100);
 }
 
-function publicLabel(user: Pick<RankingUser, "publicName" | "name">) {
+function publicLabel(user?: Pick<RankingUser, "publicName" | "name"> | null) {
+  if (!user) return "";
   return user.publicName?.trim() || user.name;
 }
 
@@ -79,7 +50,7 @@ async function getRanking(): Promise<RankingUser[]> {
       orderBy: {
         totalApprovedCents: "desc",
       },
-      take: 100,
+      take: 200,
     });
 
     return users;
@@ -89,202 +60,179 @@ async function getRanking(): Promise<RankingUser[]> {
   }
 }
 
-function PodiumCard({ user, position }: { user: RankingUser; position: 1 | 2 | 3 }) {
-  const visual = podiumVisuals[position];
-  const isLarge = visual.size === "large";
-  const isMedium = visual.size === "medium";
+function HeroName({
+  user,
+  className,
+  tone,
+}: {
+  user?: RankingUser;
+  className: string;
+  tone: "gold" | "silver" | "bronze";
+}) {
+  const toneClass = {
+    gold: "text-[#3d2500] drop-shadow-[0_1px_0_rgba(255,255,255,0.45)]",
+    silver: "text-[#192235] drop-shadow-[0_1px_0_rgba(255,255,255,0.50)]",
+    bronze: "text-[#2d1407] drop-shadow-[0_1px_0_rgba(255,226,190,0.35)]",
+  }[tone];
 
-  const layout = isLarge
-    ? {
-        wrap: "h-[138px] sm:h-[156px] max-w-[1040px]",
-        medal: "h-[116px] w-[116px] sm:h-[140px] sm:w-[140px]",
-        ribbon: "left-[74px] h-[70px] sm:left-[92px] sm:h-[82px]",
-        content: "left-[132px] right-12 sm:left-[168px] sm:right-20",
-        title: "text-xl sm:text-3xl",
-        amount: "text-sm sm:text-base",
-      }
-    : isMedium
-      ? {
-          wrap: "h-[118px] sm:h-[134px] max-w-[880px]",
-          medal: "h-[96px] w-[96px] sm:h-[116px] sm:w-[116px]",
-          ribbon: "left-[62px] h-[62px] sm:left-[76px] sm:h-[70px]",
-          content: "left-[112px] right-10 sm:left-[140px] sm:right-16",
-          title: "text-lg sm:text-2xl",
-          amount: "text-xs sm:text-sm",
-        }
-      : {
-          wrap: "h-[104px] sm:h-[120px] max-w-[740px]",
-          medal: "h-[84px] w-[84px] sm:h-[102px] sm:w-[102px]",
-          ribbon: "left-[54px] h-[56px] sm:left-[68px] sm:h-[64px]",
-          content: "left-[98px] right-8 sm:left-[124px] sm:right-14",
-          title: "text-base sm:text-xl",
-          amount: "text-xs sm:text-sm",
-        };
+  if (!user) return null;
 
   return (
-    <article className={`relative w-full ${layout.wrap}`}>
-      <div
-        className={`absolute bottom-0 top-0 my-auto rounded-l-[24px] bg-gradient-to-r ${visual.ribbon} ${layout.ribbon} right-0 shadow-[0_14px_34px_rgba(15,23,42,0.18)]`}
-        style={{ clipPath: "polygon(0 0, calc(100% - 42px) 0, 100% 50%, calc(100% - 42px) 100%, 0 100%)" }}
-      />
+    <div className={`absolute z-20 -translate-x-1/2 -translate-y-1/2 text-center ${className}`}>
+      <p className={`truncate font-black uppercase tracking-[0.04em] ${toneClass}`}>
+        {publicLabel(user)}
+      </p>
+    </div>
+  );
+}
 
-      <div className={`absolute left-0 top-1/2 z-20 -translate-y-1/2 ${layout.medal}`}>
-        <Image
-          src={visual.medalSrc}
-          alt={visual.position}
-          fill
-          className="object-contain drop-shadow-[0_14px_20px_rgba(15,23,42,0.28)]"
-          sizes="150px"
-        />
-      </div>
+function HeroValue({
+  user,
+  className,
+}: {
+  user?: RankingUser;
+  className: string;
+}) {
+  if (!user) return null;
 
-      <div className={`absolute top-1/2 z-30 -translate-y-1/2 ${layout.content}`}>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className={`inline-flex rounded-full border bg-white/95 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${visual.chip}`}>
-            {visual.position}
-          </span>
-          {position === 1 && (
-            <span className="hidden rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-amber-800 sm:inline-flex">
-              Maior destaque
-            </span>
-          )}
+  return (
+    <div className={`absolute z-20 -translate-x-1/2 -translate-y-1/2 text-center ${className}`}>
+      <p className="truncate font-black tracking-[0.04em] text-[#f8d981] drop-shadow-[0_2px_5px_rgba(0,0,0,0.65)]">
+        {money(user.totalApprovedCents)}
+      </p>
+    </div>
+  );
+}
+
+function VipRow({ user, position }: { user: RankingUser; position: number }) {
+  return (
+    <article className="group relative overflow-hidden rounded-3xl border border-amber-300/18 bg-white/[0.045] p-4 shadow-[0_18px_42px_rgba(0,0,0,0.18)] ring-1 ring-white/[0.04] transition hover:-translate-y-0.5 hover:bg-white/[0.07]">
+      <div className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-amber-200 via-amber-500 to-orange-700" />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-amber-300/25 bg-amber-300/12 text-sm font-black text-amber-100 shadow-inner">
+            #{position}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-lg font-black text-white">{publicLabel(user)}</p>
+            <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-400">
+              Lista VIP • {user._count.ownedBlocks} tijolinho(s)
+            </p>
+          </div>
         </div>
 
-        <h2 className={`mt-1 truncate font-black leading-tight text-white drop-shadow-sm ${layout.title}`}>
-          {publicLabel(user)}
-        </h2>
-
-        <div className="mt-1 flex flex-wrap items-center gap-2">
-          <p className={`font-black text-white/95 ${layout.amount}`}>{money(user.totalApprovedCents)}</p>
-          <span className="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-black text-slate-700">
-            {user._count.ownedBlocks} tijolinho(s)
-          </span>
-        </div>
+        <p className="shrink-0 text-lg font-black text-amber-100">{money(user.totalApprovedCents)}</p>
       </div>
     </article>
+  );
+}
+
+function RemainingRow({ user, position }: { user: RankingUser; position: number }) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-white/8 px-4 py-4 last:border-b-0 sm:px-5">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-black text-white sm:text-base">
+          {position}º • {publicLabel(user)}
+        </p>
+        <p className="mt-0.5 text-xs font-semibold text-slate-400">
+          {user._count.ownedBlocks} tijolinho(s)
+        </p>
+      </div>
+      <p className="shrink-0 text-sm font-black text-slate-200 sm:text-base">
+        {money(user.totalApprovedCents)}
+      </p>
+    </div>
   );
 }
 
 export default async function RankingPage() {
   const ranking = await getRanking();
 
-  const topThree = ranking.slice(0, 3);
+  const first = ranking[0];
+  const second = ranking[1];
+  const third = ranking[2];
   const vip = ranking.slice(3, 10);
   const remaining = ranking.slice(10);
 
   return (
-    <main className="min-h-screen bg-[#f4f7fb] px-4 py-6 sm:px-5">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <Link href="/" className="inline-flex rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-950 shadow-sm transition hover:-translate-y-0.5 hover:shadow">
-            ← Voltar ao mural
+    <main className="min-h-screen bg-[#010D23] text-white">
+      <section className="relative mx-auto w-full max-w-[1600px] overflow-hidden bg-[#010D23]">
+        <div className="relative aspect-[2/1] min-h-[330px] w-full">
+          <Image
+            src="/hall-fame-hero.jpg"
+            alt="Hall da Fama Mural29"
+            fill
+            priority
+            className="object-cover"
+            sizes="100vw"
+          />
+
+          <Link
+            href="/"
+            aria-label="Voltar ao mural"
+            className="absolute left-3 top-3 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/35 text-xl font-black text-white shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur transition hover:bg-black/55 sm:left-5 sm:top-5"
+          >
+            ←
           </Link>
 
-          <Link href="/comprar" className="inline-flex rounded-full bg-slate-950 px-5 py-2.5 text-sm font-black text-white shadow transition hover:-translate-y-0.5 hover:bg-slate-900">
-            Comprar meu tijolinho
-          </Link>
+          <HeroName user={second} tone="silver" className="left-[23.8%] top-[61.5%] w-[17%] text-[clamp(8px,1.05vw,16px)]" />
+          <HeroName user={first} tone="gold" className="left-[50%] top-[61.5%] w-[19%] text-[clamp(9px,1.18vw,18px)]" />
+          <HeroName user={third} tone="bronze" className="left-[76.2%] top-[61.5%] w-[17%] text-[clamp(8px,1.05vw,16px)]" />
+
+          <HeroValue user={second} className="left-[23.8%] top-[83.5%] w-[18%] text-[clamp(8px,1vw,15px)]" />
+          <HeroValue user={first} className="left-[50%] top-[83.5%] w-[20%] text-[clamp(9px,1.08vw,16px)]" />
+          <HeroValue user={third} className="left-[76.2%] top-[83.5%] w-[18%] text-[clamp(8px,1vw,15px)]" />
         </div>
+      </section>
 
-        <section className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-          <div className="bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.16),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.10),_transparent_30%)] px-5 py-6 sm:px-8 sm:py-8">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-600">Hall da Fama</p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">Os nomes que estão construindo o Mural29</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600 sm:text-base">
-              Aqui ficam os compradores em maior destaque do projeto. Os três primeiros recebem posição de honra. Do 4º ao 10º entram na lista VIP.
-            </p>
-          </div>
-        </section>
+      <section className="relative border-y border-amber-300/20 bg-[#010D23]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(251,191,36,0.16),_transparent_48%)]" />
+        <div className="relative mx-auto flex min-h-20 max-w-6xl items-center justify-center px-4 py-5">
+          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-300/60 to-amber-300/20" />
+          <h1 className="px-5 text-center font-serif text-2xl font-black uppercase tracking-[0.26em] text-amber-100 drop-shadow-[0_0_18px_rgba(251,191,36,0.22)] sm:text-4xl">
+            Lista VIP
+          </h1>
+          <div className="h-px flex-1 bg-gradient-to-r from-amber-300/20 via-amber-300/60 to-transparent" />
+        </div>
+      </section>
 
-        {ranking.length === 0 && (
-          <section className="mt-6 rounded-[32px] border border-slate-200 bg-white p-8 text-center shadow-sm">
-            <div className="text-5xl">🏆</div>
-            <h2 className="mt-4 text-2xl font-black text-slate-950">O Hall da Fama ainda está vazio</h2>
-            <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate-500 sm:text-base">
-              Assim que as primeiras compras aprovadas entrarem no mural, os destaques aparecem aqui automaticamente.
-            </p>
-          </section>
-        )}
+      <section className="bg-[#010D23] px-4 py-7 sm:px-5 sm:py-9">
+        <div className="mx-auto max-w-5xl">
+          {ranking.length === 0 && (
+            <div className="rounded-[32px] border border-white/10 bg-white/[0.04] p-8 text-center shadow-[0_20px_60px_rgba(0,0,0,0.22)]">
+              <h2 className="text-2xl font-black text-white">O Hall da Fama ainda está vazio</h2>
+              <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate-300">
+                Assim que as primeiras compras aprovadas entrarem no mural, os destaques aparecem aqui automaticamente.
+              </p>
+            </div>
+          )}
 
-        {topThree.length > 0 && (
-          <section className="mt-6 space-y-4">
-            {topThree[0] && (
-              <div className="w-full">
-                <PodiumCard user={topThree[0]} position={1} />
+          {vip.length > 0 && (
+            <div className="space-y-3">
+              {vip.map((user, index) => (
+                <VipRow key={user.id} user={user} position={index + 4} />
+              ))}
+            </div>
+          )}
+
+          {remaining.length > 0 && (
+            <section className="mt-8 overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-b from-white/[0.045] via-white/[0.035] to-transparent shadow-[0_22px_70px_rgba(0,0,0,0.2)]">
+              <div className="border-b border-white/10 px-4 py-5 sm:px-5">
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
+                  Ranking completo
+                </p>
+                <h2 className="mt-1 text-2xl font-black text-white">Restante da lista</h2>
               </div>
-            )}
 
-            {topThree[1] && (
-              <div className="w-full sm:max-w-[92%] lg:max-w-[84%]">
-                <PodiumCard user={topThree[1]} position={2} />
-              </div>
-            )}
-
-            {topThree[2] && (
-              <div className="w-full sm:max-w-[86%] lg:max-w-[72%]">
-                <PodiumCard user={topThree[2]} position={3} />
-              </div>
-            )}
-          </section>
-        )}
-
-        {vip.length > 0 && (
-          <section className="mt-8 overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-5 sm:px-6">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Lista VIP</p>
-                <h2 className="mt-1 text-2xl font-black text-slate-950">4º ao 10º lugar</h2>
+                {remaining.map((user, index) => (
+                  <RemainingRow key={user.id} user={user} position={index + 11} />
+                ))}
               </div>
-              <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">Top 10 oficial</span>
-            </div>
-
-            <div className="divide-y divide-slate-100">
-              {vip.map((user, index) => {
-                const position = index + 4;
-                return (
-                  <div key={user.id} className="flex flex-col gap-3 px-5 py-4 sm:px-6 md:flex-row md:items-center md:justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-sm font-black text-slate-700">#{position}</div>
-                      <div>
-                        <p className="text-base font-black text-slate-950">{publicLabel(user)}</p>
-                        <p className="text-xs font-semibold text-slate-500">{user._count.ownedBlocks} tijolinho(s)</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 md:gap-3">
-                      <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-black text-slate-600">Lista VIP</span>
-                      <p className="text-lg font-black text-slate-900">{money(user.totalApprovedCents)}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {remaining.length > 0 && (
-          <section className="mt-8 overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Ranking completo</p>
-              <h2 className="mt-1 text-2xl font-black text-slate-950">Demais posições</h2>
-            </div>
-
-            <div className="divide-y divide-slate-100">
-              {remaining.map((user, index) => {
-                const position = index + 11;
-                return (
-                  <div key={user.id} className="flex items-center justify-between gap-3 px-5 py-4 sm:px-6">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-black text-slate-950 sm:text-base">{position}º • {publicLabel(user)}</p>
-                      <p className="text-xs font-semibold text-slate-500">{user._count.ownedBlocks} tijolinho(s)</p>
-                    </div>
-                    <p className="shrink-0 text-sm font-black text-slate-800 sm:text-base">{money(user.totalApprovedCents)}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-      </div>
+            </section>
+          )}
+        </div>
+      </section>
     </main>
   );
 }
