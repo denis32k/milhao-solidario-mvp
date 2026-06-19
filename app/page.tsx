@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createHash } from "crypto";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { getOperationalSettings } from "@/lib/system-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,9 @@ function getVisitorIpHash(headersList: Headers) {
 
 async function shouldRedirectToPurchaseTutorial() {
   try {
+    const settings = await getOperationalSettings();
+    if (!settings.purchaseTutorialEnabled) return false;
+
     const cookieStore = await cookies();
     if (cookieStore.get("mural29_purchase_tutorial_seen")?.value === "1") return false;
 

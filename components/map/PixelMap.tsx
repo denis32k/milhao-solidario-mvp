@@ -288,6 +288,8 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
   const lastPointerRef = useRef({ x: 0, y: 0 });
   const pinchStartRef = useRef<PinchStart | null>(null);
   const focusedBlockFromUrlRef = useRef(false);
+  const tutorialBlocksRef = useRef<SelectedBlock[]>([]);
+  const continueButtonRef = useRef<HTMLAnchorElement | null>(null);
 
   const [selectedSheet, setSelectedSheet] = useState<SelectedSheet>(null);
   const [mapBlocks, setMapBlocks] = useState<ApiMapBlock[]>([]);
@@ -512,11 +514,16 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
     if (!tutorialVisible || !isPurchaseMode || isLoadingBlocks) return;
 
     if (tutorialStep === 0) {
+      tutorialBlocksRef.current = [];
       setSelectedBlocks([]);
       return;
     }
 
-    const demoBlocks = getTutorialSelectionBlocks();
+    if (tutorialBlocksRef.current.length === 0) {
+      tutorialBlocksRef.current = getTutorialSelectionBlocks();
+    }
+
+    const demoBlocks = tutorialBlocksRef.current;
     focusTutorialBlocks(demoBlocks);
 
     if (tutorialStep === 2) {
@@ -534,7 +541,7 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
     }, 650);
 
     return () => window.clearInterval(interval);
-  }, [tutorialVisible, tutorialStep, isPurchaseMode, isLoadingBlocks, mapBlocks]);
+  }, [tutorialVisible, tutorialStep, isPurchaseMode, isLoadingBlocks]);
 
   useEffect(() => {
     let isAlive = true;
@@ -884,6 +891,30 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
     };
   }
 
+  function getTutorialBubbleStyle() {
+    const safeWidth = typeof window === "undefined" ? 360 : window.innerWidth;
+    const safeHeight = typeof window === "undefined" ? 720 : window.innerHeight;
+    const width = 220;
+
+    if (tutorialStep === 1 && selectedBlocks.length > 0) {
+      const anchor = getCellScreenAnchor(selectedBlocks[0].gridX, selectedBlocks[0].gridY);
+      if (anchor) {
+        const left = clamp(anchor.x + 34, 12, safeWidth - width - 12);
+        const top = clamp(anchor.y - 38, 86, safeHeight - 180);
+        return { left, top, width };
+      }
+    }
+
+    if (tutorialStep === 2 && continueButtonRef.current) {
+      const rect = continueButtonRef.current.getBoundingClientRect();
+      const left = clamp(rect.left + rect.width / 2 - width / 2, 12, safeWidth - width - 12);
+      const top = clamp(rect.top - 96, 86, safeHeight - 170);
+      return { left, top, width };
+    }
+
+    return { left: Math.max(12, safeWidth / 2 - width / 2), top: 8, width };
+  }
+
   function selectBlock(gridX: number, gridY: number, category: BlockCategory, clientX: number, clientY: number) {
 
     const soldBlock = getMapBlockAt(gridX, gridY);
@@ -1116,59 +1147,64 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
     >
       <canvas ref={canvasRef} className="block h-full w-full" />
 
-      {tutorialVisible && (
-        <div
-          className={`absolute inset-0 z-[998] p-3 ${
-            tutorialStep === 0 ? "flex items-start justify-center" : tutorialStep === 1 ? "flex items-start justify-end" : "flex items-end justify-center pb-24"
-          }`}
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation();
-            advancePurchaseTutorial();
-          }}
-        >
-          <div className="relative max-w-[260px] rounded-2xl border border-slate-200 bg-white px-3 py-3 text-center shadow-2xl">
-            {tutorialStep === 0 && <div className="absolute -top-3 left-1/2 h-6 w-6 -translate-x-1/2 rotate-45 rounded-sm bg-white ring-1 ring-slate-200" />}
-            {tutorialStep === 1 && <div className="absolute -left-3 top-1/2 h-6 w-6 -translate-y-1/2 rotate-45 rounded-sm bg-white ring-1 ring-slate-200" />}
-            {tutorialStep === 2 && <div className="absolute -bottom-3 left-1/2 h-6 w-6 -translate-x-1/2 rotate-45 rounded-sm bg-white ring-1 ring-slate-200" />}
+      {tutorialVisible && (() => {
+        const bubbleStyle = getTutorialBubbleStyle();
 
-            <div className="relative z-10">
-              <p className="text-[10px] font-black uppercase tracking-wide text-orange-600">{tutorialStep + 1}/3</p>
-              <h2 className="mt-1 text-sm font-black text-slate-950">
-                {tutorialStep === 0 && "Clique aqui para comprar"}
-                {tutorialStep === 1 && "Selecione seus tijolinhos"}
-                {tutorialStep === 2 && "Clique em Continuar"}
-              </h2>
+        return (
+          <div
+            className="fixed inset-0 z-[998]"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              advancePurchaseTutorial();
+            }}
+          >
+            <div
+              className="fixed rounded-2xl border border-slate-200 bg-white px-3 py-2 text-center shadow-2xl"
+              style={bubbleStyle}
+            >
+              {tutorialStep === 0 && <div className="absolute -top-2 left-1/2 h-4 w-4 -translate-x-1/2 rotate-45 rounded-sm bg-white ring-1 ring-slate-200" />}
+              {tutorialStep === 1 && <div className="absolute -left-2 top-1/2 h-4 w-4 -translate-y-1/2 rotate-45 rounded-sm bg-white ring-1 ring-slate-200" />}
+              {tutorialStep === 2 && <div className="absolute -bottom-2 left-1/2 h-4 w-4 -translate-x-1/2 rotate-45 rounded-sm bg-white ring-1 ring-slate-200" />}
 
-              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-                {tutorialStep > 0 && (
+              <div className="relative z-10">
+                <p className="text-[9px] font-black uppercase tracking-wide text-orange-600">{tutorialStep + 1}/3</p>
+                <h2 className="mt-0.5 text-sm font-black text-slate-950">
+                  {tutorialStep === 0 && "Clique aqui para comprar"}
+                  {tutorialStep === 1 && "Selecione seus tijolinhos"}
+                  {tutorialStep === 2 && "Clique em Continuar"}
+                </h2>
+
+                <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+                  {tutorialStep > 0 && (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        backPurchaseTutorial();
+                      }}
+                      className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-black text-slate-700"
+                    >
+                      Voltar
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
-                      backPurchaseTutorial();
+                      closePurchaseTutorial();
                     }}
-                    className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-black text-slate-700"
+                    className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-black text-slate-700"
                   >
-                    Voltar
+                    Pular
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    closePurchaseTutorial();
-                  }}
-                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-black text-slate-700"
-                >
-                  Pular
-                </button>
-                <span className="rounded-full bg-slate-950 px-3 py-1.5 text-[11px] font-black text-white">Avançar</span>
+                  <span className="rounded-full bg-slate-950 px-2.5 py-1 text-[10px] font-black text-white">Avançar</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       <div
         className="absolute right-3 top-24 z-40 hidden flex-col gap-2 md:flex"
@@ -1245,6 +1281,7 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
 
               {canContinue ? (
                 <a
+                  ref={continueButtonRef}
                   href={buildCheckoutHref(selectedBlocks)}
                   onPointerDown={(event) => event.stopPropagation()}
                   onClick={(event) => event.stopPropagation()}

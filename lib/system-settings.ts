@@ -13,6 +13,7 @@ export type OperationalSettings = {
   maxImageMb: number;
   perIpLimitPerDay: number;
   perCustomerLimitPerDay: number;
+  purchaseTutorialEnabled: boolean;
 };
 
 export const DEFAULT_OPERATIONAL_SETTINGS: OperationalSettings = {
@@ -28,6 +29,7 @@ export const DEFAULT_OPERATIONAL_SETTINGS: OperationalSettings = {
   maxImageMb: 5,
   perIpLimitPerDay: 0,
   perCustomerLimitPerDay: 0,
+  purchaseTutorialEnabled: true,
 };
 
 function asBoolean(value: unknown, fallback: boolean) {
@@ -62,6 +64,7 @@ export function normalizeOperationalSettings(value: any): OperationalSettings {
     maxImageMb: asNumber(source.maxImageMb, DEFAULT_OPERATIONAL_SETTINGS.maxImageMb, 1, 20),
     perIpLimitPerDay: asNumber(source.perIpLimitPerDay, DEFAULT_OPERATIONAL_SETTINGS.perIpLimitPerDay, 0, 500),
     perCustomerLimitPerDay: asNumber(source.perCustomerLimitPerDay, DEFAULT_OPERATIONAL_SETTINGS.perCustomerLimitPerDay, 0, 500),
+    purchaseTutorialEnabled: asBoolean(source.purchaseTutorialEnabled, DEFAULT_OPERATIONAL_SETTINGS.purchaseTutorialEnabled),
   };
 }
 
