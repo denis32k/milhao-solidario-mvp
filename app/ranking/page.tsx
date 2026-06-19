@@ -94,41 +94,71 @@ function PodiumCard({ user, position }: { user: RankingUser; position: 1 | 2 | 3
   const isLarge = visual.size === "large";
   const isMedium = visual.size === "medium";
 
-  const medalBox = isLarge
-    ? "h-28 w-28 sm:h-32 sm:w-32"
+  const layout = isLarge
+    ? {
+        wrap: "h-[138px] sm:h-[156px] max-w-[1040px]",
+        medal: "h-[116px] w-[116px] sm:h-[140px] sm:w-[140px]",
+        ribbon: "left-[74px] h-[70px] sm:left-[92px] sm:h-[82px]",
+        content: "left-[132px] right-12 sm:left-[168px] sm:right-20",
+        title: "text-xl sm:text-3xl",
+        amount: "text-sm sm:text-base",
+      }
     : isMedium
-      ? "h-24 w-24 sm:h-28 sm:w-28"
-      : "h-20 w-20 sm:h-24 sm:w-24";
-
-  const leftPad = isLarge ? "pl-24 sm:pl-28" : isMedium ? "pl-20 sm:pl-24" : "pl-[4.5rem] sm:pl-20";
-  const cardHeight = isLarge ? "min-h-[164px] sm:min-h-[188px]" : isMedium ? "min-h-[148px] sm:min-h-[162px]" : "min-h-[140px] sm:min-h-[154px]";
-  const titleSize = isLarge ? "text-2xl sm:text-3xl" : isMedium ? "text-xl sm:text-2xl" : "text-lg sm:text-xl";
+      ? {
+          wrap: "h-[118px] sm:h-[134px] max-w-[880px]",
+          medal: "h-[96px] w-[96px] sm:h-[116px] sm:w-[116px]",
+          ribbon: "left-[62px] h-[62px] sm:left-[76px] sm:h-[70px]",
+          content: "left-[112px] right-10 sm:left-[140px] sm:right-16",
+          title: "text-lg sm:text-2xl",
+          amount: "text-xs sm:text-sm",
+        }
+      : {
+          wrap: "h-[104px] sm:h-[120px] max-w-[740px]",
+          medal: "h-[84px] w-[84px] sm:h-[102px] sm:w-[102px]",
+          ribbon: "left-[54px] h-[56px] sm:left-[68px] sm:h-[64px]",
+          content: "left-[98px] right-8 sm:left-[124px] sm:right-14",
+          title: "text-base sm:text-xl",
+          amount: "text-xs sm:text-sm",
+        };
 
   return (
-    <article className={`relative overflow-hidden rounded-[30px] border bg-white ${visual.border} ${visual.glow} ${cardHeight}`}>
-      <div className={`absolute inset-x-3 top-1/2 h-[58px] -translate-y-1/2 rounded-r-full bg-gradient-to-r ${visual.ribbon} opacity-95 sm:inset-x-4 sm:h-[68px]`} />
-      <div className={`absolute left-2 top-1/2 -translate-y-1/2 ${medalBox} sm:left-3`}>
-        <Image src={visual.medalSrc} alt={visual.position} fill className="object-contain drop-shadow-[0_12px_20px_rgba(15,23,42,0.24)]" sizes="140px" />
+    <article className={`relative w-full ${layout.wrap}`}>
+      <div
+        className={`absolute bottom-0 top-0 my-auto rounded-l-[24px] bg-gradient-to-r ${visual.ribbon} ${layout.ribbon} right-0 shadow-[0_14px_34px_rgba(15,23,42,0.18)]`}
+        style={{ clipPath: "polygon(0 0, calc(100% - 42px) 0, 100% 50%, calc(100% - 42px) 100%, 0 100%)" }}
+      />
+
+      <div className={`absolute left-0 top-1/2 z-20 -translate-y-1/2 ${layout.medal}`}>
+        <Image
+          src={visual.medalSrc}
+          alt={visual.position}
+          fill
+          className="object-contain drop-shadow-[0_14px_20px_rgba(15,23,42,0.28)]"
+          sizes="150px"
+        />
       </div>
 
-      <div className={`relative z-10 flex h-full flex-col justify-center gap-2 py-5 pr-4 ${leftPad} sm:pr-6`}>
+      <div className={`absolute top-1/2 z-30 -translate-y-1/2 ${layout.content}`}>
         <div className="flex flex-wrap items-center gap-2">
-          <span className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] ${visual.chip}`}>
+          <span className={`inline-flex rounded-full border bg-white/95 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${visual.chip}`}>
             {visual.position}
           </span>
-          <span className="text-[11px] font-black uppercase tracking-[0.16em] text-white/90 sm:text-xs">
-            Hall da Fama
+          {position === 1 && (
+            <span className="hidden rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-amber-800 sm:inline-flex">
+              Maior destaque
+            </span>
+          )}
+        </div>
+
+        <h2 className={`mt-1 truncate font-black leading-tight text-white drop-shadow-sm ${layout.title}`}>
+          {publicLabel(user)}
+        </h2>
+
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <p className={`font-black text-white/95 ${layout.amount}`}>{money(user.totalApprovedCents)}</p>
+          <span className="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-black text-slate-700">
+            {user._count.ownedBlocks} tijolinho(s)
           </span>
-        </div>
-
-        <div>
-          <h2 className={`font-black leading-tight text-white ${titleSize}`}>{publicLabel(user)}</h2>
-          <p className="mt-1 text-sm font-bold text-white/90 sm:text-base">{money(user.totalApprovedCents)}</p>
-        </div>
-
-        <div className="flex flex-wrap gap-2 text-[11px] font-bold text-slate-600 sm:text-xs">
-          <span className="rounded-full bg-white/92 px-3 py-1">{user._count.ownedBlocks} tijolinho(s)</span>
-          <span className="rounded-full bg-white/92 px-3 py-1">Destaque oficial</span>
         </div>
       </div>
     </article>
