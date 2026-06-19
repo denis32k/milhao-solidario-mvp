@@ -179,9 +179,9 @@ export default async function RankingPage() {
           <HeroName user={first} tone="gold" className="left-[50%] top-[85.3%] w-[17.4%] text-[clamp(7px,0.76vw,12px)]" />
           <HeroName user={third} tone="bronze" className="left-[76.2%] top-[85.0%] w-[15.6%] text-[clamp(7px,0.72vw,11px)]" />
 
-          <HeroValue user={second} className="left-[23.8%] top-[90.6%] w-[16%] text-[clamp(8px,0.88vw,14px)]" />
-          <HeroValue user={first} className="left-[50%] top-[90.6%] w-[18%] text-[clamp(9px,0.94vw,15px)]" />
-          <HeroValue user={third} className="left-[76.2%] top-[90.6%] w-[16%] text-[clamp(8px,0.88vw,14px)]" />
+          <HeroValue user={second} className="left-[23.8%] top-[96.1%] w-[16.5%] text-[clamp(8px,0.82vw,13px)]" />
+          <HeroValue user={first} className="left-[50%] top-[96.2%] w-[18.5%] text-[clamp(9px,0.86vw,14px)]" />
+          <HeroValue user={third} className="left-[76.2%] top-[96.1%] w-[16.5%] text-[clamp(8px,0.82vw,13px)]" />
         </div>
       </section>
 
