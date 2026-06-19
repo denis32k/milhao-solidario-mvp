@@ -175,13 +175,13 @@ export default async function RankingPage() {
             ←
           </Link>
 
-          <HeroName user={second} tone="silver" className="left-[23.8%] top-[61.5%] w-[17%] text-[clamp(8px,1.05vw,16px)]" />
-          <HeroName user={first} tone="gold" className="left-[50%] top-[61.5%] w-[19%] text-[clamp(9px,1.18vw,18px)]" />
-          <HeroName user={third} tone="bronze" className="left-[76.2%] top-[61.5%] w-[17%] text-[clamp(8px,1.05vw,16px)]" />
+          <HeroName user={second} tone="silver" className="left-[23.8%] top-[73.8%] w-[19%] text-[clamp(8px,0.95vw,15px)]" />
+          <HeroName user={first} tone="gold" className="left-[50%] top-[74.1%] w-[21%] text-[clamp(9px,1.05vw,17px)]" />
+          <HeroName user={third} tone="bronze" className="left-[76.2%] top-[73.8%] w-[19%] text-[clamp(8px,0.95vw,15px)]" />
 
-          <HeroValue user={second} className="left-[23.8%] top-[83.5%] w-[18%] text-[clamp(8px,1vw,15px)]" />
-          <HeroValue user={first} className="left-[50%] top-[83.5%] w-[20%] text-[clamp(9px,1.08vw,16px)]" />
-          <HeroValue user={third} className="left-[76.2%] top-[83.5%] w-[18%] text-[clamp(8px,1vw,15px)]" />
+          <HeroValue user={second} className="left-[23.8%] top-[90.6%] w-[16%] text-[clamp(8px,0.88vw,14px)]" />
+          <HeroValue user={first} className="left-[50%] top-[90.6%] w-[18%] text-[clamp(9px,0.94vw,15px)]" />
+          <HeroValue user={third} className="left-[76.2%] top-[90.6%] w-[16%] text-[clamp(8px,0.88vw,14px)]" />
         </div>
       </section>
 
