@@ -79,7 +79,7 @@ function HeroName({
 
   return (
     <div className={`absolute z-20 -translate-x-1/2 -translate-y-1/2 text-center ${className}`}>
-      <p className={`truncate font-black uppercase tracking-[0.04em] ${toneClass}`}>
+      <p className={`truncate font-black uppercase leading-none tracking-[0.08em] ${toneClass}`} style={{ textShadow: "0 1px 2px rgba(0,0,0,.35)" }}>
         {publicLabel(user)}
       </p>
     </div>
@@ -175,9 +175,9 @@ export default async function RankingPage() {
             ←
           </Link>
 
-          <HeroName user={second} tone="silver" className="left-[23.8%] top-[73.8%] w-[19%] text-[clamp(8px,0.95vw,15px)]" />
-          <HeroName user={first} tone="gold" className="left-[50%] top-[74.1%] w-[21%] text-[clamp(9px,1.05vw,17px)]" />
-          <HeroName user={third} tone="bronze" className="left-[76.2%] top-[73.8%] w-[19%] text-[clamp(8px,0.95vw,15px)]" />
+          <HeroName user={second} tone="silver" className="left-[23.8%] top-[79.2%] w-[16%] text-[clamp(8px,0.88vw,14px)]" />
+          <HeroName user={first} tone="gold" className="left-[50%] top-[79.4%] w-[18%] text-[clamp(9px,0.95vw,15px)]" />
+          <HeroName user={third} tone="bronze" className="left-[76.2%] top-[79.2%] w-[16%] text-[clamp(8px,0.88vw,14px)]" />
 
           <HeroValue user={second} className="left-[23.8%] top-[90.6%] w-[16%] text-[clamp(8px,0.88vw,14px)]" />
           <HeroValue user={first} className="left-[50%] top-[90.6%] w-[18%] text-[clamp(9px,0.94vw,15px)]" />
