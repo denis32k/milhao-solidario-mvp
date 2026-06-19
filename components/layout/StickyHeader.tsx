@@ -106,6 +106,7 @@ export default function StickyHeader({ ranking = [], active = "mural" }: StickyH
       </div>
 
       <Link
+        id="purchase-cta-bar"
         href="/comprar"
         className={`flex h-6 w-full items-center justify-center border-t border-slate-100 px-4 text-center text-[12px] font-black tracking-wide text-white transition ${isPurchase ? "bg-gradient-to-r from-orange-500 to-amber-500" : "bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 hover:brightness-105"}`}
       >

@@ -894,25 +894,35 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
   function getTutorialBubbleStyle() {
     const safeWidth = typeof window === "undefined" ? 360 : window.innerWidth;
     const safeHeight = typeof window === "undefined" ? 720 : window.innerHeight;
-    const width = 220;
+    const width = 190;
+
+    if (tutorialStep === 0) {
+      const cta = typeof document !== "undefined" ? document.getElementById("purchase-cta-bar") : null;
+      if (cta) {
+        const rect = cta.getBoundingClientRect();
+        const left = clamp(rect.left + rect.width / 2 - width / 2, 10, safeWidth - width - 10);
+        const top = clamp(rect.bottom + 8, 70, safeHeight - 150);
+        return { left, top, width };
+      }
+    }
 
     if (tutorialStep === 1 && selectedBlocks.length > 0) {
       const anchor = getCellScreenAnchor(selectedBlocks[0].gridX, selectedBlocks[0].gridY);
       if (anchor) {
-        const left = clamp(anchor.x + 34, 12, safeWidth - width - 12);
-        const top = clamp(anchor.y - 38, 86, safeHeight - 180);
+        const left = clamp(anchor.x - width / 2, 10, safeWidth - width - 10);
+        const top = clamp(anchor.y - 170, 88, safeHeight - 160);
         return { left, top, width };
       }
     }
 
     if (tutorialStep === 2 && continueButtonRef.current) {
       const rect = continueButtonRef.current.getBoundingClientRect();
-      const left = clamp(rect.left + rect.width / 2 - width / 2, 12, safeWidth - width - 12);
-      const top = clamp(rect.top - 96, 86, safeHeight - 170);
+      const left = clamp(rect.left + rect.width / 2 - width / 2, 10, safeWidth - width - 10);
+      const top = clamp(rect.top - 82, 88, safeHeight - 150);
       return { left, top, width };
     }
 
-    return { left: Math.max(12, safeWidth / 2 - width / 2), top: 8, width };
+    return { left: Math.max(10, safeWidth / 2 - width / 2), top: 8, width };
   }
 
   function selectBlock(gridX: number, gridY: number, category: BlockCategory, clientX: number, clientY: number) {
@@ -1160,22 +1170,22 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
             }}
           >
             <div
-              className="fixed rounded-2xl border border-slate-200 bg-white px-3 py-2 text-center shadow-2xl"
+              className="fixed rounded-2xl border border-slate-200 bg-white px-2.5 py-2 text-center shadow-2xl"
               style={bubbleStyle}
             >
               {tutorialStep === 0 && <div className="absolute -top-2 left-1/2 h-4 w-4 -translate-x-1/2 rotate-45 rounded-sm bg-white ring-1 ring-slate-200" />}
-              {tutorialStep === 1 && <div className="absolute -left-2 top-1/2 h-4 w-4 -translate-y-1/2 rotate-45 rounded-sm bg-white ring-1 ring-slate-200" />}
+              {tutorialStep === 1 && <div className="absolute -bottom-2 left-1/2 h-4 w-4 -translate-x-1/2 rotate-45 rounded-sm bg-white ring-1 ring-slate-200" />}
               {tutorialStep === 2 && <div className="absolute -bottom-2 left-1/2 h-4 w-4 -translate-x-1/2 rotate-45 rounded-sm bg-white ring-1 ring-slate-200" />}
 
               <div className="relative z-10">
-                <p className="text-[9px] font-black uppercase tracking-wide text-orange-600">{tutorialStep + 1}/3</p>
-                <h2 className="mt-0.5 text-sm font-black text-slate-950">
+                <p className="text-[9px] font-black uppercase leading-none tracking-wide text-orange-600">{tutorialStep + 1}/3</p>
+                <h2 className="mt-1 text-[13px] font-black leading-tight text-slate-950">
                   {tutorialStep === 0 && "Clique aqui para comprar"}
                   {tutorialStep === 1 && "Selecione seus tijolinhos"}
                   {tutorialStep === 2 && "Clique em Continuar"}
                 </h2>
 
-                <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+                <div className="mt-2 flex flex-wrap items-center justify-center gap-1">
                   {tutorialStep > 0 && (
                     <button
                       type="button"
@@ -1183,7 +1193,7 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
                         event.stopPropagation();
                         backPurchaseTutorial();
                       }}
-                      className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-black text-slate-700"
+                      className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-black text-slate-700"
                     >
                       Voltar
                     </button>
@@ -1194,11 +1204,11 @@ export default function PixelMap({ mode = "official" }: { mode?: PixelMapMode })
                       event.stopPropagation();
                       closePurchaseTutorial();
                     }}
-                    className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-black text-slate-700"
+                    className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-black text-slate-700"
                   >
                     Pular
                   </button>
-                  <span className="rounded-full bg-slate-950 px-2.5 py-1 text-[10px] font-black text-white">Avançar</span>
+                  <span className="rounded-full bg-slate-950 px-2 py-1 text-[10px] font-black text-white">Avançar</span>
                 </div>
               </div>
             </div>
